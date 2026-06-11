@@ -9,3 +9,4 @@ python-multipart>=0.0.9
 slowapi>=0.1.9
 sentry-sdk[fastapi]>=2.0.0
 structlog>=24.0.0
+email-validator>=2.1.0
