@@ -9,20 +9,47 @@ import type {
   ApiError,
 } from './types';
 
+// ─── Base URL Resolution ──────────────────────────────────────────────────────
+// Hard-coded fallback ensures production works even if the Vercel env var is
+// not configured. NEXT_PUBLIC_* vars MUST be set at build time; they are NOT
+// read from .env.local in CI/Vercel — you must add them in the Vercel dashboard.
+const PRODUCTION_API_URL = 'https://collabo-2.onrender.com';
+
+const baseURL =
+  (process.env.NEXT_PUBLIC_API_URL ?? '').trim() || PRODUCTION_API_URL;
+
+if (process.env.NODE_ENV === 'development') {
+  console.log(
+    `[API] baseURL resolved to: ${baseURL}` +
+      (process.env.NEXT_PUBLIC_API_URL
+        ? ' (from NEXT_PUBLIC_API_URL)'
+        : ' (fallback — NEXT_PUBLIC_API_URL is not set)')
+  );
+}
+
 // ─── Axios Instance ───────────────────────────────────────────────────────────
 const api = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_URL,
+  baseURL,
   timeout: 60_000, // 60 seconds — generous for AI extraction
   headers: { 'Content-Type': 'application/json' },
+  // Tell axios to send cookies & accept cross-origin responses
+  withCredentials: false,
 });
 
 // ─── Request Interceptor: Auto-inject Supabase JWT ───────────────────────────
 api.interceptors.request.use(async (config: InternalAxiosRequestConfig) => {
   const supabase = createClient();
-  const { data: { session } } = await supabase.auth.getSession();
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
   if (session?.access_token) {
     config.headers.Authorization = `Bearer ${session.access_token}`;
   }
+
+  if (process.env.NODE_ENV === 'development') {
+    console.log(`[API] ${config.method?.toUpperCase()} ${config.baseURL}${config.url}`);
+  }
+
   return config;
 });
 
@@ -35,6 +62,22 @@ api.interceptors.response.use(
       await supabase.auth.signOut();
       if (typeof window !== 'undefined') window.location.href = '/login';
     }
+
+    if (process.env.NODE_ENV === 'development') {
+      if (error.response) {
+        console.error(`[API] Error ${error.response.status}:`, error.response.data);
+      } else if (error.request) {
+        // Request was made but no response received — likely CORS or network issue
+        console.error(
+          '[API] No response received. This is usually a CORS block or network error.',
+          '\n  Target URL:', baseURL,
+          '\n  Error code:', error.code
+        );
+      } else {
+        console.error('[API] Request setup error:', error.message);
+      }
+    }
+
     return Promise.reject(error);
   }
 );
@@ -48,6 +91,7 @@ api.interceptors.response.use(
  * - FastAPI validation errors (array of {loc, msg, type})
  * - Plain string detail errors
  * - Network timeouts (ECONNABORTED)
+ * - CORS / no-response errors (ERR_NETWORK, ERR_NAME_NOT_RESOLVED)
  * - Rate-limit responses (429)
  * - Service unavailable (503)
  * - No network connection
@@ -68,26 +112,44 @@ export function getApiErrorMessage(
     if (Array.isArray(data?.detail) && data.detail.length > 0) {
       const first = data.detail[0];
       const fieldPath = first.loc?.slice(1).join(' → ') ?? '';
-      return fieldPath
-        ? `${fieldPath}: ${first.msg}`
-        : first.msg;
+      return fieldPath ? `${fieldPath}: ${first.msg}` : first.msg;
     }
 
-    // Network / timeout errors
+    // Network / timeout errors (no response received at all)
     if (err.code === 'ECONNABORTED') {
-      return 'Request timed out. Please check your connection and try again.';
+      return 'Request timed out. The server may be starting up — please try again in a moment.';
     }
+
+    // No response: CORS block, DNS failure, or server unreachable
     if (!err.response) {
-      return 'Cannot reach the server. Please check your internet connection.';
+      const isNetworkError =
+        err.code === 'ERR_NETWORK' ||
+        err.code === 'ERR_NAME_NOT_RESOLVED' ||
+        err.message?.toLowerCase().includes('network');
+
+      if (isNetworkError) {
+        return (
+          'Cannot reach the server. This may be a temporary network issue — ' +
+          'please check your internet connection and try again.'
+        );
+      }
+
+      return (
+        'Cannot reach the server. The backend may be starting up (Render ' +
+        'free-tier services sleep after inactivity). Please wait 30 seconds ' +
+        'and try again.'
+      );
     }
 
     // HTTP status codes
     const status = err.response.status;
     if (status === 429) return 'Too many requests. Please wait a moment and try again.';
-    if (status === 503) return 'Service is temporarily unavailable. Please try again shortly.';
+    if (status === 503)
+      return 'Service is temporarily unavailable. Please try again shortly.';
     if (status === 404) return 'Resource not found.';
     if (status === 403) return 'You do not have permission to perform this action.';
-    if (status >= 500) return 'Server error. Our team has been notified — please try again later.';
+    if (status >= 500)
+      return 'Server error. Our team has been notified — please try again later.';
   }
 
   // Unknown error type
@@ -111,13 +173,19 @@ export async function createCampaign(payload: CreateCampaignPayload): Promise<Ca
 }
 
 /** Update all fields of an existing campaign. */
-export async function updateCampaign(id: string, payload: CreateCampaignPayload): Promise<Campaign> {
+export async function updateCampaign(
+  id: string,
+  payload: CreateCampaignPayload
+): Promise<Campaign> {
   const res = await api.put<Campaign>(`/campaigns/${id}`, payload);
   return res.data;
 }
 
 /** Update only the status of a campaign. */
-export async function updateCampaignStatus(id: string, payload: StatusUpdatePayload): Promise<Campaign> {
+export async function updateCampaignStatus(
+  id: string,
+  payload: StatusUpdatePayload
+): Promise<Campaign> {
   const res = await api.patch<Campaign>(`/campaigns/${id}/status`, payload);
   return res.data;
 }
