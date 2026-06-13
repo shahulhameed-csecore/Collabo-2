@@ -7,7 +7,7 @@ import {
   ChevronUp, ChevronDown, Trash2,
   Calendar, DollarSign, AlertCircle, CheckCircle2,
   Clock, XCircle, Plus, Search, Filter,
-  Globe, X, Check, Tag,
+  Globe, X, Check, ExternalLink,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -28,14 +28,15 @@ const STATUS_CONFIG: Record<CampaignStatus, {
   cancelled: { label: 'Cancelled', dotClass: 'bg-rose-400',    badgeClass: 'bg-rose-500/10 text-rose-400 border-rose-500/25',     icon: XCircle },
 };
 
-// ─── Platform color map ────────────────────────────────────────────────────────
-const PLATFORM_COLOR: Record<string, string> = {
-  'Instagram':   'text-pink-400',
-  'YouTube':     'text-red-400',
-  'Twitter/X':   'text-sky-400',
-  'LinkedIn':    'text-blue-400',
-  'TikTok':      'text-purple-400',
-  'Pinterest':   'text-rose-400',
+// ─── Platform config ──────────────────────────────────────────────────────────
+const PLATFORM_CONFIG: Record<string, { color: string; bg: string; emoji: string }> = {
+  'Instagram':  { color: 'text-pink-400',   bg: 'bg-pink-500/10 border-pink-500/20',    emoji: '📸' },
+  'YouTube':    { color: 'text-red-400',    bg: 'bg-red-500/10 border-red-500/20',      emoji: '▶️' },
+  'Twitter/X':  { color: 'text-sky-400',    bg: 'bg-sky-500/10 border-sky-500/20',      emoji: '𝕏' },
+  'LinkedIn':   { color: 'text-blue-400',   bg: 'bg-blue-500/10 border-blue-500/20',    emoji: 'in' },
+  'TikTok':     { color: 'text-purple-400', bg: 'bg-purple-500/10 border-purple-500/20', emoji: '♪' },
+  'Pinterest':  { color: 'text-rose-400',   bg: 'bg-rose-500/10 border-rose-500/20',    emoji: '📌' },
+  'Snapchat':   { color: 'text-yellow-400', bg: 'bg-yellow-500/10 border-yellow-500/20', emoji: '👻' },
 };
 
 const STATUS_FILTERS: { value: FilterState['status']; label: string }[] = [
@@ -50,7 +51,7 @@ const STATUS_FILTERS: { value: FilterState['status']; label: string }[] = [
 function StatusBadge({ status }: { status: CampaignStatus }) {
   const cfg = STATUS_CONFIG[status];
   return (
-    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium border ${cfg.badgeClass}`}>
+    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold border ${cfg.badgeClass}`}>
       <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${cfg.dotClass}`} />
       {cfg.label}
     </span>
@@ -59,10 +60,12 @@ function StatusBadge({ status }: { status: CampaignStatus }) {
 
 function PlatformBadge({ platform }: { platform: string | null }) {
   if (!platform) return <span className="text-slate-600 text-sm">—</span>;
-  const color = PLATFORM_COLOR[platform] ?? 'text-slate-300';
+  const cfg = PLATFORM_CONFIG[platform];
   return (
-    <span className={`flex items-center gap-1.5 text-sm font-medium ${color}`}>
-      <Globe className="w-3 h-3 opacity-70" />
+    <span className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-lg text-xs font-semibold border ${cfg ? cfg.bg : 'bg-slate-700/40 border-slate-600/30'} ${cfg ? cfg.color : 'text-slate-300'}`}>
+      {cfg
+        ? <span className="text-[10px] leading-none">{cfg.emoji}</span>
+        : <Globe className="w-3 h-3 opacity-70" />}
       {platform}
     </span>
   );
@@ -71,7 +74,7 @@ function PlatformBadge({ platform }: { platform: string | null }) {
 function SkeletonRow() {
   return (
     <tr className="border-b border-slate-800/40">
-      {[80, 60, 70, 50, 60, 40].map((w, i) => (
+      {[75, 55, 65, 50, 55, 40].map((w, i) => (
         <td key={i} className="px-4 py-4">
           <div className="skeleton h-4 rounded-lg" style={{ width: `${w}%` }} />
         </td>
@@ -84,7 +87,7 @@ function EmptyState({ onCreateNew, hasFilters }: { onCreateNew: () => void; hasF
   if (hasFilters) {
     return (
       <div className="flex flex-col items-center justify-center py-20 text-center animate-fade-in">
-        <div className="p-4 bg-slate-800/40 rounded-2xl mb-4">
+        <div className="p-4 bg-slate-800/40 rounded-2xl mb-4 border border-slate-700/30">
           <Search className="w-8 h-8 text-slate-600" />
         </div>
         <h3 className="text-base font-semibold text-white mb-1">No campaigns match</h3>
@@ -120,10 +123,10 @@ export default function CampaignTable({ campaigns, isLoading, onRefresh, onCreat
   const [filters, setFilters] = useState<FilterState>({ search: '', status: 'all', platform: '' });
   const [sortKey, setSortKey] = useState<keyof Campaign>('created_at');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
-  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [showFilters, setShowFilters] = useState(false);
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
 
   const handleSort = (key: keyof Campaign) => {
     if (sortKey === key) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
@@ -204,6 +207,7 @@ export default function CampaignTable({ campaigns, isLoading, onRefresh, onCreat
         <div className="relative flex-1">
           <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 pointer-events-none" />
           <input
+            id="campaign-search"
             type="text"
             placeholder="Search by name, handle, platform..."
             value={filters.search}
@@ -213,7 +217,7 @@ export default function CampaignTable({ campaigns, isLoading, onRefresh, onCreat
           {filters.search && (
             <button
               onClick={() => setFilters(f => ({ ...f, search: '' }))}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white p-0.5 rounded transition-colors"
             >
               <X className="w-3.5 h-3.5" />
             </button>
@@ -233,35 +237,45 @@ export default function CampaignTable({ campaigns, isLoading, onRefresh, onCreat
           <Filter className="w-4 h-4" />
           Filters
           {hasFilters && (
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 ml-0.5" />
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
           )}
         </button>
       </div>
 
-      {/* ── Filter Pills ── */}
+      {/* ── Status Quick Filters (always visible) ── */}
+      <div className="flex items-center gap-1.5 mb-4 flex-wrap">
+        {STATUS_FILTERS.map(f => {
+          const count = f.value === 'all'
+            ? campaigns.length
+            : campaigns.filter(c => c.status === f.value).length;
+          return (
+            <button
+              key={f.value}
+              id={`status-filter-${f.value}`}
+              onClick={() => setFilters(prev => ({ ...prev, status: f.value }))}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-all ${
+                filters.status === f.value
+                  ? 'bg-emerald-500/15 border-emerald-500/35 text-emerald-400 shadow-sm shadow-emerald-500/10'
+                  : 'bg-slate-800/50 border-slate-700/40 text-slate-400 hover:text-white hover:border-slate-600'
+              }`}
+            >
+              {f.label}
+              <span className={`text-[10px] font-bold px-1 py-0.5 rounded ${
+                filters.status === f.value ? 'text-emerald-400/70' : 'text-slate-600'
+              }`}>
+                {count}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* ── Platform Filter Pills (expanded) ── */}
       {showFilters && (
         <div className="flex flex-wrap gap-2 mb-4 p-3 bg-slate-900/40 border border-slate-800/40 rounded-xl animate-slide-down">
-          {/* Status filter */}
-          <div className="flex items-center gap-1 flex-wrap">
-            <span className="text-xs text-slate-500 mr-1">Status:</span>
-            {STATUS_FILTERS.map(f => (
-              <button
-                key={f.value}
-                onClick={() => setFilters(prev => ({ ...prev, status: f.value }))}
-                className={`px-2.5 py-1 rounded-lg text-xs font-medium border transition-all ${
-                  filters.status === f.value
-                    ? 'bg-emerald-500/15 border-emerald-500/30 text-emerald-400'
-                    : 'bg-slate-800/60 border-slate-700/40 text-slate-400 hover:text-white'
-                }`}
-              >
-                {f.label}
-              </button>
-            ))}
-          </div>
-          {/* Platform filter */}
-          {uniquePlatforms.length > 0 && (
-            <div className="flex items-center gap-1 flex-wrap">
-              <span className="text-xs text-slate-500 mr-1">Platform:</span>
+          {uniquePlatforms.length > 0 ? (
+            <div className="flex items-center gap-1.5 flex-wrap w-full">
+              <span className="text-xs text-slate-500 font-medium mr-1">Platform:</span>
               <button
                 onClick={() => setFilters(f => ({ ...f, platform: '' }))}
                 className={`px-2.5 py-1 rounded-lg text-xs font-medium border transition-all ${
@@ -270,7 +284,7 @@ export default function CampaignTable({ campaigns, isLoading, onRefresh, onCreat
                     : 'bg-slate-800/60 border-slate-700/40 text-slate-400 hover:text-white'
                 }`}
               >
-                All
+                All Platforms
               </button>
               {uniquePlatforms.map(p => (
                 <button
@@ -286,13 +300,15 @@ export default function CampaignTable({ campaigns, isLoading, onRefresh, onCreat
                 </button>
               ))}
             </div>
+          ) : (
+            <p className="text-xs text-slate-600">No platforms to filter by yet.</p>
           )}
-          {/* Clear */}
           {hasFilters && (
             <button
               onClick={() => setFilters({ search: '', status: 'all', platform: '' })}
-              className="ml-auto text-xs text-slate-500 hover:text-rose-400 transition-colors"
+              className="ml-auto text-xs text-slate-500 hover:text-rose-400 transition-colors flex items-center gap-1"
             >
+              <X className="w-3 h-3" />
               Clear all
             </button>
           )}
@@ -303,6 +319,7 @@ export default function CampaignTable({ campaigns, isLoading, onRefresh, onCreat
       {!isLoading && campaigns.length > 0 && (
         <p className="text-xs text-slate-500 mb-3">
           Showing <span className="text-white font-medium">{filtered.length}</span> of {campaigns.length} campaigns
+          {hasFilters && <span className="text-emerald-500/70"> (filtered)</span>}
         </p>
       )}
 
@@ -317,9 +334,9 @@ export default function CampaignTable({ campaigns, isLoading, onRefresh, onCreat
       {/* ── Table ── */}
       {(isLoading || filtered.length > 0) && (
         <div className="overflow-x-auto rounded-xl border border-slate-800/50">
-          <table className="w-full text-sm min-w-[640px]">
+          <table className="w-full text-sm min-w-[680px]">
             <thead>
-              <tr className="border-b border-slate-800/60 bg-slate-900/50">
+              <tr className="border-b border-slate-800/60 bg-slate-900/60">
                 {([
                   { key: 'influencer_name', label: 'Influencer' },
                   { key: 'platform',        label: 'Platform' },
@@ -330,7 +347,7 @@ export default function CampaignTable({ campaigns, isLoading, onRefresh, onCreat
                   <th
                     key={key}
                     onClick={() => handleSort(key)}
-                    className="px-4 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider cursor-pointer hover:text-white transition-colors select-none"
+                    className="px-4 py-3 text-left text-[11px] font-bold text-slate-500 uppercase tracking-wider cursor-pointer hover:text-white transition-colors select-none"
                   >
                     <div className="flex items-center gap-1.5">
                       {label}
@@ -338,7 +355,7 @@ export default function CampaignTable({ campaigns, isLoading, onRefresh, onCreat
                     </div>
                   </th>
                 ))}
-                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider w-32">
+                <th className="px-4 py-3 text-left text-[11px] font-bold text-slate-500 uppercase tracking-wider w-36">
                   Actions
                 </th>
               </tr>
@@ -349,11 +366,12 @@ export default function CampaignTable({ campaigns, isLoading, onRefresh, onCreat
                 : filtered.map(c => {
                     const overdue = isOverdue(c);
                     const name = c.influencer_name ?? c.influencer_handle;
+                    const initial = name.slice(0, 2).toUpperCase();
                     return (
                       <tr
                         key={c.id}
                         className={`
-                          hover:bg-slate-800/20 transition-colors group
+                          hover:bg-slate-800/20 transition-colors group relative
                           ${deletingId === c.id ? 'opacity-30 pointer-events-none' : ''}
                           ${updatingId === c.id ? 'opacity-60' : ''}
                         `}
@@ -362,15 +380,15 @@ export default function CampaignTable({ campaigns, isLoading, onRefresh, onCreat
                         <td className="px-4 py-3.5">
                           <div className="flex items-center gap-3">
                             <div className="w-9 h-9 rounded-full bg-gradient-to-br from-emerald-400/15 to-teal-500/15 border border-emerald-500/20 flex items-center justify-center flex-shrink-0">
-                              <span className="text-xs font-bold text-emerald-400">
-                                {name.slice(0, 2).toUpperCase()}
-                              </span>
+                              <span className="text-xs font-bold text-emerald-400">{initial}</span>
                             </div>
                             <div className="min-w-0">
                               <p className="font-semibold text-white truncate max-w-[140px]">
-                                {c.influencer_name ?? <span className="text-slate-500 italic font-normal text-xs">No name</span>}
+                                {c.influencer_name ?? (
+                                  <span className="text-slate-500 italic font-normal text-xs">No name</span>
+                                )}
                               </p>
-                              <p className="text-xs text-slate-500 truncate max-w-[140px]">{c.influencer_handle}</p>
+                              <p className="text-xs text-slate-500 truncate max-w-[140px] font-mono">{c.influencer_handle}</p>
                             </div>
                           </div>
                         </td>
@@ -385,12 +403,16 @@ export default function CampaignTable({ campaigns, isLoading, onRefresh, onCreat
                           {c.deadline ? (
                             <div className={`flex items-center gap-1.5 ${overdue ? 'text-rose-400' : 'text-slate-300'}`}>
                               {overdue
-                                ? <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />
+                                ? <AlertCircle className="w-3.5 h-3.5 flex-shrink-0 animate-pulse" />
                                 : <Calendar className="w-3.5 h-3.5 text-slate-500 flex-shrink-0" />}
                               <span className="text-sm whitespace-nowrap">
                                 {new Date(c.deadline).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
                               </span>
-                              {overdue && <span className="text-xs font-semibold text-rose-400 whitespace-nowrap">Overdue!</span>}
+                              {overdue && (
+                                <span className="text-[10px] font-bold text-rose-400 bg-rose-500/10 border border-rose-500/20 px-1.5 py-0.5 rounded-md whitespace-nowrap">
+                                  Overdue
+                                </span>
+                              )}
                             </div>
                           ) : (
                             <span className="text-slate-600">—</span>
@@ -400,11 +422,11 @@ export default function CampaignTable({ campaigns, isLoading, onRefresh, onCreat
                         {/* Payment */}
                         <td className="px-4 py-3.5">
                           {c.payment_amount > 0 ? (
-                            <span className="font-semibold text-white">
+                            <span className="font-bold text-white">
                               ₹{c.payment_amount.toLocaleString('en-IN')}
                             </span>
                           ) : (
-                            <span className="text-xs text-amber-400 font-medium bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded-md">
+                            <span className="text-xs text-amber-400 font-semibold bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded-md">
                               Barter
                             </span>
                           )}
@@ -417,7 +439,7 @@ export default function CampaignTable({ campaigns, isLoading, onRefresh, onCreat
 
                         {/* Actions */}
                         <td className="px-4 py-3.5">
-                          <div className="flex items-center gap-1.5">
+                          <div className="flex items-center gap-1">
                             {/* Quick: Mark Complete */}
                             {c.status === 'active' && (
                               <button
@@ -426,16 +448,29 @@ export default function CampaignTable({ campaigns, isLoading, onRefresh, onCreat
                                 title="Mark as Completed"
                                 className="p-1.5 text-slate-500 hover:text-emerald-400 hover:bg-emerald-500/10 rounded-lg transition-all opacity-0 group-hover:opacity-100 disabled:opacity-30"
                               >
-                                <Check className="w-4 h-4" />
+                                <Check className="w-3.5 h-3.5" />
+                              </button>
+                            )}
+
+                            {/* Quick: Activate draft */}
+                            {c.status === 'draft' && (
+                              <button
+                                onClick={() => handleStatusChange(c.id, 'active')}
+                                disabled={!!updatingId}
+                                title="Activate campaign"
+                                className="p-1.5 text-slate-500 hover:text-blue-400 hover:bg-blue-500/10 rounded-lg transition-all opacity-0 group-hover:opacity-100 disabled:opacity-30"
+                              >
+                                <ExternalLink className="w-3.5 h-3.5" />
                               </button>
                             )}
 
                             {/* Status select */}
                             <select
+                              id={`status-select-${c.id}`}
                               value={c.status}
                               disabled={updatingId === c.id}
                               onChange={e => handleStatusChange(c.id, e.target.value as CampaignStatus)}
-                              className="bg-slate-800/80 border border-slate-700/50 text-slate-300 text-xs rounded-lg px-2 py-1.5 focus:outline-none focus:border-emerald-500/40 disabled:opacity-50 cursor-pointer hover:border-slate-600 transition-colors"
+                              className="bg-slate-800/80 border border-slate-700/50 text-slate-300 text-xs rounded-lg px-2 py-1.5 focus:outline-none focus:border-emerald-500/40 disabled:opacity-50 cursor-pointer hover:border-slate-600 transition-colors max-w-[96px]"
                             >
                               <option value="draft">Draft</option>
                               <option value="active">Active</option>

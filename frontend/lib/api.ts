@@ -43,19 +43,56 @@ api.interceptors.response.use(
 /**
  * Extracts a user-friendly message from an API error.
  * Falls back to a generic message if nothing can be parsed.
+ *
+ * Handles:
+ * - FastAPI validation errors (array of {loc, msg, type})
+ * - Plain string detail errors
+ * - Network timeouts (ECONNABORTED)
+ * - Rate-limit responses (429)
+ * - Service unavailable (503)
+ * - No network connection
  */
-export function getApiErrorMessage(err: unknown, fallback = 'Something went wrong. Please try again.'): string {
+export function getApiErrorMessage(
+  err: unknown,
+  fallback = 'Something went wrong. Please try again.'
+): string {
   if (axios.isAxiosError(err)) {
     const data = err.response?.data as ApiError | undefined;
-    if (typeof data?.detail === 'string') return data.detail;
-    if (Array.isArray(data?.detail) && data.detail.length > 0) {
-      return data.detail[0].msg;
+
+    // Plain string detail
+    if (typeof data?.detail === 'string' && data.detail.trim()) {
+      return data.detail;
     }
-    if (err.code === 'ECONNABORTED') return 'Request timed out. Please check your connection.';
-    if (err.response?.status === 429) return 'Too many requests. Please wait a moment and try again.';
-    if (err.response?.status === 503) return 'Service is temporarily unavailable. Please try again shortly.';
-    if (!err.response) return 'Cannot reach the server. Please check your internet connection.';
+
+    // Validation error array — pick first meaningful message
+    if (Array.isArray(data?.detail) && data.detail.length > 0) {
+      const first = data.detail[0];
+      const fieldPath = first.loc?.slice(1).join(' → ') ?? '';
+      return fieldPath
+        ? `${fieldPath}: ${first.msg}`
+        : first.msg;
+    }
+
+    // Network / timeout errors
+    if (err.code === 'ECONNABORTED') {
+      return 'Request timed out. Please check your connection and try again.';
+    }
+    if (!err.response) {
+      return 'Cannot reach the server. Please check your internet connection.';
+    }
+
+    // HTTP status codes
+    const status = err.response.status;
+    if (status === 429) return 'Too many requests. Please wait a moment and try again.';
+    if (status === 503) return 'Service is temporarily unavailable. Please try again shortly.';
+    if (status === 404) return 'Resource not found.';
+    if (status === 403) return 'You do not have permission to perform this action.';
+    if (status >= 500) return 'Server error. Our team has been notified — please try again later.';
   }
+
+  // Unknown error type
+  if (err instanceof Error && err.message) return err.message;
+
   return fallback;
 }
 
@@ -113,10 +150,10 @@ export function computeDashboardStats(campaigns: Campaign[]): DashboardStats {
   const sevenDaysLater = new Date(now);
   sevenDaysLater.setDate(now.getDate() + 7);
 
-  const active = campaigns.filter(c => c.status === 'active');
+  const active    = campaigns.filter(c => c.status === 'active');
   const completed = campaigns.filter(c => c.status === 'completed');
   const cancelled = campaigns.filter(c => c.status === 'cancelled');
-  const overdue = active.filter(c => c.deadline && new Date(c.deadline) < now);
+  const overdue   = active.filter(c => c.deadline && new Date(c.deadline) < now);
 
   const upcomingDeadlines = active
     .filter(c => {
@@ -127,19 +164,27 @@ export function computeDashboardStats(campaigns: Campaign[]): DashboardStats {
     .sort((a, b) => new Date(a.deadline!).getTime() - new Date(b.deadline!).getTime());
 
   const closedCount = completed.length + cancelled.length;
-  const successRate = closedCount > 0 ? Math.round((completed.length / closedCount) * 100) : 0;
+  const successRate = closedCount > 0
+    ? Math.round((completed.length / closedCount) * 100)
+    : 0;
 
-  const totalSpend = campaigns.reduce((s, c) => s + (c.payment_amount || 0), 0);
+  const paidCampaigns = campaigns.filter(c => c.payment_amount > 0);
+  const totalSpend   = campaigns.reduce((s, c) => s + (c.payment_amount || 0), 0);
   const pendingSpend = active.reduce((s, c) => s + (c.payment_amount || 0), 0);
+  const avgPayment   = paidCampaigns.length > 0
+    ? Math.round(totalSpend / paidCampaigns.length)
+    : 0;
 
   return {
     total: campaigns.length,
     active: active.length,
     overdue: overdue.length,
     completed: completed.length,
+    cancelled: cancelled.length,
     totalSpend,
     pendingSpend,
     successRate,
+    avgPayment,
     upcomingDeadlines,
   };
 }

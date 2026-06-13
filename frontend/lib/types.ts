@@ -96,9 +96,11 @@ export interface DashboardStats {
   active: number;
   overdue: number;
   completed: number;
+  cancelled: number;
   totalSpend: number;
-  pendingSpend: number;      // spend on active campaigns
-  successRate: number;       // completed / (completed + cancelled) * 100
+  pendingSpend: number;           // spend on active campaigns
+  successRate: number;            // completed / (completed + cancelled) * 100
+  avgPayment: number;             // average payment across all paid campaigns
   upcomingDeadlines: Campaign[];  // active campaigns with deadline in next 7 days
 }
 
@@ -113,3 +115,6 @@ export interface SortConfig {
   key: keyof Campaign;
   dir: 'asc' | 'desc';
 }
+
+// ─── UI helpers ───────────────────────────────────────────────────────────────
+export type AccentColor = 'emerald' | 'amber' | 'rose' | 'slate' | 'blue' | 'purple';
