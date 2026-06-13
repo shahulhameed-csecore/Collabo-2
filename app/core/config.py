@@ -6,7 +6,7 @@ class Settings(BaseSettings):
     SUPABASE_URL: str
     SUPABASE_ANON_KEY: str
     GEMINI_API_KEY: str
-    ALLOWED_ORIGINS: str = "http://localhost:3000,http://127.0.0.1:3000"
+    ALLOWED_ORIGINS: str = "https://collabo-2.vercel.app,http://localhost:3000,http://127.0.0.1:3000"
     SENTRY_DSN: Optional[str] = None
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
