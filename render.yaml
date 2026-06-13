@@ -10,7 +10,7 @@ services:
       - key: ENVIRONMENT
         value: production
       - key: ALLOWED_ORIGINS
-        value: "https://your-frontend-domain.com"
+        value: "https://collabo-2.vercel.app,http://localhost:3000"
       - key: SUPABASE_URL
         sync: false
       - key: SUPABASE_ANON_KEY
