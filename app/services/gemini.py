@@ -4,8 +4,8 @@ from datetime import datetime
 from google import genai
 from google.genai import types
 from google.genai.errors import APIError
-from PIL import Image
-from pydantic import BaseModel, Field, ValidationError
+from PIL import Image, ImageOps
+from pydantic import BaseModel, Field
 
 from app.core.config import settings
 
@@ -13,116 +13,106 @@ logger = logging.getLogger(__name__)
 
 client = genai.Client(api_key=settings.GEMINI_API_KEY)
 
-# ─── 1. Strict Output Schema ───────────────────────────────────────────────────
+
 class GeminiExtractionSchema(BaseModel):
-    influencer_name: str = Field(description="The human name of the influencer or brand rep (e.g. Riya Sharma, Chloe Summers).")
-    influencer_handle: str | None = Field(description="The social media handle (e.g. @riya_creates). If none explicitly stated, leave null.")
-    platform: str | None = Field(description="The target platform (Instagram, YouTube, TikTok, Pinterest, LinkedIn). Infer from context (e.g. 'Reel' -> Instagram).")
-    deliverables: str = Field(description="Summarize exactly what they need to post (e.g., '1 Reel + 2 Stories', '1 YouTube Integration').")
-    deadline: str | None = Field(description="The target date for the draft or final post in strictly YYYY-MM-DD format.")
-    payment_amount: float | None = Field(description="Monetary compensation in INR. (e.g. '5k' = 5000.0). If barter/gifted/sample, output 0.0.")
-    special_notes: str | None = Field(description="Any brand guidelines, moodboard links, or vital context.")
+    influencer_name: str = Field(description="Full name of the influencer or contact person")
+    influencer_handle: str | None = Field(description="Social handle like @riya_creates")
+    platform: str = Field(description="Instagram, TikTok, YouTube, or Others")
+    deliverables: str = Field(description="What they agreed to do (e.g. '2 Reels + 3 Stories')")
+    deadline: str | None = Field(description="Deadline in YYYY-MM-DD format")
+    payment_amount: float | None = Field(description="Payment in INR. 0.0 if gifted or barter")
+    special_notes: str | None = Field(description="Any additional context or instructions")
 
-# ─── 2. Optimized Prompt ───────────────────────────────────────────────────────
-def get_extraction_prompt() -> str:
-    today_str = datetime.now().strftime("%Y-%m-%d (%A)")
+
+def get_extraction_prompt(today_str: str, filename: str = "image.png") -> str:
     return f"""
-You are a Principal AI Data Extraction Engineer specializing in micro-influencer marketing.
-Your goal is to extract structured campaign details from messy screenshots of WhatsApp chats, Instagram DMs, or emails.
-The text may be in English, Hindi (Hinglish), or a mix.
+You are an expert micro-influencer campaign manager for Indian D2C brands.
 
-CURRENT CONTEXT:
-- Today's Date: {today_str}
-- If the screenshot has its own date (e.g. an email header), use that as the anchor date instead.
+Analyze the uploaded file ({filename}) and extract the deal.
+The file could be an image screenshot, a PDF contract, a text email, or a Word document.
 
-EXTRACTION RULES:
-1. `deadline`: Parse relative dates logically. "This Friday" means the upcoming Friday from the anchor date. Format strictly as YYYY-MM-DD.
-2. `payment_amount`: Look for terms like "k" (5k = 5000.0).
-   CRITICAL: If the text mentions "barter", "collab", "gifted", "sample", "sending product", or no money is discussed, output 0.0.
-3. `platform`: If missing, infer heavily from terminology. "Shorts" = YouTube, "Reel/Story" = Instagram.
-4. `deliverables`: Be precise. E.g. "1 dedicated video", "2 story frames".
-5. `influencer_name` & `influencer_handle`: Differentiate between the brand rep sending the message and the influencer receiving it. If the handle is missing, infer a probable handle based on their name (e.g. @chloesummers).
-6. `special_notes`: Capture any creative guidelines. If the agreement is partial/missing key info, note it here so the human reviewer knows.
+Today's date is: {today_str}
 
-Extract the data and adhere strictly to the JSON schema.
+Return ONLY valid JSON with these exact keys:
+
+{{
+  "influencer_name": string,
+  "influencer_handle": string or null,
+  "platform": "Instagram" or "TikTok" or "YouTube" or "Others",
+  "deliverables": string,
+  "deadline": "YYYY-MM-DD" or null,
+  "payment_amount": number or null,
+  "special_notes": string or null
+}}
+
+CRITICAL RULES:
+- If it's a gifted product, sample, or barter → payment_amount = 0.0
+- For relative dates ("next Friday", "this Wednesday", "by EOD") calculate from today's date
+- Be precise with deliverables
+- If information is missing, make best logical guess
+
+Do not add any extra text outside the JSON.
 """
 
-def get_fallback_data(message: str) -> dict:
-    return {
-        "influencer_name": None,
-        "influencer_handle": None,
-        "platform": None,
-        "deliverables": None,
-        "deadline": None,
-        "payment_amount": 0.0,
-        "special_notes": message,
-        "requires_human_review": True,
-        "status": "draft"
-    }
 
-# ─── 3. Processing Logic ───────────────────────────────────────────────────────
-def extract_campaign_details(image: Image.Image) -> dict:
+def extract_campaign_details(content: Image.Image | str, filename: str = "image.png") -> dict:
     try:
-        # Preprocessing: Resize to max 1024x1024 to save cost and focus AI on primary content
-        if image.mode != "RGB":
-            image = image.convert("RGB")
-        image.thumbnail((1024, 1024), Image.Resampling.LANCZOS)
+        today_str = datetime.now().strftime("%Y-%m-%d (%A)")
+        gemini_content = [get_extraction_prompt(today_str, filename)]
+
+        if isinstance(content, Image.Image):
+            # --- Image Preprocessing (Critical for Reliability) ---
+            if content.mode != "RGB":
+                content = content.convert("RGB")
+            
+            # Resize to max 1024px while keeping aspect ratio
+            content.thumbnail((1024, 1024), Image.Resampling.LANCZOS)
+            
+            # Auto-rotate based on EXIF if needed
+            content = ImageOps.exif_transpose(content)
+            gemini_content.append(content)
+        else:
+            # Append extracted text
+            gemini_content.append(f"--- START OF FILE CONTENT ---\n{content}\n--- END OF FILE CONTENT ---")
 
         response = client.models.generate_content(
-            model='gemini-3.5-flash',
-            contents=[get_extraction_prompt(), image],
+            model="gemini-2.0-flash-exp",   # Best stable model
+            contents=gemini_content,
             config=types.GenerateContentConfig(
                 response_mime_type="application/json",
                 response_schema=GeminiExtractionSchema,
-                temperature=0.1, # Low temperature for highly deterministic extraction
+                temperature=0.1,
             )
         )
-        
-        # Parse the guaranteed JSON string (stripping markdown if Gemini accidentally adds it)
-        response_text = response.text.strip()
-        if response_text.startswith("```json"):
-            response_text = response_text[7:-3].strip()
-        elif response_text.startswith("```"):
-            response_text = response_text[3:-3].strip()
-            
-        data = json.loads(response_text)
-        
-        # Enforce HITL (Human-In-The-Loop) rules
-        requires_review = False
-        
-        # Provide smart defaults so the frontend form validation doesn't block the user
-        # from saving if these fields were missing from the screenshot.
-        if not data.get('influencer_name'):
-            data['influencer_name'] = 'Unknown Influencer'
-            requires_review = True # Still require a quick glance if we couldn't even find a name
-            
-        if not data.get('influencer_handle'):
-            data['influencer_handle'] = '@unknown'
-            
-        if not data.get('deliverables'):
-            data['deliverables'] = 'To be discussed'
-            
-        # Handle Pydantic validation crashes:
-        # 1. If Gemini returns null for payment_amount, force it to 0.0
+
+        # Clean response text
+        text = response.text.strip()
+        if text.startswith("```json"):
+            text = text[7:-3].strip()
+        elif text.startswith("```"):
+            text = text[3:-3].strip()
+
+        data = json.loads(text)
+
+        # Smart defaults & Human-in-the-Loop
+        data['requires_human_review'] = not bool(data.get('influencer_name') and data.get('deliverables'))
+        data['status'] = 'draft'
+
         if data.get('payment_amount') is None:
             data['payment_amount'] = 0.0
-            
-        # 2. If Gemini hallucinates an invalid date string, force it to None
-        deadline_str = data.get('deadline')
-        if deadline_str:
-            try:
-                datetime.strptime(deadline_str, "%Y-%m-%d")
-            except ValueError:
-                data['deadline'] = None
-            
-        data['requires_human_review'] = requires_review
-        data['status'] = 'draft'
-        
+
         return data
-        
-    except (APIError, json.JSONDecodeError, ValidationError) as e:
-        logger.error(f"Gemini AI Extraction Failed: {str(e)}")
-        return get_fallback_data("AI Extraction failed. Please enter details manually.")
+
     except Exception as e:
-        logger.exception("Unexpected error during Gemini extraction")
-        return get_fallback_data("Critical error during AI processing. Please enter details manually.")
+        logger.error(f"Gemini Extraction Failed: {str(e)}", exc_info=True)
+        return {
+            "influencer_name": None,
+            "influencer_handle": None,
+            "platform": None,
+            "deliverables": None,
+            "deadline": None,
+            "payment_amount": 0.0,
+            "special_notes": "AI Extraction failed. Please enter details manually.",
+            "requires_human_review": True,
+            "status": "draft"
+        }
