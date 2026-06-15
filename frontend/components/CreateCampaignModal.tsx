@@ -1,14 +1,14 @@
 'use client';
 
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { extractFromImage, createCampaign, getApiErrorMessage } from '@/lib/api';
+import { extractFromFile, createCampaign, getApiErrorMessage } from '@/lib/api';
 import type { CampaignFormState, ExtractedData } from '@/lib/types';
 import { PLATFORMS } from '@/lib/types';
 import {
   X, Sparkles, Loader2, AlertTriangle, CheckCircle2,
   CloudUpload, ArrowRight, ArrowLeft, ImageIcon, Calendar,
   DollarSign, AtSign, User, Tag, FileText, Info, Zap,
-  Rocket, ToggleLeft, ToggleRight,
+  Rocket, ToggleLeft, ToggleRight, File as FileIcon,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -80,7 +80,7 @@ function AiThinkingAnimation() {
         </div>
       </div>
       <div className="text-center">
-        <p className="text-white font-bold text-base mb-1">AI is reading your screenshot</p>
+        <p className="text-white font-bold text-base mb-1">AI is analyzing your file</p>
         <p className="text-slate-500 text-sm">Extracting influencer details, deliverables, deadline & payment...</p>
       </div>
       <div className="flex items-center gap-1.5">
@@ -129,17 +129,34 @@ export default function CreateCampaignModal({ isOpen, onClose, onSuccess }: Crea
   const handleClose = () => { reset(); onClose(); };
 
   const pickFile = (f: File) => {
-    if (!f.type.startsWith('image/')) {
-      toast.error('Please upload an image file (PNG, JPG, WEBP, etc.)');
+    const isImage = f.type.startsWith('image/');
+    const isDoc = f.type === 'application/pdf' || f.type.includes('wordprocessingml') || f.type === 'application/msword' || f.type.startsWith('text/') || f.name.endsWith('.pdf') || f.name.endsWith('.docx') || f.name.endsWith('.txt');
+    
+    if (!isImage && !isDoc) {
+      toast.error('Unsupported format. Please upload an Image, PDF, DOCX, or TXT file.');
       return;
     }
-    if (f.size > 5 * 1024 * 1024) {
-      toast.error('File too large. Maximum size is 5 MB.');
+    
+    const maxDocSize = 10 * 1024 * 1024;
+    const maxImageSize = 5 * 1024 * 1024;
+    
+    if (isImage && f.size > maxImageSize) {
+      toast.error('Image too large. Maximum size is 5 MB.');
       return;
     }
+    if (!isImage && f.size > maxDocSize) {
+      toast.error('Document too large. Maximum size is 10 MB.');
+      return;
+    }
+    
     if (filePreview) URL.revokeObjectURL(filePreview);
     setFile(f);
-    setFilePreview(URL.createObjectURL(f));
+    
+    if (isImage) {
+      setFilePreview(URL.createObjectURL(f));
+    } else {
+      setFilePreview('doc'); // Signal it's a document
+    }
   };
 
   const handleFileDrop = useCallback((e: React.DragEvent) => {
@@ -159,7 +176,7 @@ export default function CreateCampaignModal({ isOpen, onClose, onSuccess }: Crea
     if (!file) return;
     setExtracting(true);
     try {
-      const data = await extractFromImage(file);
+      const data = await extractFromFile(file);
       setExtractedData(data);
       setForm({
         influencer_name:   data.influencer_name   ?? '',
@@ -319,7 +336,7 @@ export default function CreateCampaignModal({ isOpen, onClose, onSuccess }: Crea
                 <div>
                   <p className="text-sm font-semibold text-white mb-0.5">AI-powered extraction</p>
                   <p className="text-xs text-slate-400 leading-relaxed">
-                    Upload a DM screenshot and AI will auto-fill{' '}
+                    Upload a file or screenshot and AI will auto-fill{' '}
                     <span className="text-emerald-400 font-medium">influencer name, handle, platform, deliverables, deadline & payment</span>.
                   </p>
                 </div>
@@ -345,22 +362,30 @@ export default function CreateCampaignModal({ isOpen, onClose, onSuccess }: Crea
                         : 'border-slate-700/50 hover:border-emerald-500/40 hover:bg-emerald-500/3'}
                     `}
                   >
-                    {file && filePreview ? (
-                      <div className="relative">
-                        <img
-                          src={filePreview}
-                          alt="Uploaded screenshot"
-                          className="w-full max-h-60 object-contain rounded-xl p-3"
-                        />
+                    {file ? (
+                      <div className="relative p-6">
+                        {filePreview === 'doc' ? (
+                          <div className="flex flex-col items-center justify-center p-8 bg-slate-800/60 rounded-xl border border-slate-700">
+                            <FileIcon className="w-16 h-16 text-emerald-400 mb-3" />
+                            <p className="text-white font-bold text-center truncate w-full max-w-xs">{file.name}</p>
+                            <p className="text-slate-400 text-sm mt-1">{(file.size / 1024 / 1024).toFixed(2)} MB</p>
+                          </div>
+                        ) : (
+                          <img
+                            src={filePreview!}
+                            alt="Uploaded screenshot"
+                            className="w-full max-h-60 object-contain rounded-xl p-3"
+                          />
+                        )}
                         <div className="absolute inset-0 bg-black/50 rounded-xl flex flex-col items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
                           <button
                             onClick={e => { e.stopPropagation(); fileRef.current?.click(); }}
                             className="bg-white/10 hover:bg-white/20 text-white text-sm rounded-xl px-4 py-2 backdrop-blur-sm border border-white/15 transition-all"
                           >
-                            Change image
+                            Change file
                           </button>
                         </div>
-                        <div className="absolute top-4 right-4 bg-gradient-to-r from-emerald-500 to-teal-500 text-white text-xs px-2.5 py-1 rounded-lg flex items-center gap-1 shadow-lg">
+                        <div className="absolute top-4 right-4 bg-gradient-to-r from-emerald-500 to-teal-500 text-white text-xs px-2.5 py-1 rounded-lg flex items-center gap-1 shadow-lg z-10">
                           <CheckCircle2 className="w-3 h-3" /> Ready
                         </div>
                       </div>
@@ -369,13 +394,13 @@ export default function CreateCampaignModal({ isOpen, onClose, onSuccess }: Crea
                         <div className={`p-5 rounded-2xl mb-4 transition-all ${isDragOver ? 'bg-emerald-500/20 scale-110' : 'bg-slate-800/60'}`}>
                           <CloudUpload className={`w-9 h-9 transition-colors ${isDragOver ? 'text-emerald-400' : 'text-slate-500'}`} />
                         </div>
-                        <p className="text-white font-bold text-base mb-1">Drop your DM screenshot here</p>
+                        <p className="text-white font-bold text-base mb-1">Drop your file or screenshot here</p>
                         <p className="text-slate-500 text-sm mb-4">or click to browse files</p>
-                        <p className="text-xs text-slate-600">PNG, JPG, WEBP · Max 5 MB</p>
+                        <p className="text-xs text-slate-600">PDF, DOCX, TXT, PNG, JPG · Max 10 MB</p>
                       </div>
                     )}
                   </div>
-                  <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
+                  <input ref={fileRef} type="file" accept=".pdf,.doc,.docx,.txt,image/*" className="hidden" onChange={handleFileChange} />
 
                   {file && (
                     <div className="flex items-center gap-2 p-3 bg-slate-800/40 rounded-xl border border-slate-700/40">

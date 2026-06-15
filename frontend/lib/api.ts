@@ -177,10 +177,10 @@ export async function deleteCampaign(id: string): Promise<void> {
 // ─── AI Extraction API Call ───────────────────────────────────────────────────
 
 /**
- * Upload an image to the AI extraction endpoint.
+ * Upload a file (image, pdf, docx) to the AI extraction endpoint.
  * Returns extracted campaign data. May include requires_human_review=true.
  */
-export async function extractFromImage(file: File): Promise<ExtractedData> {
+export async function extractFromFile(file: File): Promise<ExtractedData> {
   const formData = new FormData();
   formData.append('file', file);
   const res = await api.post<ExtractedData>('/extract/', formData);
