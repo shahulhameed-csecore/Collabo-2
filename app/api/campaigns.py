@@ -17,7 +17,7 @@ def get_user_client(user=Depends(get_current_user)):
 
 @router.get("/", response_model=List[CampaignResponse])
 async def get_campaigns(
-    limit: int = Query(50, ge=1, le=100),
+    limit: int = Query(50, ge=1, le=200),
     offset: int = Query(0, ge=0),
     client = Depends(get_user_client)
 ):
