@@ -82,3 +82,8 @@ app.include_router(campaigns.router)
 @app.get("/", tags=["Health"], description="Basic health check to ensure the API and configurations are loaded.")
 async def health_check():
     return {"status": "healthy", "service": "InfluencerTrack", "environment": settings.ENVIRONMENT}
+
+@app.get("/favicon.ico", include_in_schema=False)
+async def favicon():
+    from fastapi.responses import Response
+    return Response(content=b"", media_type="image/x-icon")
