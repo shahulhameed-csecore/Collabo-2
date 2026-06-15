@@ -26,32 +26,33 @@ class GeminiExtractionSchema(BaseModel):
 
 def get_extraction_prompt(today_str: str, filename: str = "image.png") -> str:
     return f"""
-You are an expert micro-influencer campaign manager for Indian D2C brands.
+You are an elite, highly intelligent micro-influencer campaign extraction engine.
+Your sole purpose is to analyze unstructured real-world messy data (WhatsApp/Instagram DMs, emails, contracts, PDF briefs) and extract precise campaign details for Indian D2C brands.
 
-Analyze the uploaded file ({filename}) and extract the deal.
-The file could be an image screenshot, a PDF contract, a text email, or a Word document.
+Today's date for relative calculations is: {today_str}
+Context File: {filename}
 
-Today's date is: {today_str}
+CRITICAL DIRECTIVES:
+1. PAYMENT vs GIFTED: If the text mentions "barter", "collab", "gifted", "sending a sample", "trying the product", "PR package", "send details", or similar, it is a Barter/Gifted campaign. Set payment_amount to EXACTLY 0.0. ONLY set a payment_amount if a specific monetary value (e.g., INR, Rs, ₹) is explicitly negotiated and agreed upon.
+2. DATES & DEADLINES: Convert all relative dates ("next Friday", "by EOD", "kal", "in 3 days") into strict YYYY-MM-DD format based on {today_str}. If no deadline is mentioned or it's vague, set it to null. Do NOT hallucinate dates.
+3. HINGLISH & MESSY TEXT: You are fluent in Hinglish (Hindi + English) and informal chat shorthand (e.g., "bhai", "kal", "done", "kk", "ok"). Infer intent accurately even with typos, bad grammar, or poor screenshot quality.
+4. DELIVERABLES: Be concise but comprehensive. Extract exactly what was agreed (e.g., "1 IG Reel + 2 Stories").
+5. INFLUENCER NAME: Extract the handle if available. If a real name is used (e.g., "Hi Rahul"), extract it. If missing, leave null.
 
-Return ONLY valid JSON with these exact keys:
+Return ONLY valid JSON matching this exact structure:
 
 {{
-  "influencer_name": string,
-  "influencer_handle": string or null,
-  "platform": "Instagram" or "TikTok" or "YouTube" or "Others",
-  "deliverables": string,
+  "influencer_name": string (Full name if found, else handle, else null),
+  "influencer_handle": string (e.g., "@username" or null),
+  "platform": "Instagram" | "TikTok" | "YouTube" | "Others",
+  "deliverables": string (The core ask),
   "deadline": "YYYY-MM-DD" or null,
-  "payment_amount": number or null,
-  "special_notes": string or null
+  "payment_amount": number (float, use 0.0 for barter/gifted),
+  "special_notes": string (Brief summary of any specific requests, tracking links, or brand mandates, else null)
 }}
 
-CRITICAL RULES:
-- If it's a gifted product, sample, or barter → payment_amount = 0.0
-- For relative dates ("next Friday", "this Wednesday", "by EOD") calculate from today's date
-- Be precise with deliverables
-- If information is missing, make best logical guess
-
-Do not add any extra text outside the JSON.
+DO NOT include markdown formatting like ```json.
+DO NOT include any commentary. Output raw JSON only.
 """
 
 
