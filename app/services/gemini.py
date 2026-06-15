@@ -39,7 +39,7 @@ Do not include markdown blocks or any other text outside the JSON object.
 def extract_campaign_details(image: Image.Image) -> dict:
     try:
         response = client.models.generate_content(
-            model='gemini-3.5-flash',
+            model='gemini-2.0-flash',
             contents=[PROMPT, image]
         )
         response_text = response.text.strip()
