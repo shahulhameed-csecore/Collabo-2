@@ -70,7 +70,7 @@ def extract_campaign_details(image: Image.Image) -> dict:
         image.thumbnail((1024, 1024), Image.Resampling.LANCZOS)
 
         response = client.models.generate_content(
-            model='gemini-1.5-flash',
+            model='gemini-3.5-flash',
             contents=[get_extraction_prompt(), image],
             config=types.GenerateContentConfig(
                 response_mime_type="application/json",
