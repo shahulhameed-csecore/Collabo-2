@@ -15,10 +15,10 @@ client = genai.Client(api_key=settings.GEMINI_API_KEY)
 
 
 class GeminiExtractionSchema(BaseModel):
-    influencer_name: str = Field(description="Full name of the influencer or contact person")
+    influencer_name: str | None = Field(description="Full name of the influencer or contact person")
     influencer_handle: str | None = Field(description="Social handle like @riya_creates")
-    platform: str = Field(description="Instagram, TikTok, YouTube, or Others")
-    deliverables: str = Field(description="What they agreed to do (e.g. '2 Reels + 3 Stories')")
+    platform: str | None = Field(description="Instagram, TikTok, YouTube, or Others")
+    deliverables: str | None = Field(description="What they agreed to do (e.g. '2 Reels + 3 Stories')")
     deadline: str | None = Field(description="Deadline in YYYY-MM-DD format")
     payment_amount: float | None = Field(description="Payment in INR. 0.0 if gifted or barter")
     special_notes: str | None = Field(description="Any additional context or instructions")
@@ -27,28 +27,29 @@ class GeminiExtractionSchema(BaseModel):
 def get_extraction_prompt(today_str: str, filename: str = "image.png") -> str:
     return f"""
 You are an elite, highly intelligent micro-influencer campaign extraction engine.
-Your sole purpose is to analyze unstructured real-world messy data (WhatsApp/Instagram DMs, emails, contracts, PDF briefs) and extract precise campaign details for Indian D2C brands.
+Your sole purpose is to analyze unstructured real-world messy data (WhatsApp/Instagram DMs, formal emails, contracts, PDF acceptance documents, briefs) and extract precise campaign details for Indian D2C brands.
 
 Today's date for relative calculations is: {today_str}
 Context File: {filename}
 
 CRITICAL DIRECTIVES:
-1. PAYMENT vs GIFTED: If the text mentions "barter", "collab", "gifted", "sending a sample", "trying the product", "PR package", "send details", or similar, it is a Barter/Gifted campaign. Set payment_amount to EXACTLY 0.0. ONLY set a payment_amount if a specific monetary value (e.g., INR, Rs, ₹) is explicitly negotiated and agreed upon.
-2. DATES & DEADLINES: Convert all relative dates ("next Friday", "by EOD", "kal", "in 3 days") into strict YYYY-MM-DD format based on {today_str}. If no deadline is mentioned or it's vague, set it to null. Do NOT hallucinate dates.
-3. HINGLISH & MESSY TEXT: You are fluent in Hinglish (Hindi + English) and informal chat shorthand (e.g., "bhai", "kal", "done", "kk", "ok"). Infer intent accurately even with typos, bad grammar, or poor screenshot quality.
-4. DELIVERABLES: Be concise but comprehensive. Extract exactly what was agreed (e.g., "1 IG Reel + 2 Stories").
-5. INFLUENCER NAME: Extract the handle if available. If a real name is used (e.g., "Hi Rahul"), extract it. If missing, leave null.
+1. FORMAL DOCUMENTS & EMAILS: If this is a PDF contract, proposal, or formal email, carefully extract the exact deliverables, compensation, and deadlines. Look for terms like "Compensation:", "Deliverables:", "Timeline:", "Go-live date".
+2. PAYMENT vs GIFTED: If the text mentions "barter", "collab", "gifted", "sending a sample", "trying the product", "PR package", "send details", or similar without monetary value, it is Barter. Set payment_amount to EXACTLY 0.0. ONLY set a payment_amount if a specific monetary value (e.g., INR, Rs, ₹) is explicitly negotiated and agreed upon.
+3. DATES & DEADLINES: Convert all relative dates ("next Friday", "by EOD", "kal", "in 3 days") into strict YYYY-MM-DD format based on {today_str}. If no deadline is mentioned or it's vague, set it to null. Do NOT hallucinate dates.
+4. HINGLISH & MESSY TEXT: You are fluent in Hinglish (Hindi + English) and informal chat shorthand. Infer intent accurately even with typos, bad grammar, or poor screenshot quality.
+5. DELIVERABLES: Be concise but comprehensive. Extract exactly what was agreed (e.g., "1 IG Reel + 2 Stories", "1 Dedicated YouTube Integration").
+6. MISSING DATA: It is very common for documents to miss certain fields (e.g. handle, platform). If a field is not explicitly present or highly obvious, return null. Do not guess handles.
 
 Return ONLY valid JSON matching this exact structure:
 
 {{
   "influencer_name": string (Full name if found, else handle, else null),
   "influencer_handle": string (e.g., "@username" or null),
-  "platform": "Instagram" | "TikTok" | "YouTube" | "Others",
-  "deliverables": string (The core ask),
+  "platform": "Instagram" | "TikTok" | "YouTube" | "Others" | null,
+  "deliverables": string (The core ask) | null,
   "deadline": "YYYY-MM-DD" or null,
-  "payment_amount": number (float, use 0.0 for barter/gifted),
-  "special_notes": string (Brief summary of any specific requests, tracking links, or brand mandates, else null)
+  "payment_amount": number (float, use 0.0 for barter/gifted) | null,
+  "special_notes": string (Brief summary of any specific requests, tracking links, or brand mandates) | null
 }}
 
 DO NOT include markdown formatting like ```json.
@@ -73,18 +74,22 @@ def extract_campaign_details(content: Image.Image | str, filename: str = "image.
             content = ImageOps.exif_transpose(content)
             gemini_content.append(content)
         else:
-            # Append extracted text
+            # Append extracted text for PDFs/DOCX/TXT
             gemini_content.append(f"--- START OF FILE CONTENT ---\n{content}\n--- END OF FILE CONTENT ---")
 
         response = client.models.generate_content(
-            model="gemini-2.0-flash-exp",   # Best stable model
+            model="gemini-2.0-flash-exp",
             contents=gemini_content,
             config=types.GenerateContentConfig(
                 response_mime_type="application/json",
                 response_schema=GeminiExtractionSchema,
-                temperature=0.1,
+                temperature=0.1,  # Low temperature to prevent hallucination
             )
         )
+
+        # Handle refused or empty responses gracefully
+        if not response.text:
+            raise ValueError("Gemini returned an empty response. It may have been blocked by safety filters.")
 
         # Clean response text
         text = response.text.strip()
@@ -95,7 +100,7 @@ def extract_campaign_details(content: Image.Image | str, filename: str = "image.
 
         data = json.loads(text)
 
-        # Smart defaults & Human-in-the-Loop
+        # Smart defaults & Human-in-the-Loop Validation
         data['requires_human_review'] = not bool(data.get('influencer_name') and data.get('deliverables'))
         data['status'] = 'draft'
 
