@@ -95,6 +95,11 @@ def extract_campaign_details(image: Image.Image) -> dict:
         if not data.get('influencer_handle') or not data.get('deliverables') or not data.get('influencer_name'):
             requires_review = True
             
+        # Handle Pydantic validation crashes:
+        # If Gemini returns null for payment_amount, force it to 0.0 to satisfy the strict FastAPI ExtractionResult schema
+        if data.get('payment_amount') is None:
+            data['payment_amount'] = 0.0
+            
         data['requires_human_review'] = requires_review
         data['status'] = 'draft'
         
