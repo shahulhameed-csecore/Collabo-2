@@ -101,6 +101,14 @@ def extract_campaign_details(content: Image.Image | str, filename: str = "image.
         if data.get('payment_amount') is None:
             data['payment_amount'] = 0.0
 
+        # Protect against strict Pydantic date crashes
+        deadline_str = data.get('deadline')
+        if deadline_str:
+            try:
+                datetime.strptime(deadline_str, "%Y-%m-%d")
+            except ValueError:
+                data['deadline'] = None
+
         return data
 
     except Exception as e:
