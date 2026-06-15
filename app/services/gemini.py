@@ -78,7 +78,7 @@ def extract_campaign_details(content: Image.Image | str, filename: str = "image.
             gemini_content.append(f"--- START OF FILE CONTENT ---\n{content}\n--- END OF FILE CONTENT ---")
 
         response = client.models.generate_content(
-            model="gemini-2.0-flash-exp",
+            model="gemini-2.5-flash",
             contents=gemini_content,
             config=types.GenerateContentConfig(
                 response_mime_type="application/json",
