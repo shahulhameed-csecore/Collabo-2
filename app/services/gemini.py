@@ -42,7 +42,7 @@ EXTRACTION RULES:
    CRITICAL: If the text mentions "barter", "collab", "gifted", "sample", "sending product", or no money is discussed, output 0.0.
 3. `platform`: If missing, infer heavily from terminology. "Shorts" = YouTube, "Reel/Story" = Instagram.
 4. `deliverables`: Be precise. E.g. "1 dedicated video", "2 story frames".
-5. `influencer_name` & `influencer_handle`: Differentiate between the brand rep sending the message and the influencer receiving it.
+5. `influencer_name` & `influencer_handle`: Differentiate between the brand rep sending the message and the influencer receiving it. If the handle is missing, infer a probable handle based on their name (e.g. @chloesummers).
 6. `special_notes`: Capture any creative guidelines. If the agreement is partial/missing key info, note it here so the human reviewer knows.
 
 Extract the data and adhere strictly to the JSON schema.
@@ -79,8 +79,14 @@ def extract_campaign_details(image: Image.Image) -> dict:
             )
         )
         
-        # Parse the guaranteed JSON string
-        data = json.loads(response.text.strip())
+        # Parse the guaranteed JSON string (stripping markdown if Gemini accidentally adds it)
+        response_text = response.text.strip()
+        if response_text.startswith("```json"):
+            response_text = response_text[7:-3].strip()
+        elif response_text.startswith("```"):
+            response_text = response_text[3:-3].strip()
+            
+        data = json.loads(response_text)
         
         # Enforce HITL (Human-In-The-Loop) rules
         requires_review = False
