@@ -14,7 +14,6 @@ logger = logging.getLogger(__name__)
 client = genai.Client(api_key=settings.GEMINI_API_KEY)
 
 # ─── 1. Strict Output Schema ───────────────────────────────────────────────────
-# Defining this schema forces Gemini to guarantee the output structure.
 class GeminiExtractionSchema(BaseModel):
     influencer_name: str = Field(description="The human name of the influencer or brand rep (e.g. Riya Sharma, Chloe Summers).")
     influencer_handle: str | None = Field(description="The social media handle (e.g. @riya_creates). If none explicitly stated, leave null.")
@@ -90,15 +89,21 @@ def extract_campaign_details(image: Image.Image) -> dict:
         
         # Enforce HITL (Human-In-The-Loop) rules
         requires_review = False
-        # Since influencer_name and deliverables are strictly required by the schema,
-        # Gemini will output them. We check if they are empty strings or missing.
         if not data.get('influencer_handle') or not data.get('deliverables') or not data.get('influencer_name'):
             requires_review = True
             
         # Handle Pydantic validation crashes:
-        # If Gemini returns null for payment_amount, force it to 0.0 to satisfy the strict FastAPI ExtractionResult schema
+        # 1. If Gemini returns null for payment_amount, force it to 0.0
         if data.get('payment_amount') is None:
             data['payment_amount'] = 0.0
+            
+        # 2. If Gemini hallucinates an invalid date string, force it to None
+        deadline_str = data.get('deadline')
+        if deadline_str:
+            try:
+                datetime.strptime(deadline_str, "%Y-%m-%d")
+            except ValueError:
+                data['deadline'] = None
             
         data['requires_human_review'] = requires_review
         data['status'] = 'draft'
