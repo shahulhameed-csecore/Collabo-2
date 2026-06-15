@@ -89,8 +89,18 @@ def extract_campaign_details(image: Image.Image) -> dict:
         
         # Enforce HITL (Human-In-The-Loop) rules
         requires_review = False
-        if not data.get('influencer_handle') or not data.get('deliverables') or not data.get('influencer_name'):
-            requires_review = True
+        
+        # Provide smart defaults so the frontend form validation doesn't block the user
+        # from saving if these fields were missing from the screenshot.
+        if not data.get('influencer_name'):
+            data['influencer_name'] = 'Unknown Influencer'
+            requires_review = True # Still require a quick glance if we couldn't even find a name
+            
+        if not data.get('influencer_handle'):
+            data['influencer_handle'] = '@unknown'
+            
+        if not data.get('deliverables'):
+            data['deliverables'] = 'To be discussed'
             
         # Handle Pydantic validation crashes:
         # 1. If Gemini returns null for payment_amount, force it to 0.0

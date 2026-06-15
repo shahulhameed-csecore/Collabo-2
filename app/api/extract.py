@@ -1,6 +1,9 @@
 from fastapi import APIRouter, UploadFile, File, HTTPException, Depends, Request
 from PIL import Image
+import pillow_heif
 import io
+
+pillow_heif.register_heif_opener()
 from app.services.gemini import extract_campaign_details
 from app.schemas.campaign import ExtractionResult
 from app.api.dependencies import get_current_user
