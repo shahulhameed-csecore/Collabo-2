@@ -183,9 +183,7 @@ export async function deleteCampaign(id: string): Promise<void> {
 export async function extractFromImage(file: File): Promise<ExtractedData> {
   const formData = new FormData();
   formData.append('file', file);
-  const res = await api.post<ExtractedData>('/extract/', formData, {
-    headers: { 'Content-Type': 'multipart/form-data' },
-  });
+  const res = await api.post<ExtractedData>('/extract/', formData);
   return res.data;
 }
 
