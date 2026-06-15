@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import { extractFromImage, createCampaign, getApiErrorMessage } from '@/lib/api';
 import type { CampaignFormState, ExtractedData } from '@/lib/types';
 import { PLATFORMS } from '@/lib/types';
@@ -108,9 +108,16 @@ export default function CreateCampaignModal({ isOpen, onClose, onSuccess }: Crea
   const [markActive, setMarkActive] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
+  useEffect(() => {
+    return () => {
+      if (filePreview) URL.revokeObjectURL(filePreview);
+    };
+  }, [filePreview]);
+
   const reset = () => {
     setStep('upload');
     setFile(null);
+    if (filePreview) URL.revokeObjectURL(filePreview);
     setFilePreview(null);
     setExtracting(false);
     setExtractedData(null);
@@ -130,6 +137,7 @@ export default function CreateCampaignModal({ isOpen, onClose, onSuccess }: Crea
       toast.error('File too large. Maximum size is 5 MB.');
       return;
     }
+    if (filePreview) URL.revokeObjectURL(filePreview);
     setFile(f);
     setFilePreview(URL.createObjectURL(f));
   };
@@ -144,6 +152,7 @@ export default function CreateCampaignModal({ isOpen, onClose, onSuccess }: Crea
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0];
     if (f) pickFile(f);
+    e.target.value = ''; // Reset to allow picking the same file again
   };
 
   const handleExtract = async () => {
@@ -374,7 +383,7 @@ export default function CreateCampaignModal({ isOpen, onClose, onSuccess }: Crea
                       <span className="text-sm text-slate-300 truncate flex-1">{file.name}</span>
                       <span className="text-xs text-slate-500 flex-shrink-0">{(file.size / 1024).toFixed(0)} KB</span>
                       <button
-                        onClick={() => { setFile(null); setFilePreview(null); }}
+                        onClick={() => { setFile(null); if (filePreview) URL.revokeObjectURL(filePreview); setFilePreview(null); }}
                         className="text-slate-600 hover:text-rose-400 transition-colors p-0.5"
                       >
                         <X className="w-3.5 h-3.5" />

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { createClient } from '@/lib/supabase';
 import type { User } from '@supabase/supabase-js';
@@ -61,14 +61,20 @@ export default function DashboardLayout({ children, onNewCampaign }: DashboardLa
   const [user, setUser] = useState<User | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [mounted, setMounted] = useState(false);
   const router = useRouter();
   const pathname = usePathname();
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
 
   useEffect(() => {
+    setMounted(true);
     const getUser = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) { router.replace('/login'); return; }
+      const { data: { session }, error } = await supabase.auth.getSession();
+      if (!session || error) {
+        if (error) console.error("Session error:", error);
+        router.replace('/login'); 
+        return; 
+      }
       setUser(session.user);
       setLoading(false);
     };
@@ -115,8 +121,12 @@ export default function DashboardLayout({ children, onNewCampaign }: DashboardLa
 
   const userInitials = user?.email?.slice(0, 2).toUpperCase() ?? 'IT';
   const userName = user?.email?.split('@')[0] ?? 'there';
-  const hour = new Date().getHours();
-  const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
+  
+  // Safe greeting calculation without hydration error
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+    return hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
+  };
 
   const SidebarContent = () => (
     <div className="flex flex-col h-full">
@@ -261,7 +271,7 @@ export default function DashboardLayout({ children, onNewCampaign }: DashboardLa
           {/* Desktop greeting */}
           <div className="hidden lg:flex items-center gap-2">
             <p className="text-sm text-slate-400">
-              {greeting},{' '}
+              {mounted ? getGreeting() : 'Welcome'},{' '}
               <span className="text-white font-semibold capitalize">{userName}</span> 👋
             </p>
           </div>

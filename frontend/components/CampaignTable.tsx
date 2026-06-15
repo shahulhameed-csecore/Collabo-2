@@ -446,7 +446,7 @@ export default function CampaignTable({ campaigns, isLoading, onRefresh, onCreat
                                 onClick={() => handleStatusChange(c.id, 'completed')}
                                 disabled={!!updatingId}
                                 title="Mark as Completed"
-                                className="p-1.5 text-slate-500 hover:text-emerald-400 hover:bg-emerald-500/10 rounded-lg transition-all opacity-0 group-hover:opacity-100 disabled:opacity-30"
+                                className="p-1.5 text-slate-500 hover:text-emerald-400 hover:bg-emerald-500/10 rounded-lg transition-all opacity-100 sm:opacity-0 sm:group-hover:opacity-100 disabled:opacity-30"
                               >
                                 <Check className="w-3.5 h-3.5" />
                               </button>
@@ -458,7 +458,7 @@ export default function CampaignTable({ campaigns, isLoading, onRefresh, onCreat
                                 onClick={() => handleStatusChange(c.id, 'active')}
                                 disabled={!!updatingId}
                                 title="Activate campaign"
-                                className="p-1.5 text-slate-500 hover:text-blue-400 hover:bg-blue-500/10 rounded-lg transition-all opacity-0 group-hover:opacity-100 disabled:opacity-30"
+                                className="p-1.5 text-slate-500 hover:text-blue-400 hover:bg-blue-500/10 rounded-lg transition-all opacity-100 sm:opacity-0 sm:group-hover:opacity-100 disabled:opacity-30"
                               >
                                 <ExternalLink className="w-3.5 h-3.5" />
                               </button>
@@ -483,7 +483,7 @@ export default function CampaignTable({ campaigns, isLoading, onRefresh, onCreat
                               onClick={() => handleDelete(c.id, name)}
                               disabled={!!deletingId}
                               title="Delete campaign"
-                              className="p-1.5 text-slate-600 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition-all opacity-0 group-hover:opacity-100 disabled:opacity-30"
+                              className="p-1.5 text-slate-600 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition-all opacity-100 sm:opacity-0 sm:group-hover:opacity-100 disabled:opacity-30"
                             >
                               <Trash2 className="w-3.5 h-3.5" />
                             </button>

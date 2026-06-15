@@ -10,9 +10,6 @@ import type {
 } from './types';
 
 // ─── Base URL Resolution ──────────────────────────────────────────────────────
-// Hard-coded fallback ensures production works even if the Vercel env var is
-// not configured. NEXT_PUBLIC_* vars MUST be set at build time; they are NOT
-// read from .env.local in CI/Vercel — you must add them in the Vercel dashboard.
 const PRODUCTION_API_URL = 'https://collabo-2.onrender.com';
 
 const baseURL =
@@ -32,16 +29,19 @@ const api = axios.create({
   baseURL,
   timeout: 60_000, // 60 seconds — generous for AI extraction
   headers: { 'Content-Type': 'application/json' },
-  // Tell axios to send cookies & accept cross-origin responses
   withCredentials: false,
 });
 
+// Create a single Supabase client instance for the browser
+// createBrowserClient from @supabase/ssr caches itself, but moving it here ensures zero overhead
+const supabase = createClient();
+
 // ─── Request Interceptor: Auto-inject Supabase JWT ───────────────────────────
 api.interceptors.request.use(async (config: InternalAxiosRequestConfig) => {
-  const supabase = createClient();
   const {
     data: { session },
   } = await supabase.auth.getSession();
+  
   if (session?.access_token) {
     config.headers.Authorization = `Bearer ${session.access_token}`;
   }
@@ -58,16 +58,17 @@ api.interceptors.response.use(
   (response) => response,
   async (error: AxiosError) => {
     if (error.response?.status === 401) {
-      const supabase = createClient();
       await supabase.auth.signOut();
-      if (typeof window !== 'undefined') window.location.href = '/login';
+      // Soft-fallback for redirection to avoid harsh reloads where possible
+      if (typeof window !== 'undefined') {
+        window.location.assign('/login');
+      }
     }
 
     if (process.env.NODE_ENV === 'development') {
       if (error.response) {
         console.error(`[API] Error ${error.response.status}:`, error.response.data);
       } else if (error.request) {
-        // Request was made but no response received — likely CORS or network issue
         console.error(
           '[API] No response received. This is usually a CORS block or network error.',
           '\n  Target URL:', baseURL,
@@ -83,19 +84,6 @@ api.interceptors.response.use(
 );
 
 // ─── Error Message Helper ─────────────────────────────────────────────────────
-/**
- * Extracts a user-friendly message from an API error.
- * Falls back to a generic message if nothing can be parsed.
- *
- * Handles:
- * - FastAPI validation errors (array of {loc, msg, type})
- * - Plain string detail errors
- * - Network timeouts (ECONNABORTED)
- * - CORS / no-response errors (ERR_NETWORK, ERR_NAME_NOT_RESOLVED)
- * - Rate-limit responses (429)
- * - Service unavailable (503)
- * - No network connection
- */
 export function getApiErrorMessage(
   err: unknown,
   fallback = 'Something went wrong. Please try again.'
@@ -103,24 +91,20 @@ export function getApiErrorMessage(
   if (axios.isAxiosError(err)) {
     const data = err.response?.data as ApiError | undefined;
 
-    // Plain string detail
     if (typeof data?.detail === 'string' && data.detail.trim()) {
       return data.detail;
     }
 
-    // Validation error array — pick first meaningful message
     if (Array.isArray(data?.detail) && data.detail.length > 0) {
       const first = data.detail[0];
       const fieldPath = first.loc?.slice(1).join(' → ') ?? '';
       return fieldPath ? `${fieldPath}: ${first.msg}` : first.msg;
     }
 
-    // Network / timeout errors (no response received at all)
     if (err.code === 'ECONNABORTED') {
       return 'Request timed out. The server may be starting up — please try again in a moment.';
     }
 
-    // No response: CORS block, DNS failure, or server unreachable
     if (!err.response) {
       const isNetworkError =
         err.code === 'ERR_NETWORK' ||
@@ -135,33 +119,28 @@ export function getApiErrorMessage(
       }
 
       return (
-        'Cannot reach the server. The backend may be starting up (Render ' +
-        'free-tier services sleep after inactivity). Please wait 30 seconds ' +
-        'and try again.'
+        'Cannot reach the server. The backend may be starting up. ' +
+        'Please wait 30 seconds and try again.'
       );
     }
 
-    // HTTP status codes
     const status = err.response.status;
     if (status === 429) return 'Too many requests. Please wait a moment and try again.';
-    if (status === 503)
-      return 'Service is temporarily unavailable. Please try again shortly.';
+    if (status === 503) return 'Service is temporarily unavailable. Please try again shortly.';
     if (status === 404) return 'Resource not found.';
     if (status === 403) return 'You do not have permission to perform this action.';
-    if (status >= 500)
-      return 'Server error. Our team has been notified — please try again later.';
+    if (status >= 500) return 'Server error. Our team has been notified — please try again later.';
   }
 
-  // Unknown error type
   if (err instanceof Error && err.message) return err.message;
-
   return fallback;
 }
 
 // ─── Campaign API Calls ───────────────────────────────────────────────────────
 
 /** Fetch all campaigns for the current authenticated user. */
-export async function getCampaigns(limit = 100, offset = 0): Promise<Campaign[]> {
+// Limit bumped to 200 per user request to avoid truncation without pagination
+export async function getCampaigns(limit = 200, offset = 0): Promise<Campaign[]> {
   const res = await api.get<Campaign[]>('/campaigns/', { params: { limit, offset } });
   return res.data;
 }
@@ -212,7 +191,6 @@ export async function extractFromImage(file: File): Promise<ExtractedData> {
 
 // ─── Client-side Dashboard Stats Computation ─────────────────────────────────
 
-/** Compute dashboard stats from a list of campaigns (no extra API call needed). */
 export function computeDashboardStats(campaigns: Campaign[]): DashboardStats {
   const now = new Date();
   const sevenDaysLater = new Date(now);
