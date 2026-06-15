@@ -26,7 +26,7 @@ async def get_campaigns(
 
 @router.post("/", response_model=CampaignResponse)
 async def create_campaign(campaign: CampaignCreate, client = Depends(get_user_client), user = Depends(get_current_user)):
-    data = campaign.model_dump(exclude_unset=True)
+    data = campaign.model_dump(mode='json', exclude_unset=True)
     data["user_id"] = user.user.id
     try:
         response = client.table("campaigns").insert(data).execute()
@@ -38,7 +38,7 @@ async def create_campaign(campaign: CampaignCreate, client = Depends(get_user_cl
 
 @router.put("/{id}", response_model=CampaignResponse)
 async def update_campaign(id: str, campaign: CampaignUpdate, client = Depends(get_user_client)):
-    data = campaign.model_dump(exclude_unset=True)
+    data = campaign.model_dump(mode='json', exclude_unset=True)
     response = client.table("campaigns").update(data).eq("id", id).execute()
     if not response.data:
         raise HTTPException(status_code=404, detail="Campaign not found or access denied")
@@ -46,7 +46,7 @@ async def update_campaign(id: str, campaign: CampaignUpdate, client = Depends(ge
 
 @router.patch("/{id}/status", response_model=CampaignResponse)
 async def update_campaign_status(id: str, status_update: CampaignStatusUpdate, client = Depends(get_user_client)):
-    data = status_update.model_dump()
+    data = status_update.model_dump(mode='json')
     response = client.table("campaigns").update(data).eq("id", id).execute()
     if not response.data:
         raise HTTPException(status_code=404, detail="Campaign not found or access denied")
