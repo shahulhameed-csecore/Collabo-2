@@ -181,14 +181,25 @@ export async function deleteCampaign(id: string): Promise<void> {
  * Returns extracted campaign data. May include requires_human_review=true.
  */
 export async function extractFromFile(file: File): Promise<ExtractedData> {
+  const { data: { session } } = await supabase.auth.getSession();
   const formData = new FormData();
   formData.append('file', file);
-  const res = await api.post<ExtractedData>('/extract/', formData, {
+
+  // Use native fetch to bypass Axios global JSON headers, guaranteeing a perfect multipart boundary
+  const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1'}/extract/`, {
+    method: 'POST',
+    body: formData,
     headers: {
-      'Content-Type': 'multipart/form-data'
+      ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {})
     }
   });
-  return res.data;
+
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => null);
+    throw new Error(errorData?.detail || 'AI extraction failed.');
+  }
+
+  return res.json();
 }
 
 // ─── Client-side Dashboard Stats Computation ─────────────────────────────────
