@@ -29,7 +29,7 @@ const api = axios.create({
   baseURL,
   timeout: 60_000, // 60 seconds — generous for AI extraction
   headers: { 'Content-Type': 'application/json' },
-  withCredentials: false,
+  withCredentials: true,
 });
 
 // Create a single Supabase client instance for the browser
@@ -186,7 +186,7 @@ export async function extractFromFile(file: File): Promise<ExtractedData> {
   formData.append('file', file);
 
   // Use native fetch to bypass Axios global JSON headers, guaranteeing a perfect multipart boundary
-  const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1'}/extract/`, {
+  const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/extract/`, {
     method: 'POST',
     body: formData,
     headers: {
