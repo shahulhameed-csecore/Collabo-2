@@ -1,0 +1,18 @@
+-- 1. Add reminder tracking columns to campaigns table
+ALTER TABLE public.campaigns 
+ADD COLUMN IF NOT EXISTS reminder_48h_sent BOOLEAN DEFAULT FALSE,
+ADD COLUMN IF NOT EXISTS overdue_alert_sent BOOLEAN DEFAULT FALSE;
+
+-- 2. Add reminder preference columns to user_settings table
+ALTER TABLE public.user_settings 
+ADD COLUMN IF NOT EXISTS email_reminders_enabled BOOLEAN DEFAULT TRUE,
+ADD COLUMN IF NOT EXISTS whatsapp_reminders_enabled BOOLEAN DEFAULT TRUE;
+
+-- (Optional) If you want to log last run time, create a simple tracking table
+CREATE TABLE IF NOT EXISTS public.scheduler_logs (
+    id SERIAL PRIMARY KEY,
+    job_name TEXT NOT NULL,
+    status TEXT NOT NULL,
+    run_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    details JSONB
+);
