@@ -86,6 +86,17 @@ def extract_campaign_details(content: Image.Image | str | dict, filename: str = 
             )
             gemini_content.append(audio_part)
             gemini_content.append("Please transcribe and analyze this voice note to extract the campaign details.")
+        elif isinstance(content, dict) and "image_bytes" in content:
+            # Handle WhatsApp Images
+            image_part = types.Part.from_bytes(
+                data=content["image_bytes"],
+                mime_type=content.get("mime_type", "image/jpeg")
+            )
+            gemini_content.append(image_part)
+            caption = content.get("caption", "")
+            if caption:
+                gemini_content.append(f"Image Caption/Context: {caption}")
+            gemini_content.append("Please analyze this image and caption to extract the campaign details.")
         else:
             # Append extracted text for PDFs/DOCX/TXT/WhatsApp text
             gemini_content.append(f"--- START OF CONTENT ---\n{content}\n--- END OF CONTENT ---")

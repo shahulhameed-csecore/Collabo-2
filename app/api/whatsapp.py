@@ -77,7 +77,7 @@ async def process_whatsapp_message(sender_id: str, message: dict):
             
         user_id = user_response.data[0]['user_id']
         
-        # 2. Extract Data (Text vs Audio)
+        # 2. Extract Data (Text vs Audio vs Image)
         msg_type = message.get("type")
         content_for_gemini = None
         
@@ -102,8 +102,29 @@ async def process_whatsapp_message(sender_id: str, message: dict):
             # Pass as a dict so gemini.py can handle the raw bytes
             content_for_gemini = {"audio_bytes": audio_bytes, "mime_type": "audio/ogg"}
             
+        elif msg_type == "image":
+            image_id = message.get("image", {}).get("id")
+            caption = message.get("image", {}).get("caption", "")
+            
+            if not image_id:
+                await send_whatsapp_message(sender_id, "❌ Could not retrieve image ID.")
+                return
+                
+            await send_whatsapp_message(sender_id, "Analyzing your image... 🖼️")
+            image_bytes = await download_whatsapp_media(image_id)
+            if not image_bytes:
+                await send_whatsapp_message(sender_id, "❌ Failed to download the image from WhatsApp. Please try again.")
+                return
+                
+            # Pass as a dict so gemini.py can handle the raw bytes
+            content_for_gemini = {
+                "image_bytes": image_bytes, 
+                "mime_type": message.get("image", {}).get("mime_type", "image/jpeg"),
+                "caption": caption
+            }
+            
         else:
-            await send_whatsapp_message(sender_id, f"Unsupported message type: {msg_type}. Please send text or voice notes.")
+            await send_whatsapp_message(sender_id, f"Unsupported message type: {msg_type}. Please send text, voice notes, or images.")
             return
 
         # 3. Process with Gemini
