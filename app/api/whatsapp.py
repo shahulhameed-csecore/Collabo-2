@@ -144,7 +144,7 @@ async def process_whatsapp_message(sender_id: str, message: dict):
             
         # Provide fallbacks for required database columns
         if not campaign_data.get('influencer_handle'):
-            campaign_data['influencer_handle'] = campaign_data.get('influencer_name', 'Unknown')
+            campaign_data['influencer_handle'] = campaign_data.get('influencer_name') or 'Unknown'
         
         if not campaign_data.get('platform'):
             campaign_data['platform'] = 'Others'
