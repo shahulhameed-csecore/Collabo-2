@@ -7,7 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 
-from app.api import extract, campaigns
+from app.api import extract, campaigns, auth
 from app.core.config import settings
 from app.core.limiter import limiter
 
@@ -78,6 +78,7 @@ async def global_exception_handler(request: Request, exc: Exception):
 
 app.include_router(extract.router)
 app.include_router(campaigns.router)
+app.include_router(auth.router)
 
 @app.get("/", tags=["Health"], description="Basic health check to ensure the API and configurations are loaded.")
 async def health_check():
