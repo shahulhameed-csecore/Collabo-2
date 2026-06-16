@@ -104,7 +104,7 @@ export default function DashboardLayout({ children, onNewCampaign }: DashboardLa
             </div>
           </div>
           <div className="text-center">
-            <p className="text-white font-bold text-base tracking-tight">InfluencerTrack</p>
+            <p className="text-white font-bold text-base tracking-tight">Collabo</p>
             <p className="text-slate-500 text-sm mt-1">Loading your workspace...</p>
           </div>
           {/* Loading bar */}
@@ -139,7 +139,7 @@ export default function DashboardLayout({ children, onNewCampaign }: DashboardLa
           </div>
         </div>
         <div>
-          <span className="text-sm font-bold text-white tracking-tight">InfluencerTrack</span>
+          <span className="text-sm font-bold text-white tracking-tight">Collabo</span>
           <div className="flex items-center gap-1 mt-0.5">
             <Sparkles className="w-2.5 h-2.5 text-emerald-400" />
             <p className="text-[10px] text-emerald-400 font-semibold tracking-wide">PRO PLAN</p>
@@ -281,7 +281,7 @@ export default function DashboardLayout({ children, onNewCampaign }: DashboardLa
             <div className="p-1 bg-gradient-to-br from-emerald-500 to-teal-500 rounded-lg">
               <Zap className="w-3.5 h-3.5 text-white" />
             </div>
-            <span className="text-sm font-bold text-white">InfluencerTrack</span>
+            <span className="text-sm font-bold text-white">Collabo</span>
           </div>
 
           {/* Right side actions */}

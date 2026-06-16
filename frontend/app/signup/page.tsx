@@ -99,7 +99,7 @@ export default function SignupPage() {
           <div className="p-2.5 bg-emerald-500 rounded-xl shadow-lg shadow-emerald-500/30">
             <Zap className="w-6 h-6 text-white" />
           </div>
-          <span className="text-2xl font-bold text-white tracking-tight">InfluencerTrack</span>
+          <span className="text-2xl font-bold text-white tracking-tight">Collabo</span>
         </div>
 
         {/* Card */}

@@ -21,11 +21,11 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  title: "InfluencerTrack — Campaign Manager",
+  title: "Collabo — Campaign Manager",
   description: "Manage your micro-influencer campaigns with AI-powered extraction and real-time tracking.",
   keywords: ["influencer marketing", "campaign management", "D2C brands", "India"],
   openGraph: {
-    title: "InfluencerTrack",
+    title: "Collabo",
     description: "AI-powered influencer campaign management for D2C brands.",
     type: "website",
   },
