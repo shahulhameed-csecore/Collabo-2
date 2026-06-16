@@ -43,6 +43,7 @@ CRITICAL DIRECTIVES:
 5. DELIVERABLES: Be concise but comprehensive. Extract exactly what was agreed (e.g., "1 IG Reel + 2 Stories", "1 Dedicated YouTube Integration").
 6. MISSING DATA: It is very common for documents to miss certain fields (e.g. handle, platform). If a field is not explicitly present or highly obvious, return null. Do not guess handles.
 7. NEVER FAIL: Even if the document is totally empty or irrelevant, DO NOT crash. Simply return null for all fields. Always output valid JSON matching the exact schema below.
+8. WHATSAPP FORWARDS: If this is a forwarded WhatsApp chat log, parse the conversation flow carefully. Pay close attention to the final agreed terms (the last messages) rather than initial offers.
 
 Return ONLY valid JSON matching this exact structure:
 
@@ -61,7 +62,7 @@ DO NOT include any commentary. Output raw JSON only.
 """
 
 
-def extract_campaign_details(content: Image.Image | str, filename: str = "image.png") -> dict:
+def extract_campaign_details(content: Image.Image | str | dict, filename: str = "image.png") -> dict:
     try:
         today_str = datetime.now().strftime("%Y-%m-%d (%A)")
         gemini_content = [get_extraction_prompt(today_str, filename)]
@@ -77,9 +78,17 @@ def extract_campaign_details(content: Image.Image | str, filename: str = "image.
             # Auto-rotate based on EXIF if needed
             content = ImageOps.exif_transpose(content)
             gemini_content.append(content)
+        elif isinstance(content, dict) and "audio_bytes" in content:
+            # Handle WhatsApp Voice Notes (raw bytes)
+            audio_part = types.Part.from_bytes(
+                data=content["audio_bytes"],
+                mime_type=content.get("mime_type", "audio/ogg")
+            )
+            gemini_content.append(audio_part)
+            gemini_content.append("Please transcribe and analyze this voice note to extract the campaign details.")
         else:
-            # Append extracted text for PDFs/DOCX/TXT
-            gemini_content.append(f"--- START OF FILE CONTENT ---\n{content}\n--- END OF FILE CONTENT ---")
+            # Append extracted text for PDFs/DOCX/TXT/WhatsApp text
+            gemini_content.append(f"--- START OF CONTENT ---\n{content}\n--- END OF CONTENT ---")
 
         response = client.models.generate_content(
             model="gemini-2.5-flash",

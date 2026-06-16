@@ -8,6 +8,15 @@ class Settings(BaseSettings):
     GEMINI_API_KEY: str
     ALLOWED_ORIGINS: str = "https://collabo-2.vercel.app,http://localhost:3000,http://127.0.0.1:3000"
     SENTRY_DSN: Optional[str] = None
+    
+    # WhatsApp (Meta Cloud API) Integration
+    WHATSAPP_TOKEN: Optional[str] = None
+    WHATSAPP_PHONE_NUMBER_ID: Optional[str] = None
+    WHATSAPP_WEBHOOK_VERIFY_TOKEN: Optional[str] = None
+    WHATSAPP_APP_SECRET: Optional[str] = None
+    
+    # Required for webhook to insert data without user JWT
+    SUPABASE_SERVICE_ROLE_KEY: Optional[str] = None
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
 
