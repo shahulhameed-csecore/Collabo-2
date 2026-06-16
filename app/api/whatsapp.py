@@ -136,7 +136,12 @@ async def process_whatsapp_message(sender_id: str, message: dict):
             await send_whatsapp_message(sender_id, "⚠️ I extracted the details, but some fields were missing or unclear. Creating a Draft campaign for you to review.")
             
         # 4. Insert into Supabase
-        campaign_data = extracted_data
+        campaign_data = extracted_data.copy()
+        
+        # Remove fields that aren't in the database schema
+        if 'requires_human_review' in campaign_data:
+            del campaign_data['requires_human_review']
+            
         campaign_data['user_id'] = user_id
         campaign_data['status'] = 'draft' # Always draft from WhatsApp
         
