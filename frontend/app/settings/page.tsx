@@ -99,12 +99,14 @@ export default function SettingsPage() {
                     type="tel"
                     value={whatsappNumber}
                     onChange={(e) => setWhatsappNumber(e.target.value)}
-                    placeholder="e.g. 919876543210 (include country code)"
+                    placeholder="e.g. 9876543210"
                     disabled={isLoading}
                     className="w-full bg-slate-950/50 border border-slate-700/60 text-white placeholder-slate-600 rounded-xl pl-10 pr-4 py-2.5 text-sm focus:outline-none focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/20 transition-all disabled:opacity-50"
                   />
                 </div>
-                <p className="text-[11px] text-slate-500">Include your country code (e.g. 91 for India). No + sign.</p>
+                <p className="text-[11px] text-slate-500">
+                  <strong className="text-emerald-400">Indian Users:</strong> You can enter your 10-digit number directly. We will automatically add the 91 code!
+                </p>
               </div>
 
               <button
