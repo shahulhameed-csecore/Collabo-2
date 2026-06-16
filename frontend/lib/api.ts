@@ -1,5 +1,6 @@
 import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
 import { createClient } from './supabase';
+import { toast } from 'sonner';
 import type {
   Campaign,
   CreateCampaignPayload,
@@ -59,9 +60,13 @@ api.interceptors.response.use(
   async (error: AxiosError) => {
     if (error.response?.status === 401) {
       await supabase.auth.signOut();
-      // Soft-fallback for redirection to avoid harsh reloads where possible
+      
+      // Graceful fallback for redirection
       if (typeof window !== 'undefined') {
-        window.location.assign('/login');
+        // We use a short timeout to let the toast render before the redirect happens
+        setTimeout(() => {
+          window.location.assign('/login');
+        }, 1500);
       }
     }
 
