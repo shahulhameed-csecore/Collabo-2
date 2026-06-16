@@ -426,8 +426,8 @@ export default function CampaignTable({ campaigns, isLoading, onRefresh, onCreat
                               ₹{c.payment_amount.toLocaleString('en-IN')}
                             </span>
                           ) : (
-                            <span className="text-xs text-amber-400 font-semibold bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded-md">
-                              Barter
+                            <span className="text-xs text-emerald-400 font-semibold bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-md">
+                              Gifted 🎁
                             </span>
                           )}
                         </td>

@@ -539,12 +539,12 @@ export default function CreateCampaignModal({ isOpen, onClose, onSuccess }: Crea
                       step="100"
                       value={form.payment_amount}
                       onChange={e => fieldChange('payment_amount', e.target.value)}
-                      placeholder="0 for barter"
+                      placeholder="0 for gifted deal"
                       className={`${inputCls()} pl-8`}
                     />
                   </div>
                   {form.payment_amount === '0' && (
-                    <p className="text-xs text-amber-400/70 mt-1 ml-1">₹0 = Barter deal</p>
+                    <p className="text-xs text-emerald-400/70 mt-1 ml-1">₹0 = Gifted Deal 🎁</p>
                   )}
                 </Field>
 
