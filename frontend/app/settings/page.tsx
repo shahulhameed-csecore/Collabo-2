@@ -2,61 +2,43 @@
 
 import { useState, useEffect } from 'react';
 import DashboardLayout from '@/components/DashboardLayout';
-import { createClient } from '@/lib/supabase';
 import { Settings, MessageSquare, Phone, AlertCircle, Save, Check } from 'lucide-react';
 import { toast } from 'sonner';
+import { saveWhatsAppNumber, getWhatsAppNumber, getApiErrorMessage } from '@/lib/api';
 
 export default function SettingsPage() {
   const [whatsappNumber, setWhatsappNumber] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
-  const [userId, setUserId] = useState<string | null>(null);
-  const supabase = createClient();
 
   useEffect(() => {
     async function loadSettings() {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-      setUserId(user.id);
-
-      const { data, error } = await supabase
-        .from('user_settings')
-        .select('whatsapp_number')
-        .eq('user_id', user.id)
-        .single();
-
-      if (data && data.whatsapp_number) {
-        setWhatsappNumber(data.whatsapp_number);
+      try {
+        const { whatsapp_number } = await getWhatsAppNumber();
+        if (whatsapp_number) {
+          setWhatsappNumber(whatsapp_number);
+        }
+      } catch (error) {
+        console.error("Failed to load settings:", error);
+      } finally {
+        setIsLoading(false);
       }
-      setIsLoading(false);
     }
     loadSettings();
-  }, [supabase]);
+  }, []);
 
   const handleSave = async () => {
-    if (!userId) return;
-    
-    let cleanNumber = whatsappNumber.replace(/\D/g, ''); // strip non-digits
-    if (cleanNumber && !cleanNumber.startsWith('91') && cleanNumber.length === 10) {
-      cleanNumber = '91' + cleanNumber; // default to India code
-    }
-
     setIsSaving(true);
     
-    // Upsert the setting
-    const { error } = await supabase
-      .from('user_settings')
-      .upsert({ user_id: userId, whatsapp_number: cleanNumber })
-      .select();
-
-    if (error) {
-      console.error(error);
-      toast.error('Failed to save settings. Please try again.');
-    } else {
-      setWhatsappNumber(cleanNumber);
+    try {
+      const response = await saveWhatsAppNumber(whatsappNumber);
+      setWhatsappNumber(response.whatsapp_number);
       toast.success('WhatsApp number linked successfully!');
+    } catch (error) {
+      toast.error(getApiErrorMessage(error, 'Failed to save settings. Please try again.'));
+    } finally {
+      setIsSaving(false);
     }
-    setIsSaving(false);
   };
 
   return (

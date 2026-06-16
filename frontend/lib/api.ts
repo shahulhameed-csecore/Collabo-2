@@ -207,6 +207,18 @@ export async function extractFromFile(file: File): Promise<ExtractedData> {
   return res.json();
 }
 
+// ─── Settings API Calls ─────────────────────────────────────────────────────────
+
+export async function saveWhatsAppNumber(whatsapp_number: string): Promise<{ message: string, whatsapp_number: string }> {
+  const res = await api.post('/settings/whatsapp', { whatsapp_number });
+  return res.data;
+}
+
+export async function getWhatsAppNumber(): Promise<{ whatsapp_number: string | null }> {
+  const res = await api.get('/settings/whatsapp');
+  return res.data;
+}
+
 // ─── Client-side Dashboard Stats Computation ─────────────────────────────────
 
 export function computeDashboardStats(campaigns: Campaign[]): DashboardStats {
