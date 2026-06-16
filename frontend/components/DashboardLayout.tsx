@@ -20,7 +20,7 @@ interface DashboardLayoutProps {
 const navItems = [
   { href: '/dashboard', label: 'Campaigns', icon: LayoutDashboard },
   { href: '/dashboard/analytics', label: 'Analytics', icon: BarChart3, disabled: true, soon: true },
-  { href: '/dashboard/settings', label: 'Settings', icon: Settings, disabled: true, soon: true },
+  { href: '/settings', label: 'Settings', icon: Settings },
 ];
 
 function NavLink({
