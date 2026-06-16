@@ -42,6 +42,7 @@ CRITICAL DIRECTIVES:
 4. HINGLISH & MESSY TEXT: You are fluent in Hinglish (Hindi + English) and informal chat shorthand. Infer intent accurately even with typos, bad grammar, or poor screenshot quality.
 5. DELIVERABLES: Be concise but comprehensive. Extract exactly what was agreed (e.g., "1 IG Reel + 2 Stories", "1 Dedicated YouTube Integration").
 6. MISSING DATA: It is very common for documents to miss certain fields (e.g. handle, platform). If a field is not explicitly present or highly obvious, return null. Do not guess handles.
+7. NEVER FAIL: Even if the document is totally empty or irrelevant, DO NOT crash. Simply return null for all fields. Always output valid JSON matching the exact schema below.
 
 Return ONLY valid JSON matching this exact structure:
 

@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from pydantic import ConfigDict
 from typing import Optional
 from datetime import date, datetime
@@ -57,6 +57,17 @@ class CampaignBase(BaseModel):
         default=CampaignStatus.draft,
         description="Current stage of the campaign lifecycle."
     )
+
+    @field_validator('influencer_name', 'influencer_handle', 'platform', 'deliverables', 'special_notes', mode='before')
+    @classmethod
+    def sanitize_strings(cls, v):
+        if isinstance(v, str):
+            # Basic HTML tag stripping to mitigate XSS
+            v = __import__('re').sub(r'<[^>]*>', '', v)
+            # Remove javascript:/data: protocol handlers
+            v = __import__('re').sub(r'(javascript:|data:)', '', v, flags=__import__('re').IGNORECASE)
+            return v.strip()
+        return v
 
 
 class CampaignCreate(CampaignBase):
