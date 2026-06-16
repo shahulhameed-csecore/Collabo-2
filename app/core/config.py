@@ -18,6 +18,10 @@ class Settings(BaseSettings):
     # Required for webhook to insert data without user JWT
     SUPABASE_SERVICE_ROLE_KEY: Optional[str] = None
 
+    # Email & Reminders
+    RESEND_API_KEY: Optional[str] = None
+    SCHEDULER_INTERVAL_MINUTES: int = 60 # Default to 1 hour
+
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
 
     @property

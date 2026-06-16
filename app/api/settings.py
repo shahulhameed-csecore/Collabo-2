@@ -16,6 +16,8 @@ def get_user_client(user=Depends(get_current_user)):
 
 class WhatsAppSettingsInput(BaseModel):
     whatsapp_number: str
+    email_reminders_enabled: bool = True
+    whatsapp_reminders_enabled: bool = True
 
 @router.post("/whatsapp")
 async def save_whatsapp_settings(
@@ -24,7 +26,7 @@ async def save_whatsapp_settings(
     client = Depends(get_user_client)
 ):
     """
-    Saves or updates the user's WhatsApp number for the bot integration.
+    Saves or updates the user's settings.
     """
     user_id = current_user.user.id
     if not user_id:
@@ -43,13 +45,21 @@ async def save_whatsapp_settings(
     if len(clean_number) < 10:
         raise HTTPException(status_code=400, detail="Phone number is too short.")
 
-    # Upsert the number using the user's authenticated client
+    # Upsert the settings using the user's authenticated client
     try:
-        response = client.table("user_settings").upsert(
-            {"user_id": user_id, "whatsapp_number": clean_number}
-        ).execute()
+        response = client.table("user_settings").upsert({
+            "user_id": user_id, 
+            "whatsapp_number": clean_number,
+            "email_reminders_enabled": input_data.email_reminders_enabled,
+            "whatsapp_reminders_enabled": input_data.whatsapp_reminders_enabled
+        }).execute()
         
-        return {"message": "WhatsApp number saved successfully", "whatsapp_number": clean_number}
+        return {
+            "message": "Settings saved successfully", 
+            "whatsapp_number": clean_number,
+            "email_reminders_enabled": input_data.email_reminders_enabled,
+            "whatsapp_reminders_enabled": input_data.whatsapp_reminders_enabled
+        }
     except Exception as e:
         error_str = str(e).lower()
         if "unique constraint" in error_str or "duplicate key" in error_str:
@@ -67,9 +77,9 @@ async def get_whatsapp_settings(
     user_id = current_user.user.id
     
     try:
-        response = client.table("user_settings").select("whatsapp_number").eq("user_id", user_id).execute()
+        response = client.table("user_settings").select("whatsapp_number, email_reminders_enabled, whatsapp_reminders_enabled").eq("user_id", user_id).execute()
         if response.data:
-            return {"whatsapp_number": response.data[0]["whatsapp_number"]}
-        return {"whatsapp_number": None}
+            return response.data[0]
+        return {"whatsapp_number": None, "email_reminders_enabled": True, "whatsapp_reminders_enabled": True}
     except Exception:
-        return {"whatsapp_number": None}
+        return {"whatsapp_number": None, "email_reminders_enabled": True, "whatsapp_reminders_enabled": True}

@@ -11,6 +11,26 @@ from app.api import extract, campaigns, auth, whatsapp, settings as settings_api
 from app.core.config import settings
 from app.core.limiter import limiter
 
+from contextlib import asynccontextmanager
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from app.services.reminders import check_deadlines_job
+
+scheduler = AsyncIOScheduler()
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup: Start the scheduler
+    interval_minutes = settings.SCHEDULER_INTERVAL_MINUTES
+    scheduler.add_job(check_deadlines_job, 'interval', minutes=interval_minutes, id='deadlines_job', replace_existing=True)
+    scheduler.start()
+    logger.info(f"Background scheduler started with interval {interval_minutes} minutes.")
+    
+    yield
+    
+    # Shutdown: Stop the scheduler
+    scheduler.shutdown()
+    logger.info("Background scheduler stopped.")
+
 # --- Sentry Setup ---
 if settings.SENTRY_DSN:
     sentry_sdk.init(
@@ -55,6 +75,7 @@ app = FastAPI(
         "url": "https://influencertrack.io/support",
         "email": "support@influencertrack.io",
     },
+    lifespan=lifespan
 )
 
 app.state.limiter = limiter
