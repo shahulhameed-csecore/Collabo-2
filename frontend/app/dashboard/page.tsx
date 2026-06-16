@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import DashboardLayout from '@/components/DashboardLayout';
 import CampaignTable from '@/components/CampaignTable';
 import CreateCampaignModal from '@/components/CreateCampaignModal';
+import EditCampaignModal from '@/components/EditCampaignModal';
 import { getCampaigns, computeDashboardStats, getApiErrorMessage } from '@/lib/api';
 import type { Campaign, DashboardStats } from '@/lib/types';
 import {
@@ -132,6 +133,7 @@ export default function DashboardPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingCampaign, setEditingCampaign] = useState<Campaign | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const fetchCampaigns = useCallback(async (silent = false) => {
@@ -301,6 +303,7 @@ export default function DashboardPage() {
               isLoading={isLoading}
               onRefresh={() => fetchCampaigns(true)}
               onCreateNew={() => setIsModalOpen(true)}
+              onEdit={setEditingCampaign}
             />
           </div>
         </div>
@@ -438,6 +441,17 @@ export default function DashboardPage() {
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         onSuccess={() => fetchCampaigns(true)}
+      />
+
+      {/* Edit Campaign Modal */}
+      <EditCampaignModal
+        campaign={editingCampaign}
+        isOpen={!!editingCampaign}
+        onClose={() => setEditingCampaign(null)}
+        onSuccess={() => {
+          fetchCampaigns(true);
+          setEditingCampaign(null);
+        }}
       />
     </DashboardLayout>
   );

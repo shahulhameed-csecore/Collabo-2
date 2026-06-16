@@ -7,7 +7,7 @@ import {
   ChevronUp, ChevronDown, Trash2,
   Calendar, DollarSign, AlertCircle, CheckCircle2,
   Clock, XCircle, Plus, Search, Filter,
-  Globe, X, Check, ExternalLink,
+  Globe, X, Check, ExternalLink, Edit2,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -16,6 +16,7 @@ interface CampaignTableProps {
   isLoading: boolean;
   onRefresh: () => void;
   onCreateNew: () => void;
+  onEdit?: (campaign: Campaign) => void;
 }
 
 // ─── Status config ────────────────────────────────────────────────────────────
@@ -119,7 +120,7 @@ function EmptyState({ onCreateNew, hasFilters }: { onCreateNew: () => void; hasF
 }
 
 // ─── Main Component ───────────────────────────────────────────────────────────
-export default function CampaignTable({ campaigns, isLoading, onRefresh, onCreateNew }: CampaignTableProps) {
+export default function CampaignTable({ campaigns, isLoading, onRefresh, onCreateNew, onEdit }: CampaignTableProps) {
   const [filters, setFilters] = useState<FilterState>({ search: '', status: 'all', platform: '' });
   const [sortKey, setSortKey] = useState<keyof Campaign>('created_at');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
@@ -477,6 +478,18 @@ export default function CampaignTable({ campaigns, isLoading, onRefresh, onCreat
                               <option value="completed">Completed</option>
                               <option value="cancelled">Cancelled</option>
                             </select>
+
+                            {/* Edit */}
+                            {onEdit && (
+                              <button
+                                onClick={() => onEdit(c)}
+                                disabled={!!updatingId}
+                                title="Edit campaign"
+                                className="p-1.5 text-slate-500 hover:text-blue-400 hover:bg-blue-500/10 rounded-lg transition-all opacity-100 sm:opacity-0 sm:group-hover:opacity-100 disabled:opacity-30"
+                              >
+                                <Edit2 className="w-3.5 h-3.5" />
+                              </button>
+                            )}
 
                             {/* Delete */}
                             <button
