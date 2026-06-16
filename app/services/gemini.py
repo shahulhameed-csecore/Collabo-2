@@ -1,5 +1,6 @@
 import json
 import logging
+import re
 from datetime import datetime
 from google import genai
 from google.genai import types
@@ -11,7 +12,9 @@ from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
-client = genai.Client(api_key=settings.GEMINI_API_KEY)
+# STRIP whitespace and hidden quotes! Extremely common issue when pasting into Render Dashboard
+clean_api_key = settings.GEMINI_API_KEY.strip(' "\'')
+client = genai.Client(api_key=clean_api_key)
 
 
 class GeminiExtractionSchema(BaseModel):
@@ -91,12 +94,12 @@ def extract_campaign_details(content: Image.Image | str, filename: str = "image.
         if not response.text:
             raise ValueError("Gemini returned an empty response. It may have been blocked by safety filters.")
 
-        # Clean response text
+        # Clean response text robustly
         text = response.text.strip()
-        if text.startswith("```json"):
-            text = text[7:-3].strip()
-        elif text.startswith("```"):
-            text = text[3:-3].strip()
+        # Regex to strip markdown codeblocks reliably regardless of exact characters
+        text = re.sub(r"^```(?:json)?\s*\n", "", text)
+        text = re.sub(r"\n```\s*$", "", text)
+        text = text.strip()
 
         data = json.loads(text)
 
@@ -118,7 +121,12 @@ def extract_campaign_details(content: Image.Image | str, filename: str = "image.
         return data
 
     except Exception as e:
-        logger.error(f"Gemini Extraction Failed: {str(e)}", exc_info=True)
+        error_msg = str(e)
+        logger.error(f"Gemini Extraction Failed: {error_msg}", exc_info=True)
+        
+        # We append a snippet of the ACTUAL error here so it's instantly visible in the frontend!
+        friendly_error = f"AI Extraction Failed ({error_msg[:120]}). Please enter details manually."
+        
         return {
             "influencer_name": None,
             "influencer_handle": None,
@@ -126,7 +134,7 @@ def extract_campaign_details(content: Image.Image | str, filename: str = "image.
             "deliverables": None,
             "deadline": None,
             "payment_amount": 0.0,
-            "special_notes": "AI Extraction failed. Please enter details manually.",
+            "special_notes": friendly_error,
             "requires_human_review": True,
             "status": "draft"
         }
