@@ -79,7 +79,12 @@ export default function SettingsPage() {
                 </h3>
                 <ol className="list-decimal list-inside text-sm text-slate-400 space-y-2">
                   <li>Save your WhatsApp number below to link your account.</li>
-                  <li>Save our Bot number to your contacts.</li>
+                  <li>
+                    Save our Bot number to your contacts: <br />
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 mt-1.5 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 font-mono font-bold rounded-lg text-xs">
+                      {process.env.NEXT_PUBLIC_BOT_NUMBER || "+1 (555) 656-5993"}
+                    </span>
+                  </li>
                   <li>Forward any influencer negotiation chat or voice note to the bot.</li>
                   <li>Our AI will instantly extract the details, create a Draft campaign, and reply with a confirmation!</li>
                 </ol>
