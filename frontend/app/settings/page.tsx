@@ -2,21 +2,27 @@
 
 import { useState, useEffect } from 'react';
 import DashboardLayout from '@/components/DashboardLayout';
-import { Settings, MessageSquare, Phone, AlertCircle, Save, Check } from 'lucide-react';
+import { Settings, MessageSquare, Phone, AlertCircle, Save, Bell, Mail } from 'lucide-react';
 import { toast } from 'sonner';
 import { saveWhatsAppNumber, getWhatsAppNumber, getApiErrorMessage } from '@/lib/api';
 
 export default function SettingsPage() {
   const [whatsappNumber, setWhatsappNumber] = useState('');
+  const [emailEnabled, setEmailEnabled] = useState(true);
+  const [waEnabled, setWaEnabled] = useState(true);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     async function loadSettings() {
       try {
-        const { whatsapp_number } = await getWhatsAppNumber();
-        if (whatsapp_number) {
-          setWhatsappNumber(whatsapp_number);
+        const settings = await getWhatsAppNumber();
+        if (settings.whatsapp_number) {
+          setWhatsappNumber(settings.whatsapp_number);
+        }
+        if (settings.email_reminders_enabled !== undefined) {
+          setEmailEnabled(settings.email_reminders_enabled);
+          setWaEnabled(settings.whatsapp_reminders_enabled);
         }
       } catch (error) {
         console.error("Failed to load settings:", error);
@@ -31,9 +37,15 @@ export default function SettingsPage() {
     setIsSaving(true);
     
     try {
-      const response = await saveWhatsAppNumber(whatsappNumber);
-      setWhatsappNumber(response.whatsapp_number);
-      toast.success('WhatsApp number linked successfully!');
+      const response = await saveWhatsAppNumber({
+        whatsapp_number: whatsappNumber,
+        email_reminders_enabled: emailEnabled,
+        whatsapp_reminders_enabled: waEnabled
+      });
+      setWhatsappNumber(response.whatsapp_number || '');
+      setEmailEnabled(response.email_reminders_enabled);
+      setWaEnabled(response.whatsapp_reminders_enabled);
+      toast.success('Settings saved successfully!');
     } catch (error) {
       toast.error(getApiErrorMessage(error, 'Failed to save settings. Please try again.'));
     } finally {
@@ -124,6 +136,74 @@ export default function SettingsPage() {
                 )}
               </button>
             </div>
+          </div>
+        </div>
+
+        {/* Notifications & Reminders Card */}
+        <div className="bg-slate-900/60 border border-slate-800/50 rounded-2xl overflow-hidden relative">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/10 rounded-full blur-3xl -translate-y-10 translate-x-10 pointer-events-none" />
+          
+          <div className="p-6">
+            <div className="flex items-center gap-3 mb-5">
+              <div className="p-2.5 bg-blue-500/10 border border-blue-500/20 rounded-xl">
+                <Bell className="w-5 h-5 text-blue-400" />
+              </div>
+              <div>
+                <h2 className="text-base font-bold text-white">Automated Reminders</h2>
+                <p className="text-xs text-slate-400 mt-0.5">Stay on top of deadlines automatically</p>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <div className="p-4 bg-slate-800/40 rounded-xl border border-slate-700/40">
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <h3 className="text-sm font-bold text-slate-200 flex items-center gap-2">
+                      <Mail className="w-4 h-4 text-slate-400" /> Email Reminders
+                    </h3>
+                    <p className="text-xs text-slate-500 mt-1">Get an email alert 48 hours before a campaign deadline, and an alert when it's overdue.</p>
+                  </div>
+                  <button 
+                    onClick={() => setEmailEnabled(!emailEnabled)}
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-emerald-500/50 ${emailEnabled ? 'bg-emerald-500' : 'bg-slate-700'}`}
+                  >
+                    <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${emailEnabled ? 'translate-x-6' : 'translate-x-1'}`} />
+                  </button>
+                </div>
+              </div>
+
+              <div className="p-4 bg-slate-800/40 rounded-xl border border-slate-700/40">
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <h3 className="text-sm font-bold text-slate-200 flex items-center gap-2">
+                      <MessageSquare className="w-4 h-4 text-slate-400" /> WhatsApp Reminders
+                    </h3>
+                    <p className="text-xs text-slate-500 mt-1">Receive a WhatsApp message from our bot directly to your linked number for upcoming deadlines.</p>
+                  </div>
+                  <button 
+                    onClick={() => setWaEnabled(!waEnabled)}
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-emerald-500/50 ${waEnabled ? 'bg-emerald-500' : 'bg-slate-700'}`}
+                  >
+                    <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${waEnabled ? 'translate-x-6' : 'translate-x-1'}`} />
+                  </button>
+                </div>
+              </div>
+            </div>
+            
+            <button
+                onClick={handleSave}
+                disabled={isSaving || isLoading}
+                className="w-full mt-6 flex items-center justify-center gap-2 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-xl px-4 py-2.5 text-sm transition-all border border-slate-700/50 active:scale-[0.98] disabled:opacity-70 disabled:pointer-events-none"
+              >
+                {isSaving ? (
+                  <div className="w-4 h-4 border-2 border-slate-400 border-t-white rounded-full animate-spin" />
+                ) : (
+                  <>
+                    <Save className="w-4 h-4" />
+                    Save Settings
+                  </>
+                )}
+            </button>
           </div>
         </div>
       </div>

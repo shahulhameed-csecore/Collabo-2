@@ -209,12 +209,22 @@ export async function extractFromFile(file: File): Promise<ExtractedData> {
 
 // ─── Settings API Calls ─────────────────────────────────────────────────────────
 
-export async function saveWhatsAppNumber(whatsapp_number: string): Promise<{ message: string, whatsapp_number: string }> {
-  const res = await api.post('/settings/whatsapp', { whatsapp_number });
+export interface UserSettings {
+  whatsapp_number: string | null;
+  email_reminders_enabled: boolean;
+  whatsapp_reminders_enabled: boolean;
+}
+
+export async function saveWhatsAppNumber(payload: { 
+  whatsapp_number: string, 
+  email_reminders_enabled: boolean, 
+  whatsapp_reminders_enabled: boolean 
+}): Promise<{ message: string } & UserSettings> {
+  const res = await api.post('/settings/whatsapp', payload);
   return res.data;
 }
 
-export async function getWhatsAppNumber(): Promise<{ whatsapp_number: string | null }> {
+export async function getWhatsAppNumber(): Promise<UserSettings> {
   const res = await api.get('/settings/whatsapp');
   return res.data;
 }
