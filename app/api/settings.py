@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, constr
-from app.api.dependencies import get_current_user
+from app.api.dependencies import get_current_user, AuthenticatedUser
 from app.core.config import settings
 from supabase import create_client
 
@@ -16,11 +16,11 @@ class WhatsAppSettingsInput(BaseModel):
     whatsapp_number: str
 
 @router.post("/whatsapp")
-async def save_whatsapp_settings(input_data: WhatsAppSettingsInput, current_user: dict = Depends(get_current_user)):
+async def save_whatsapp_settings(input_data: WhatsAppSettingsInput, current_user: AuthenticatedUser = Depends(get_current_user)):
     """
     Saves or updates the user's WhatsApp number for the bot integration.
     """
-    user_id = current_user.get("sub")
+    user_id = current_user.user.id
     if not user_id:
         raise HTTPException(status_code=401, detail="Invalid user token")
 
@@ -56,8 +56,8 @@ async def save_whatsapp_settings(input_data: WhatsAppSettingsInput, current_user
         raise HTTPException(status_code=500, detail=f"Database error: {error_str}")
 
 @router.get("/whatsapp")
-async def get_whatsapp_settings(current_user: dict = Depends(get_current_user)):
-    user_id = current_user.get("sub")
+async def get_whatsapp_settings(current_user: AuthenticatedUser = Depends(get_current_user)):
+    user_id = current_user.user.id
     
     try:
         supabase_admin = get_supabase_admin()
