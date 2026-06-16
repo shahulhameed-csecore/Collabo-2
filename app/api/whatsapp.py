@@ -142,6 +142,13 @@ async def process_whatsapp_message(sender_id: str, message: dict):
         if 'requires_human_review' in campaign_data:
             del campaign_data['requires_human_review']
             
+        # Provide fallbacks for required database columns
+        if not campaign_data.get('influencer_handle'):
+            campaign_data['influencer_handle'] = campaign_data.get('influencer_name', 'Unknown')
+        
+        if not campaign_data.get('platform'):
+            campaign_data['platform'] = 'Others'
+            
         campaign_data['user_id'] = user_id
         campaign_data['status'] = 'draft' # Always draft from WhatsApp
         
