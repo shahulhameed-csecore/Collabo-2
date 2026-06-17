@@ -56,7 +56,7 @@ async def check_deadlines_job():
     
     # 1. Fetch all active campaigns
     try:
-        response = supabase.table('campaigns').select('*, user_settings(whatsapp_number, email_reminders_enabled, whatsapp_reminders_enabled), auth_users!inner(email)').eq('status', 'active').not_('deadline', 'is', 'null').execute()
+        response = supabase.table('campaigns').select('*, user_settings(whatsapp_number, email_reminders_enabled, whatsapp_reminders_enabled), auth_users!inner(email)').eq('status', 'active').execute()
     except Exception as e:
         logger.error(f"Failed to fetch campaigns for reminders: {e}")
         return
