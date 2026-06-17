@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import DashboardLayout from '@/components/DashboardLayout';
-import { Settings, MessageSquare, Phone, AlertCircle, Save, Bell, Mail } from 'lucide-react';
+import { Settings, MessageSquare, Phone, AlertCircle, Save, Bell, Mail, Copy, Check } from 'lucide-react';
 import { toast } from 'sonner';
 import { saveWhatsAppNumber, getWhatsAppNumber, getApiErrorMessage } from '@/lib/api';
 
@@ -12,6 +12,16 @@ export default function SettingsPage() {
   const [waEnabled, setWaEnabled] = useState(true);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  const botNumber = process.env.NEXT_PUBLIC_BOT_NUMBER || "+1 (555) 656-5993";
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(botNumber);
+    setCopied(true);
+    toast.success('Bot number copied to clipboard!');
+    setTimeout(() => setCopied(false), 2000);
+  };
 
   useEffect(() => {
     async function loadSettings() {
@@ -84,22 +94,37 @@ export default function SettingsPage() {
 
             <div className="space-y-5">
               {/* Instructions */}
-              <div className="p-4 bg-slate-800/40 rounded-xl border border-slate-700/40 space-y-3">
-                <h3 className="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
-                  <AlertCircle className="w-3.5 h-3.5 text-amber-400" />
-                  How it works
+              <div className="p-4 bg-slate-800/40 rounded-xl border border-slate-700/40 space-y-4">
+                <h3 className="text-sm font-bold text-slate-200 flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 text-emerald-400" />
+                  How to link your WhatsApp
                 </h3>
-                <ol className="list-decimal list-inside text-sm text-slate-400 space-y-2">
-                  <li>Save your WhatsApp number below to link your account.</li>
-                  <li>
-                    Save our Bot number to your contacts: <br />
-                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 mt-1.5 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 font-mono font-bold rounded-lg text-xs">
-                      {process.env.NEXT_PUBLIC_BOT_NUMBER || "+1 (555) 656-5993"}
-                    </span>
-                  </li>
-                  <li>Forward any influencer negotiation chat or voice note to the bot.</li>
-                  <li>Our AI will instantly extract the details, create a Draft campaign, and reply with a confirmation!</li>
-                </ol>
+                
+                <div className="space-y-3 text-sm text-slate-300">
+                  <div className="flex gap-3">
+                    <span className="flex-shrink-0 w-6 h-6 rounded-full bg-slate-700 flex items-center justify-center text-xs font-bold text-white">1</span>
+                    <p>Save your WhatsApp phone number below. For Indian numbers, simply enter the 10 digits.</p>
+                  </div>
+                  
+                  <div className="flex gap-3">
+                    <span className="flex-shrink-0 w-6 h-6 rounded-full bg-slate-700 flex items-center justify-center text-xs font-bold text-white">2</span>
+                    <div>
+                      <p className="mb-2">Save our Official Bot number to your contacts:</p>
+                      <button 
+                        onClick={handleCopy}
+                        className="flex items-center gap-2.5 px-3 py-2 bg-slate-900 border border-slate-700 hover:border-emerald-500/50 rounded-lg text-emerald-400 font-mono font-bold text-sm transition-colors group"
+                      >
+                        {botNumber}
+                        {copied ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4 text-slate-500 group-hover:text-emerald-400 transition-colors" />}
+                      </button>
+                    </div>
+                  </div>
+                  
+                  <div className="flex gap-3">
+                    <span className="flex-shrink-0 w-6 h-6 rounded-full bg-slate-700 flex items-center justify-center text-xs font-bold text-white">3</span>
+                    <p>Forward any influencer chat or voice note to the Bot. Collabo Assistant will reply and instantly create your campaign!</p>
+                  </div>
+                </div>
               </div>
 
               {/* Input */}
@@ -116,8 +141,8 @@ export default function SettingsPage() {
                     className="w-full bg-slate-950/50 border border-slate-700/60 text-white placeholder-slate-600 rounded-xl pl-10 pr-4 py-2.5 text-sm focus:outline-none focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/20 transition-all disabled:opacity-50"
                   />
                 </div>
-                <p className="text-[11px] text-slate-500">
-                  <strong className="text-emerald-400">Indian Users:</strong> You can enter your 10-digit number directly. We will automatically add the 91 code!
+                <p className="text-[11px] text-slate-400">
+                  <strong className="text-emerald-400">Indian Users:</strong> Enter your 10-digit number. We automatically handle the +91 country code.
                 </p>
               </div>
 
