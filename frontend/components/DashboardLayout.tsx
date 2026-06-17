@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { toast } from 'sonner';
+import { Logo } from '@/components/Logo';
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -99,13 +100,13 @@ export default function DashboardLayout({ children, onNewCampaign }: DashboardLa
         <div className="flex flex-col items-center gap-5 animate-fade-in">
           <div className="relative">
             <div className="absolute inset-0 bg-emerald-500 rounded-2xl blur-xl opacity-30 animate-pulse" />
-            <div className="relative p-4 bg-gradient-to-br from-emerald-500 to-teal-500 rounded-2xl shadow-2xl shadow-emerald-500/30">
-              <Zap className="w-7 h-7 text-white" />
+            <div className="relative p-4 bg-slate-900 rounded-2xl shadow-2xl shadow-emerald-500/30 border border-slate-800">
+              <Logo variant="icon" size={32} />
             </div>
           </div>
-          <div className="text-center">
-            <p className="text-white font-bold text-base tracking-tight">Collabo</p>
-            <p className="text-slate-500 text-sm mt-1">Loading your workspace...</p>
+          <div className="text-center mt-2">
+            <Logo variant="full" />
+            <p className="text-slate-500 text-sm mt-2">Loading your workspace...</p>
           </div>
           {/* Loading bar */}
           <div className="w-40 h-0.5 bg-slate-800 rounded-full overflow-hidden">
@@ -132,15 +133,8 @@ export default function DashboardLayout({ children, onNewCampaign }: DashboardLa
     <div className="flex flex-col h-full">
       {/* Logo */}
       <div className="flex items-center gap-3 px-5 py-5 border-b border-slate-800/50">
-        <div className="relative">
-          <div className="absolute inset-0 bg-emerald-500 rounded-xl blur-lg opacity-25" />
-          <div className="relative p-2 bg-gradient-to-br from-emerald-500 to-teal-500 rounded-xl shadow-lg shadow-emerald-500/20">
-            <Zap className="w-4 h-4 text-white" />
-          </div>
-        </div>
-        <div>
-          <span className="text-sm font-bold text-white tracking-tight">Collabo</span>
-          <div className="flex items-center gap-1 mt-0.5">
+        <Logo variant="full" size={24} href="/dashboard" />
+        <div className="flex items-center gap-1 ml-auto">
             <Sparkles className="w-2.5 h-2.5 text-emerald-400" />
             <p className="text-[10px] text-emerald-400 font-semibold tracking-wide">PRO PLAN</p>
           </div>
@@ -278,10 +272,7 @@ export default function DashboardLayout({ children, onNewCampaign }: DashboardLa
 
           {/* Mobile logo */}
           <div className="lg:hidden flex items-center gap-2">
-            <div className="p-1 bg-gradient-to-br from-emerald-500 to-teal-500 rounded-lg">
-              <Zap className="w-3.5 h-3.5 text-white" />
-            </div>
-            <span className="text-sm font-bold text-white">Collabo</span>
+            <Logo variant="full" size={20} href="/dashboard" />
           </div>
 
           {/* Right side actions */}

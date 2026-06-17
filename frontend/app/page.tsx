@@ -4,16 +4,15 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase';
 import { 
-  Zap, 
   MessageSquare, 
   LayoutDashboard, 
   CheckCircle, 
-  TrendingUp, 
   ArrowRight,
   Shield,
   Clock,
   Smartphone
 } from 'lucide-react';
+import { Logo } from '@/components/Logo';
 
 export default function LandingPage() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -33,12 +32,7 @@ export default function LandingPage() {
       {/* Header */}
       <header className="fixed top-0 w-full z-50 border-b border-slate-800/60 bg-slate-950/80 backdrop-blur-xl">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <div className="p-1.5 bg-emerald-500 rounded-lg shadow-lg shadow-emerald-500/20">
-              <Zap className="w-5 h-5 text-white" />
-            </div>
-            <span className="text-xl font-bold text-white tracking-tight">Collabo</span>
-          </div>
+          <Logo variant="full" size={24} href="/" />
           <div className="flex items-center gap-4">
             {isAuthenticated ? (
               <Link 
@@ -247,10 +241,7 @@ export default function LandingPage() {
       {/* Footer */}
       <footer className="border-t border-slate-800/60 bg-slate-950 py-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row justify-between items-center gap-6">
-          <div className="flex items-center gap-2.5">
-            <Zap className="w-5 h-5 text-emerald-500" />
-            <span className="text-xl font-bold text-white tracking-tight">Collabo</span>
-          </div>
+          <Logo variant="full" size={20} href="/" className="opacity-80 hover:opacity-100" />
           
           <div className="flex gap-8 text-sm">
             <Link href="/privacy" className="text-slate-400 hover:text-emerald-400 transition-colors">Privacy Policy</Link>

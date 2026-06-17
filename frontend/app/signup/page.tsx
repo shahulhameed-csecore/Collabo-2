@@ -4,11 +4,12 @@ import { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase';
 import {
-  Zap, Mail, Lock, Eye, EyeOff, ArrowRight,
+  Mail, Lock, Eye, EyeOff, ArrowRight,
   Loader2, CheckCircle, XCircle, Check, X
 } from 'lucide-react';
 import Link from 'next/link';
 import { toast } from 'sonner';
+import { Logo } from '@/components/Logo';
 
 // ─── Password strength rules ─────────────────────────────────────────────────
 const RULES = [
@@ -95,11 +96,8 @@ export default function SignupPage() {
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-emerald-950 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         {/* Logo */}
-        <div className="flex items-center justify-center gap-3 mb-8">
-          <div className="p-2.5 bg-emerald-500 rounded-xl shadow-lg shadow-emerald-500/30">
-            <Zap className="w-6 h-6 text-white" />
-          </div>
-          <span className="text-2xl font-bold text-white tracking-tight">Collabo</span>
+        <div className="flex justify-center mb-8">
+          <Logo variant="full" size={32} href="/" />
         </div>
 
         {/* Card */}
