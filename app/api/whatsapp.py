@@ -4,6 +4,7 @@ import logging
 import json
 from fastapi import APIRouter, Request, HTTPException, Response, BackgroundTasks
 from app.core.config import settings
+from app.core.limiter import limiter
 from supabase import create_client, ClientOptions
 from app.services.gemini import extract_campaign_details
 from app.services.whatsapp import send_whatsapp_message, download_whatsapp_media
@@ -65,14 +66,26 @@ async def process_whatsapp_message(sender_id: str, message: dict):
             await send_whatsapp_message(sender_id, "System configuration error. Please contact support.")
             return
             
-        clean_number = sender_id.lstrip('+') # e.g. 919876543210
+        # Clean sender ID robustly
+        clean_number = "".join(filter(str.isdigit, sender_id))
         user_response = supabase_admin.table('user_settings').select('user_id').eq('whatsapp_number', clean_number).execute()
         
+        # Fallback check if user stored it without country code
+        if not user_response.data and clean_number.startswith("91"):
+            fallback_number = clean_number[2:]
+            user_response = supabase_admin.table('user_settings').select('user_id').eq('whatsapp_number', fallback_number).execute()
+            
         if not user_response.data or len(user_response.data) == 0:
-            await send_whatsapp_message(
-                sender_id, 
-                "Hello! 👋 Your WhatsApp number is not linked to any Collabo account.\n\nPlease log in to your Collabo dashboard -> Settings, and link this phone number to start forwarding campaigns."
+            unlinked_msg = (
+                "Hello! 👋 I am the *Collabo Assistant* 🤖.\n\n"
+                "It looks like your WhatsApp number is not linked to any active Collabo account.\n\n"
+                "To fix this:\n"
+                "1. Log in to your Collabo dashboard.\n"
+                "2. Go to *Settings*.\n"
+                "3. Enter and save this phone number.\n\n"
+                "Once linked, you can forward me any influencer chats to instantly create campaigns!"
             )
+            await send_whatsapp_message(sender_id, unlinked_msg)
             return
             
         user_id = user_response.data[0]['user_id']
@@ -84,19 +97,19 @@ async def process_whatsapp_message(sender_id: str, message: dict):
         if msg_type == "text":
             content_for_gemini = message.get("text", {}).get("body", "").strip()
             if not content_for_gemini:
-                await send_whatsapp_message(sender_id, "Please forward a text message or voice note containing the deal terms.")
+                await send_whatsapp_message(sender_id, "Collabo Assistant 🤖\n\nPlease forward a text message or voice note containing the deal terms.")
                 return
                 
         elif msg_type == "audio":
             audio_id = message.get("audio", {}).get("id")
             if not audio_id:
-                await send_whatsapp_message(sender_id, "❌ Could not retrieve voice note ID.")
+                await send_whatsapp_message(sender_id, "Collabo Assistant 🤖\n\n❌ Could not retrieve voice note ID. Please try again.")
                 return
                 
-            await send_whatsapp_message(sender_id, "Downloading your voice note... 🎧")
+            await send_whatsapp_message(sender_id, "Collabo Assistant 🤖\n\nDownloading your voice note... 🎧")
             audio_bytes = await download_whatsapp_media(audio_id)
             if not audio_bytes:
-                await send_whatsapp_message(sender_id, "❌ Failed to download the voice note from WhatsApp servers. Please try again or send a text message.")
+                await send_whatsapp_message(sender_id, "Collabo Assistant 🤖\n\n❌ Failed to download the voice note from WhatsApp servers. Please try again or send a text message.")
                 return
             
             # Pass as a dict so gemini.py can handle the raw bytes
@@ -107,13 +120,13 @@ async def process_whatsapp_message(sender_id: str, message: dict):
             caption = message.get("image", {}).get("caption", "")
             
             if not image_id:
-                await send_whatsapp_message(sender_id, "❌ Could not retrieve image ID.")
+                await send_whatsapp_message(sender_id, "Collabo Assistant 🤖\n\n❌ Could not retrieve image ID.")
                 return
                 
-            await send_whatsapp_message(sender_id, "Analyzing your image... 🖼️")
+            await send_whatsapp_message(sender_id, "Collabo Assistant 🤖\n\nAnalyzing your image... 🖼️")
             image_bytes = await download_whatsapp_media(image_id)
             if not image_bytes:
-                await send_whatsapp_message(sender_id, "❌ Failed to download the image from WhatsApp. Please try again.")
+                await send_whatsapp_message(sender_id, "Collabo Assistant 🤖\n\n❌ Failed to download the image from WhatsApp. Please try again.")
                 return
                 
             # Pass as a dict so gemini.py can handle the raw bytes
@@ -124,16 +137,16 @@ async def process_whatsapp_message(sender_id: str, message: dict):
             }
             
         else:
-            await send_whatsapp_message(sender_id, f"Unsupported message type: {msg_type}. Please send text, voice notes, or images.")
+            await send_whatsapp_message(sender_id, f"Collabo Assistant 🤖\n\nUnsupported message type: {msg_type}.\nPlease send text, voice notes, or images.")
             return
 
         # 3. Process with Gemini
-        await send_whatsapp_message(sender_id, "Processing your campaign details... 🤖")
+        await send_whatsapp_message(sender_id, "Collabo Assistant 🤖\n\nProcessing your campaign details... ✨")
         
         extracted_data = extract_campaign_details(content_for_gemini, filename="whatsapp_input")
         
         if extracted_data.get('requires_human_review'):
-            await send_whatsapp_message(sender_id, "⚠️ I extracted the details, but some fields were missing or unclear. Creating a Draft campaign for you to review.")
+            await send_whatsapp_message(sender_id, "Collabo Assistant 🤖\n\n⚠️ I extracted the details, but some fields were missing or unclear. Creating a Draft campaign for you to review.")
             
         # 4. Insert into Supabase
         campaign_data = extracted_data.copy()
@@ -167,6 +180,7 @@ async def process_whatsapp_message(sender_id: str, message: dict):
 
 
 @router.post("/whatsapp")
+@limiter.limit("100/minute")
 async def meta_whatsapp_webhook(request: Request, background_tasks: BackgroundTasks):
     """
     Receives incoming WhatsApp messages via Meta Cloud API.

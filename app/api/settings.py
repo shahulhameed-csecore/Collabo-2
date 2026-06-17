@@ -37,6 +37,10 @@ async def save_whatsapp_settings(
     if not clean_number:
         raise HTTPException(status_code=400, detail="Invalid phone number format. Please provide a valid number.")
 
+    # Strip leading zero if 11 digits (common in India)
+    if len(clean_number) == 11 and clean_number.startswith("0"):
+        clean_number = clean_number[1:]
+
     # Auto-prepend India country code if length is exactly 10
     if len(clean_number) == 10:
         clean_number = "91" + clean_number
