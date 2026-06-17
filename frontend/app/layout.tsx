@@ -21,9 +21,21 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  title: "Collabo — Campaign Manager",
+  title: {
+    template: 'Collabo — %s',
+    default: 'Collabo',
+  },
   description: "Manage your micro-influencer campaigns with AI-powered extraction and real-time tracking.",
   keywords: ["influencer marketing", "campaign management", "D2C brands", "India"],
+  icons: {
+    icon: '/logo-icon.png',
+    shortcut: '/logo-icon.png',
+    apple: '/logo-icon.png',
+    other: {
+      rel: 'apple-touch-icon-precomposed',
+      url: '/logo-icon.png',
+    },
+  },
   openGraph: {
     title: "Collabo",
     description: "AI-powered influencer campaign management for D2C brands.",
