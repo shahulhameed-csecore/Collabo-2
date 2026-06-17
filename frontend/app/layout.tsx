@@ -41,6 +41,11 @@ export const metadata: Metadata = {
     description: "AI-powered influencer campaign management for D2C brands.",
     type: "website",
   },
+  verification: {
+    other: {
+      "facebook-domain-verification": "8xf7nmugvhpww8kfivu8gpnzur6fpx",
+    },
+  },
 };
 
 export default function RootLayout({
