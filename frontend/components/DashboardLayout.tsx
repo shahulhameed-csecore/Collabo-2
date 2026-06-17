@@ -135,9 +135,8 @@ export default function DashboardLayout({ children, onNewCampaign }: DashboardLa
       <div className="flex items-center gap-3 px-5 py-5 border-b border-slate-800/50">
         <Logo variant="full" size={24} href="/dashboard" />
         <div className="flex items-center gap-1 ml-auto">
-            <Sparkles className="w-2.5 h-2.5 text-emerald-400" />
-            <p className="text-[10px] text-emerald-400 font-semibold tracking-wide">PRO PLAN</p>
-          </div>
+          <Sparkles className="w-2.5 h-2.5 text-emerald-400" />
+          <p className="text-[10px] text-emerald-400 font-semibold tracking-wide">PRO PLAN</p>
         </div>
       </div>
 
