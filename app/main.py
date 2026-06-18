@@ -96,7 +96,7 @@ async def add_security_headers(request: Request, call_next):
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["X-Frame-Options"] = "DENY"
     response.headers["X-XSS-Protection"] = "1; mode=block"
-    response.headers["Content-Security-Policy"] = "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net"
+    response.headers["Content-Security-Policy"] = "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdn.tailwindcss.com https://unpkg.com; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.googleapis.com; img-src 'self' data: https://collabo-2.vercel.app;"
     return response
 
 @app.exception_handler(Exception)
@@ -154,18 +154,7 @@ async def landing_page():
     <header class="fixed top-0 w-full z-50 border-b border-white/5 bg-[#020617]/80 backdrop-blur-md">
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
         <a href="https://collabo-2.vercel.app" class="flex items-center gap-2 group">
-          <svg viewBox="0 0 100 100" class="w-8 h-8 group-hover:scale-105 transition-transform" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M50 15L85 35V75L50 95L15 75V35L50 15Z" stroke="#10b981" stroke-width="6" fill="url(#gradLogo)"/>
-            <path d="M50 15V55M15 35L50 55M85 35L50 55" stroke="#10b981" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
-            <path d="M50 55V95" stroke="#10b981" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
-            <defs>
-              <linearGradient id="gradLogo" x1="15" y1="15" x2="85" y2="95" gradientUnits="userSpaceOnUse">
-                <stop offset="0%" stop-color="#34d399" stop-opacity="0.2" />
-                <stop offset="100%" stop-color="#059669" stop-opacity="0.8" />
-              </linearGradient>
-            </defs>
-          </svg>
-          <span class="text-xl font-bold tracking-tight text-white">Collabo</span>
+          <img src="https://collabo-2.vercel.app/logo-full.png" alt="Collabo Logo" class="h-8 object-contain group-hover:opacity-90 transition-opacity" />
         </a>
         <div class="flex items-center gap-4">
           <a href="https://collabo-2.vercel.app/login" class="text-sm font-medium text-slate-300 hover:text-white transition-colors hidden sm:block">
@@ -391,18 +380,7 @@ async def landing_page():
     <footer class="border-t border-white/5 bg-[#020617] py-12">
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row justify-between items-center gap-6">
         <div class="flex items-center gap-2">
-          <svg viewBox="0 0 100 100" class="w-6 h-6 grayscale opacity-50" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M50 15L85 35V75L50 95L15 75V35L50 15Z" stroke="#10b981" stroke-width="6" fill="url(#gradLogo2)"/>
-            <path d="M50 15V55M15 35L50 55M85 35L50 55" stroke="#10b981" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
-            <path d="M50 55V95" stroke="#10b981" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
-            <defs>
-              <linearGradient id="gradLogo2" x1="15" y1="15" x2="85" y2="95" gradientUnits="userSpaceOnUse">
-                <stop offset="0%" stop-color="#34d399" stop-opacity="0.2" />
-                <stop offset="100%" stop-color="#059669" stop-opacity="0.8" />
-              </linearGradient>
-            </defs>
-          </svg>
-          <span class="text-lg font-bold tracking-tight text-slate-500">Collabo</span>
+          <img src="https://collabo-2.vercel.app/logo-full.png" alt="Collabo Logo" class="h-6 object-contain grayscale opacity-50" />
         </div>
         <div class="flex gap-8 text-sm">
           <a href="https://collabo-2.vercel.app/privacy" class="text-slate-400 hover:text-emerald-400 transition-colors">Privacy Policy</a>
