@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase';
 import { 
   MessageSquare, 
@@ -10,238 +11,303 @@ import {
   ArrowRight,
   Shield,
   Clock,
-  Smartphone
+  Smartphone,
+  Sparkles,
+  Zap,
+  Bot
 } from 'lucide-react';
-import { Logo } from '@/components/Logo';
+
+const GeometricLogo = ({ className = "w-8 h-8" }: { className?: string }) => (
+  <svg viewBox="0 0 100 100" className={className} fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M50 15L85 35V75L50 95L15 75V35L50 15Z" stroke="#10b981" strokeWidth="6" fill="url(#gradLogo)"/>
+    <path d="M50 15V55M15 35L50 55M85 35L50 55" stroke="#10b981" strokeWidth="6" strokeLinecap="round" strokeLinejoin="round"/>
+    <path d="M50 55V95" stroke="#10b981" strokeWidth="6" strokeLinecap="round" strokeLinejoin="round"/>
+    <defs>
+      <linearGradient id="gradLogo" x1="15" y1="15" x2="85" y2="95" gradientUnits="userSpaceOnUse">
+        <stop offset="0%" stopColor="#34d399" stopOpacity="0.2" />
+        <stop offset="100%" stopColor="#059669" stopOpacity="0.8" />
+      </linearGradient>
+    </defs>
+  </svg>
+);
 
 export default function LandingPage() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const router = useRouter();
   const supabase = createClient();
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
       if (data?.session) {
         setIsAuthenticated(true);
+        router.push('/dashboard');
       }
     });
-  }, [supabase.auth]);
+  }, [supabase.auth, router]);
+
+  // Button styles mimicking shadcn/ui
+  const buttonBase = "inline-flex items-center justify-center rounded-xl text-sm font-semibold transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 disabled:opacity-50 disabled:pointer-events-none";
+  const buttonPrimary = `${buttonBase} bg-emerald-500 text-white hover:bg-emerald-400 hover:shadow-[0_0_20px_rgba(16,185,129,0.3)] h-12 px-8`;
+  const buttonSecondary = `${buttonBase} bg-slate-900 border border-slate-700 text-slate-100 hover:bg-slate-800 hover:text-white h-12 px-8`;
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-200 font-sans selection:bg-emerald-500/30 selection:text-emerald-200">
+    <div className="min-h-screen bg-[#020617] text-slate-200 font-sans selection:bg-emerald-500/30 selection:text-emerald-200 overflow-x-hidden">
       
-      {/* Header */}
-      <header className="fixed top-0 w-full z-50 border-b border-slate-800/60 bg-slate-950/80 backdrop-blur-xl">
+      {/* Navbar */}
+      <header className="fixed top-0 w-full z-50 border-b border-white/5 bg-[#020617]/80 backdrop-blur-md">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-          <Logo variant="full" size={24} href="/" />
+          <Link href="/" className="flex items-center gap-2 group">
+            <GeometricLogo className="w-8 h-8 group-hover:scale-105 transition-transform" />
+            <span className="text-xl font-bold tracking-tight text-white">Collabo</span>
+          </Link>
           <div className="flex items-center gap-4">
-            {isAuthenticated ? (
-              <Link 
-                href="/dashboard"
-                className="px-5 py-2 text-sm font-semibold bg-emerald-500 hover:bg-emerald-400 text-white rounded-lg transition-all shadow-lg shadow-emerald-500/20"
-              >
-                Go to Dashboard
-              </Link>
-            ) : (
-              <>
-                <Link href="/login" className="text-sm font-medium text-slate-300 hover:text-white transition-colors hidden sm:block">
-                  Log in
-                </Link>
-                <Link 
-                  href="/signup"
-                  className="px-5 py-2 text-sm font-semibold bg-emerald-500 hover:bg-emerald-400 text-white rounded-lg transition-all shadow-lg shadow-emerald-500/20"
-                >
-                  Start Free Trial
-                </Link>
-              </>
-            )}
+            <Link href="/login" className="text-sm font-medium text-slate-300 hover:text-white transition-colors hidden sm:block">
+              Log in
+            </Link>
+            <Link href="/signup" className={`${buttonBase} bg-white text-slate-950 hover:bg-slate-200 h-9 px-4 text-xs shadow-sm`}>
+              Try for Free
+            </Link>
           </div>
         </div>
       </header>
 
-      {/* Hero Section */}
       <main>
+        {/* Hero Section */}
         <section className="relative pt-32 pb-20 lg:pt-48 lg:pb-32 overflow-hidden">
-          {/* Background Glow */}
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[400px] bg-emerald-500/20 rounded-full blur-[120px] pointer-events-none" />
+          {/* Background Gradients */}
+          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[1000px] h-[500px] bg-emerald-500/20 rounded-full blur-[120px] pointer-events-none opacity-50 mix-blend-screen" />
           
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative text-center">
-            <h1 className="text-4xl sm:text-6xl lg:text-7xl font-extrabold text-white tracking-tight mb-8 leading-tight">
+          <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 relative text-center">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-semibold uppercase tracking-wider mb-8 shadow-sm">
+              <Sparkles className="w-4 h-4" />
+              Built for Indian D2C Brands
+            </div>
+            
+            <h1 className="text-5xl sm:text-6xl lg:text-7xl font-extrabold text-white tracking-tight mb-8 leading-[1.1]">
               Stop managing influencers <br className="hidden sm:block" />
-              in <span className="text-emerald-400">WhatsApp chaos.</span>
+              in <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-emerald-600">WhatsApp chaos.</span>
             </h1>
+            
             <p className="text-lg sm:text-xl text-slate-400 max-w-2xl mx-auto mb-10 leading-relaxed">
-              Turn forwarded chats and voice notes into clean, trackable campaigns automatically. The smartest way for Indian D2C brands to scale influencer marketing.
+              Forward voice notes, negotiations, and deliverables to our AI bot. We instantly extract the data and track it in your campaign dashboard.
             </p>
             
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-              <Link 
-                href={isAuthenticated ? "/dashboard" : "/signup"}
-                className="w-full sm:w-auto px-8 py-4 text-base font-bold bg-emerald-500 hover:bg-emerald-400 text-white rounded-xl transition-all shadow-xl shadow-emerald-500/20 flex items-center justify-center gap-2 group"
-              >
-                {isAuthenticated ? "Open Dashboard" : "Try Collabo for Free"}
-                <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+              <Link href="/signup" className={buttonPrimary}>
+                Try for Free
+                <ArrowRight className="ml-2 w-4 h-4 group-hover:translate-x-1 transition-transform" />
               </Link>
-              {!isAuthenticated && (
-                <Link 
-                  href="/login"
-                  className="w-full sm:w-auto px-8 py-4 text-base font-bold bg-slate-900 border border-slate-700 hover:border-slate-600 text-white rounded-xl transition-all flex items-center justify-center"
-                >
-                  Book a Demo
-                </Link>
-              )}
+              <Link href="/login" className={buttonSecondary}>
+                Login to Dashboard
+              </Link>
             </div>
-            <p className="mt-4 text-sm text-slate-500">No credit card required • 14-day free trial</p>
+            <p className="mt-5 text-sm text-slate-500 flex items-center justify-center gap-2">
+              <Shield className="w-4 h-4" /> No credit card required. Cancel anytime.
+            </p>
+          </div>
+
+          {/* Abstract Dashboard Mockup */}
+          <div className="max-w-6xl mx-auto mt-20 px-4 sm:px-6 relative" style={{ perspective: '1000px' }}>
+            <div className="absolute inset-0 bg-gradient-to-t from-[#020617] via-transparent to-transparent z-10 pointer-events-none" />
+            <div className="relative rounded-2xl border border-slate-800 bg-slate-900/50 shadow-2xl overflow-hidden backdrop-blur-sm transform-gpu rotate-x-12 scale-105 opacity-90 transition-all duration-1000 hover:rotate-x-0 hover:scale-100" style={{ transformStyle: 'preserve-3d', transform: 'rotateX(12deg) scale(1.05)' }}>
+              {/* Mock Window Controls */}
+              <div className="h-10 border-b border-slate-800 flex items-center px-4 gap-2 bg-slate-950/50">
+                <div className="w-3 h-3 rounded-full bg-rose-500" />
+                <div className="w-3 h-3 rounded-full bg-amber-500" />
+                <div className="w-3 h-3 rounded-full bg-emerald-500" />
+              </div>
+              <div className="p-6 grid grid-cols-12 gap-6 h-[400px]">
+                {/* Mock Sidebar */}
+                <div className="col-span-3 space-y-4">
+                  <div className="h-8 w-3/4 bg-slate-800 rounded-lg animate-pulse" />
+                  <div className="h-4 w-full bg-slate-800/50 rounded animate-pulse" />
+                  <div className="h-4 w-5/6 bg-slate-800/50 rounded animate-pulse" />
+                  <div className="h-4 w-4/6 bg-slate-800/50 rounded animate-pulse" />
+                </div>
+                {/* Mock Main Content */}
+                <div className="col-span-9 space-y-6">
+                  <div className="flex gap-4">
+                    <div className="h-24 flex-1 bg-emerald-900/20 border border-emerald-500/20 rounded-xl flex items-center justify-center">
+                      <div className="text-emerald-400/50 font-mono text-sm">Active Campaigns</div>
+                    </div>
+                    <div className="h-24 flex-1 bg-slate-800/50 rounded-xl" />
+                    <div className="h-24 flex-1 bg-slate-800/50 rounded-xl" />
+                  </div>
+                  <div className="h-full bg-slate-800/30 rounded-xl border border-slate-800" />
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Logos / Trust Signals */}
+        <section className="border-y border-white/5 bg-slate-900/20 py-10">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+            <p className="text-sm font-medium text-slate-500 uppercase tracking-widest mb-6">Trusted by fast-growing brands</p>
+            <div className="flex flex-wrap justify-center items-center gap-10 sm:gap-16 opacity-50 grayscale">
+               <span className="text-xl font-bold font-serif">Minimalist.</span>
+               <span className="text-xl font-black italic">FITNESS+</span>
+               <span className="text-xl font-bold tracking-tighter">GLOW</span>
+               <span className="text-xl font-light tracking-widest">NATURE</span>
+               <span className="text-xl font-bold">KetoInd</span>
+            </div>
           </div>
         </section>
 
         {/* How It Works */}
-        <section className="py-20 bg-slate-900/50 border-y border-slate-800/60">
+        <section className="py-24 relative overflow-hidden">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="text-center mb-16">
-              <h2 className="text-3xl font-bold text-white mb-4">How Collabo Works</h2>
-              <p className="text-slate-400 max-w-2xl mx-auto">From messy negotiations to perfectly structured campaigns in three simple steps.</p>
+            <div className="text-center mb-20">
+              <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4">How Collabo Works</h2>
+              <p className="text-slate-400 max-w-2xl mx-auto text-lg">From messy negotiations to perfectly structured campaigns in four simple steps.</p>
             </div>
 
-            <div className="grid md:grid-cols-3 gap-8">
-              {/* Step 1 */}
-              <div className="bg-slate-900 border border-slate-800 rounded-2xl p-8 relative">
-                <div className="w-12 h-12 bg-slate-800 rounded-xl flex items-center justify-center mb-6 border border-slate-700">
-                  <MessageSquare className="w-6 h-6 text-emerald-400" />
-                </div>
-                <h3 className="text-xl font-bold text-white mb-3">1. Negotiate on WhatsApp</h3>
-                <p className="text-slate-400 text-sm leading-relaxed">
-                  Chat with creators normally. Discuss deliverables, timelines, and budgets just like you always do.
-                </p>
-                <div className="absolute top-8 right-8 text-6xl font-black text-slate-800/30">1</div>
-              </div>
-
-              {/* Step 2 */}
-              <div className="bg-emerald-900/20 border border-emerald-500/20 rounded-2xl p-8 relative">
-                <div className="w-12 h-12 bg-emerald-500 rounded-xl flex items-center justify-center mb-6 shadow-lg shadow-emerald-500/30">
-                  <Smartphone className="w-6 h-6 text-white" />
-                </div>
-                <h3 className="text-xl font-bold text-white mb-3">2. Forward to Collabo Bot</h3>
-                <p className="text-emerald-100/70 text-sm leading-relaxed">
-                  Simply forward the voice note, image, or text to our official WhatsApp Bot. Our AI extracts everything instantly.
-                </p>
-                <div className="absolute top-8 right-8 text-6xl font-black text-emerald-500/10">2</div>
-              </div>
-
-              {/* Step 3 */}
-              <div className="bg-slate-900 border border-slate-800 rounded-2xl p-8 relative">
-                <div className="w-12 h-12 bg-slate-800 rounded-xl flex items-center justify-center mb-6 border border-slate-700">
-                  <LayoutDashboard className="w-6 h-6 text-emerald-400" />
-                </div>
-                <h3 className="text-xl font-bold text-white mb-3">3. Track on Dashboard</h3>
-                <p className="text-slate-400 text-sm leading-relaxed">
-                  Your campaign is magically drafted. Approve it, track deadlines, and get automated reminders before posts go live.
-                </p>
-                <div className="absolute top-8 right-8 text-6xl font-black text-slate-800/30">3</div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* Features Section */}
-        <section className="py-24">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="grid lg:grid-cols-2 gap-16 items-center">
-              <div>
-                <h2 className="text-3xl font-bold text-white mb-6">Designed specifically for Indian D2C brands.</h2>
-                <div className="space-y-6">
-                  <div className="flex gap-4">
-                    <div className="mt-1"><CheckCircle className="w-6 h-6 text-emerald-400" /></div>
-                    <div>
-                      <h4 className="text-lg font-bold text-white mb-1">Never Miss a Deliverable</h4>
-                      <p className="text-slate-400 text-sm">Automated email and WhatsApp reminders ensure creators post on time.</p>
-                    </div>
-                  </div>
-                  <div className="flex gap-4">
-                    <div className="mt-1"><Clock className="w-6 h-6 text-emerald-400" /></div>
-                    <div>
-                      <h4 className="text-lg font-bold text-white mb-1">Save 10+ Hours a Week</h4>
-                      <p className="text-slate-400 text-sm">Stop manually updating Google Sheets. The AI bot logs data for you.</p>
-                    </div>
-                  </div>
-                  <div className="flex gap-4">
-                    <div className="mt-1"><Shield className="w-6 h-6 text-emerald-400" /></div>
-                    <div>
-                      <h4 className="text-lg font-bold text-white mb-1">Zero-Trust Security</h4>
-                      <p className="text-slate-400 text-sm">Your campaign data is encrypted and isolated. We don't train public AI on your chats.</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              <div className="relative">
-                <div className="absolute inset-0 bg-emerald-500/10 blur-[80px] rounded-full" />
-                <div className="relative bg-slate-900 border border-slate-700/60 rounded-2xl p-6 shadow-2xl">
-                  <div className="flex items-center gap-3 mb-6 border-b border-slate-800 pb-4">
-                    <div className="w-3 h-3 rounded-full bg-rose-500" />
-                    <div className="w-3 h-3 rounded-full bg-amber-500" />
-                    <div className="w-3 h-3 rounded-full bg-emerald-500" />
-                    <div className="ml-2 text-xs text-slate-500 font-mono">collabo-dashboard</div>
-                  </div>
-                  {/* Mock UI */}
-                  <div className="space-y-4">
-                    <div className="h-10 bg-slate-800 rounded-lg w-full" />
-                    <div className="flex gap-4">
-                      <div className="h-32 bg-slate-800 rounded-lg w-1/3" />
-                      <div className="h-32 bg-slate-800 rounded-lg w-2/3" />
-                    </div>
-                    <div className="h-24 bg-slate-800 rounded-lg w-full" />
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* Pricing Teaser */}
-        <section className="py-20 bg-emerald-950/20 border-t border-emerald-900/30">
-          <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-            <h2 className="text-3xl font-bold text-white mb-4">Simple, transparent pricing.</h2>
-            <p className="text-xl text-slate-300 mb-8">
-              Everything you need to manage your influencers, for just <span className="text-emerald-400 font-bold">₹599 / month</span>.
-            </p>
-            <Link 
-              href={isAuthenticated ? "/dashboard" : "/signup"}
-              className="inline-flex items-center justify-center gap-2 px-8 py-4 text-base font-bold bg-emerald-500 hover:bg-emerald-400 text-white rounded-xl transition-all shadow-lg shadow-emerald-500/20"
-            >
-              Start Your 14-Day Free Trial
-            </Link>
-          </div>
-        </section>
-
-        {/* Testimonials */}
-        <section className="py-20 border-t border-slate-800/60 bg-slate-950">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <h2 className="text-center text-2xl font-bold text-white mb-12">Trusted by fast-growing D2C Brands</h2>
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid md:grid-cols-4 gap-6">
               {[
-                { name: "Rahul S.", role: "Founder, GlowIndia", text: "Collabo completely replaced our messy Google Sheets. The WhatsApp bot is literal magic." },
-                { name: "Priya M.", role: "Marketing Lead", text: "We scaled from 10 to 50 creators a month without hiring another manager. Best ₹599 spent." },
-                { name: "Ankit K.", role: "D2C Owner", text: "The automated reminders saved us from so many missed deadlines. Highly recommend for any Indian brand." }
-              ].map((testimonial, i) => (
-                <div key={i} className="p-6 bg-slate-900 border border-slate-800 rounded-2xl">
-                  <div className="flex text-emerald-400 mb-4">
-                    {[1, 2, 3, 4, 5].map(star => <svg key={star} className="w-4 h-4 fill-current" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" /></svg>)}
+                { 
+                  icon: <MessageSquare className="w-6 h-6 text-emerald-400" />,
+                  title: "1. Negotiate on WhatsApp",
+                  desc: "Chat with creators normally. Discuss deliverables, timelines, and budgets just like you always do."
+                },
+                { 
+                  icon: <Smartphone className="w-6 h-6 text-emerald-400" />,
+                  title: "2. Forward to Bot",
+                  desc: "Simply forward the voice note, image, or text to our official Collabo WhatsApp Bot."
+                },
+                { 
+                  icon: <Bot className="w-6 h-6 text-emerald-400" />,
+                  title: "3. AI Extracts Details",
+                  desc: "Our Gemini AI instantly reads the chat and extracts dates, costs, and content requirements."
+                },
+                { 
+                  icon: <LayoutDashboard className="w-6 h-6 text-emerald-400" />,
+                  title: "4. Track in Dashboard",
+                  desc: "Your campaign is magically drafted. Approve it, track deadlines, and get automated reminders."
+                }
+              ].map((step, i) => (
+                <div key={i} className="group relative bg-slate-900 border border-slate-800 hover:border-emerald-500/30 rounded-2xl p-8 transition-all duration-300 hover:shadow-2xl hover:shadow-emerald-500/10 hover:-translate-y-1">
+                  <div className="w-12 h-12 bg-slate-950 rounded-xl flex items-center justify-center mb-6 border border-slate-800 group-hover:border-emerald-500/50 transition-colors">
+                    {step.icon}
                   </div>
-                  <p className="text-slate-300 text-sm mb-6 leading-relaxed">"{testimonial.text}"</p>
-                  <div>
-                    <p className="font-bold text-white text-sm">{testimonial.name}</p>
-                    <p className="text-xs text-slate-500">{testimonial.role}</p>
-                  </div>
+                  <h3 className="text-lg font-bold text-white mb-3">{step.title}</h3>
+                  <p className="text-slate-400 text-sm leading-relaxed">
+                    {step.desc}
+                  </p>
                 </div>
               ))}
             </div>
           </div>
         </section>
+
+        {/* Features / Benefits */}
+        <section className="py-24 bg-slate-900/30 border-y border-white/5 relative">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="grid lg:grid-cols-2 gap-16 items-center">
+              <div>
+                <h2 className="text-3xl sm:text-4xl font-bold text-white mb-6 leading-tight">Scale your influencer marketing, <span className="text-emerald-400">without the headcount.</span></h2>
+                <p className="text-slate-400 text-lg mb-10">Collabo acts as your automated campaign manager, so you can focus on building relationships instead of updating spreadsheets.</p>
+                
+                <div className="space-y-8">
+                  <div className="flex gap-4 items-start">
+                    <div className="mt-1 bg-emerald-500/10 p-2 rounded-lg border border-emerald-500/20"><CheckCircle className="w-6 h-6 text-emerald-400" /></div>
+                    <div>
+                      <h4 className="text-xl font-bold text-white mb-2">Never Miss a Deliverable</h4>
+                      <p className="text-slate-400 leading-relaxed">Automated email and WhatsApp reminders ensure creators post on time. Get notified before a deadline is missed.</p>
+                    </div>
+                  </div>
+                  <div className="flex gap-4 items-start">
+                    <div className="mt-1 bg-blue-500/10 p-2 rounded-lg border border-blue-500/20"><Zap className="w-6 h-6 text-blue-400" /></div>
+                    <div>
+                      <h4 className="text-xl font-bold text-white mb-2">Save 10+ Hours a Week</h4>
+                      <p className="text-slate-400 leading-relaxed">Stop manually updating Google Sheets. The AI bot logs data, tracks payments, and organizes deliverables for you.</p>
+                    </div>
+                  </div>
+                  <div className="flex gap-4 items-start">
+                    <div className="mt-1 bg-purple-500/10 p-2 rounded-lg border border-purple-500/20"><Shield className="w-6 h-6 text-purple-400" /></div>
+                    <div>
+                      <h4 className="text-xl font-bold text-white mb-2">Zero-Trust Security</h4>
+                      <p className="text-slate-400 leading-relaxed">Your campaign data is encrypted via Supabase RLS. We don't train public AI models on your private negotiations.</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              {/* Image / Graphic Area */}
+              <div className="relative">
+                <div className="absolute inset-0 bg-emerald-500/20 blur-[100px] rounded-full pointer-events-none" />
+                <div className="relative bg-[#020617] border border-slate-800 rounded-3xl p-8 shadow-2xl">
+                   <div className="space-y-6">
+                      {/* Fake WhatsApp Chat */}
+                      <div className="flex items-start gap-4">
+                        <div className="w-10 h-10 rounded-full bg-emerald-600 flex items-center justify-center text-white font-bold text-xs shrink-0">CR</div>
+                        <div className="bg-slate-800 rounded-2xl rounded-tl-sm p-4 text-sm text-slate-200 shadow-sm border border-slate-700">
+                          "Hey! Yes, ₹15,000 works for 1 Reel and 2 Stories. Can post by Friday."
+                        </div>
+                      </div>
+                      
+                      <div className="flex justify-center">
+                        <div className="bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 text-xs px-4 py-2 rounded-full flex items-center gap-2 animate-pulse">
+                           <Sparkles className="w-3 h-3" /> AI Extracting Details...
+                        </div>
+                      </div>
+                      
+                      {/* Fake Dashboard Entry */}
+                      <div className="bg-slate-900 border border-emerald-500/50 rounded-xl p-5 shadow-[0_0_30px_rgba(16,185,129,0.15)] relative overflow-hidden">
+                        <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/10 blur-2xl"></div>
+                        <div className="flex justify-between items-center mb-4">
+                          <span className="text-white font-bold">Campaign Drafted</span>
+                          <span className="bg-emerald-500 text-white text-xs px-2 py-1 rounded font-semibold shadow-sm">Ready</span>
+                        </div>
+                        <div className="space-y-3 text-sm relative z-10">
+                          <div className="flex justify-between border-b border-slate-800 pb-2">
+                            <span className="text-slate-400">Deliverables</span>
+                            <span className="text-white font-medium">1 Reel, 2 Stories</span>
+                          </div>
+                          <div className="flex justify-between border-b border-slate-800 pb-2">
+                            <span className="text-slate-400">Budget</span>
+                            <span className="text-emerald-400 font-medium">₹15,000</span>
+                          </div>
+                          <div className="flex justify-between pb-1">
+                            <span className="text-slate-400">Deadline</span>
+                            <span className="text-white font-medium">Friday</span>
+                          </div>
+                        </div>
+                      </div>
+                   </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* CTA Section */}
+        <section className="py-24 relative overflow-hidden">
+          <div className="absolute inset-0 bg-emerald-950/20" />
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-2xl h-[400px] bg-emerald-500/20 rounded-full blur-[120px] pointer-events-none" />
+          
+          <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 relative text-center">
+            <h2 className="text-4xl sm:text-5xl font-extrabold text-white mb-6 tracking-tight">Ready to bring order to the chaos?</h2>
+            <p className="text-xl text-emerald-100/70 mb-10 max-w-2xl mx-auto">
+              Join hundreds of D2C brands automating their influencer marketing with Collabo.
+            </p>
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+              <Link href="/signup" className={`${buttonPrimary} scale-100 sm:scale-110 shadow-2xl shadow-emerald-500/20 group`}>
+                Start Your Free Trial
+                <ArrowRight className="ml-2 w-4 h-4 group-hover:translate-x-1 transition-transform" />
+              </Link>
+            </div>
+            <p className="mt-8 text-sm text-slate-400">14-day free trial • ₹599/month after • Cancel anytime</p>
+          </div>
+        </section>
       </main>
 
       {/* Footer */}
-      <footer className="border-t border-slate-800/60 bg-slate-950 py-12">
+      <footer className="border-t border-white/5 bg-[#020617] py-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row justify-between items-center gap-6">
-          <Logo variant="full" size={20} href="/" className="opacity-80 hover:opacity-100" />
+          <div className="flex items-center gap-2">
+            <GeometricLogo className="w-6 h-6 grayscale opacity-50" />
+            <span className="text-lg font-bold tracking-tight text-slate-500">Collabo</span>
+          </div>
           
           <div className="flex gap-8 text-sm">
             <Link href="/privacy" className="text-slate-400 hover:text-emerald-400 transition-colors">Privacy Policy</Link>
@@ -258,3 +324,4 @@ export default function LandingPage() {
     </div>
   );
 }
+
