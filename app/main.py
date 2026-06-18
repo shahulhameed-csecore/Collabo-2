@@ -126,6 +126,7 @@ async def landing_page():
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Collabo - Micro-Influencer Campaigns</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
     <script>
         tailwind.config = {
             darkMode: 'class',
@@ -147,107 +148,275 @@ async def landing_page():
             }
         }
     </script>
-    <style>
-        body {
-            background-color: #020617; /* slate-950 */
-            color: #f8fafc;
-        }
-    </style>
 </head>
-<body class="min-h-screen flex flex-col relative overflow-x-hidden bg-slate-950 text-slate-50 font-sans selection:bg-emerald-500/30">
-    <!-- Background effects -->
-    <div class="fixed inset-0 z-0 pointer-events-none">
-        <div class="absolute top-1/4 left-1/4 w-96 h-96 bg-emerald-600/10 rounded-full blur-3xl mix-blend-screen"></div>
-        <div class="absolute bottom-1/4 right-1/4 w-[500px] h-[500px] bg-emerald-900/20 rounded-full blur-3xl mix-blend-screen"></div>
-    </div>
+<body class="min-h-screen bg-[#020617] text-slate-200 font-sans selection:bg-emerald-500/30 selection:text-emerald-200 overflow-x-hidden">
+    <!-- Navbar -->
+    <header class="fixed top-0 w-full z-50 border-b border-white/5 bg-[#020617]/80 backdrop-blur-md">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+        <a href="https://collabo-2.vercel.app" class="flex items-center gap-2 group">
+          <svg viewBox="0 0 100 100" class="w-8 h-8 group-hover:scale-105 transition-transform" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M50 15L85 35V75L50 95L15 75V35L50 15Z" stroke="#10b981" stroke-width="6" fill="url(#gradLogo)"/>
+            <path d="M50 15V55M15 35L50 55M85 35L50 55" stroke="#10b981" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M50 55V95" stroke="#10b981" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+            <defs>
+              <linearGradient id="gradLogo" x1="15" y1="15" x2="85" y2="95" gradientUnits="userSpaceOnUse">
+                <stop offset="0%" stop-color="#34d399" stop-opacity="0.2" />
+                <stop offset="100%" stop-color="#059669" stop-opacity="0.8" />
+              </linearGradient>
+            </defs>
+          </svg>
+          <span class="text-xl font-bold tracking-tight text-white">Collabo</span>
+        </a>
+        <div class="flex items-center gap-4">
+          <a href="https://collabo-2.vercel.app/login" class="text-sm font-medium text-slate-300 hover:text-white transition-colors hidden sm:block">
+            Log in
+          </a>
+          <a href="https://collabo-2.vercel.app/signup" class="inline-flex items-center justify-center rounded-xl font-semibold transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 disabled:opacity-50 disabled:pointer-events-none bg-white text-slate-950 hover:bg-slate-200 h-9 px-4 text-xs shadow-sm">
+            Try for Free
+          </a>
+        </div>
+      </div>
+    </header>
 
-    <!-- Main Container -->
-    <div class="z-10 flex-grow flex flex-col items-center justify-center px-6 max-w-5xl mx-auto py-24 w-full">
-        
-        <!-- Hero Section -->
-        <div class="flex flex-col items-center text-center w-full mb-24">
-            <!-- Geometric Logo -->
-            <div class="mb-8 flex items-center justify-center w-24 h-24 rounded-2xl bg-gradient-to-br from-slate-800 to-slate-900 border border-slate-700/50 shadow-2xl shadow-emerald-900/20">
-                <svg viewBox="0 0 100 100" class="w-14 h-14" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M50 15L85 35V75L50 95L15 75V35L50 15Z" stroke="#10b981" stroke-width="4" fill="url(#grad1)"/>
-                    <path d="M50 15V55M15 35L50 55M85 35L50 55" stroke="#10b981" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
-                    <path d="M50 55V95" stroke="#10b981" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
-                    <defs>
-                        <linearGradient id="grad1" x1="15" y1="15" x2="85" y2="95" gradientUnits="userSpaceOnUse">
-                            <stop offset="0%" stop-color="#34d399" stop-opacity="0.2" />
-                            <stop offset="100%" stop-color="#059669" stop-opacity="0.6" />
-                        </linearGradient>
-                    </defs>
-                </svg>
-            </div>
-
-            <h1 class="text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight text-white mb-6 leading-tight">
-                <span class="block mb-2">Collabo</span>
-                <span class="block text-2xl md:text-3xl mt-4 font-normal text-slate-300">WhatsApp to Dashboard for<br/>Micro-Influencer Campaigns</span>
-            </h1>
-            
-            <p class="mt-2 text-lg md:text-xl text-slate-400 max-w-2xl mx-auto mb-10 leading-relaxed">
-                Manage your campaigns effortlessly. From WhatsApp conversations directly to your analytics dashboard via our AI Bot.
-            </p>
-
-            <div class="flex flex-col sm:flex-row gap-4 sm:gap-6 w-full sm:w-auto">
-                <a href="https://collabo-2.vercel.app" class="group relative inline-flex items-center justify-center px-8 py-3.5 text-base font-medium text-white bg-emerald-600 rounded-xl overflow-hidden transition-all duration-300 hover:bg-emerald-500 hover:scale-105 hover:shadow-[0_0_20px_rgba(16,185,129,0.4)] focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 focus:ring-offset-slate-900 w-full sm:w-auto">
-                    <span class="relative z-10 font-semibold">Login to Dashboard</span>
-                </a>
-                
-                <a href="https://collabo-2.vercel.app" class="group relative inline-flex items-center justify-center px-8 py-3.5 text-base font-medium text-slate-300 bg-slate-800/50 backdrop-blur-sm border border-slate-700 rounded-xl overflow-hidden transition-all duration-300 hover:text-white hover:bg-slate-800 hover:border-slate-600 hover:scale-105 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2 focus:ring-offset-slate-900 w-full sm:w-auto">
-                    <span class="relative z-10 font-semibold">Sign Up</span>
-                </a>
-            </div>
+    <main>
+      <!-- Hero Section -->
+      <section class="relative pt-32 pb-20 lg:pt-48 lg:pb-32 overflow-hidden">
+        <div class="absolute top-0 left-1/2 -translate-x-1/2 w-[1000px] h-[500px] bg-emerald-500/20 rounded-full blur-[120px] pointer-events-none opacity-50 mix-blend-screen"></div>
+        <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 relative text-center">
+          <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-semibold uppercase tracking-wider mb-8 shadow-sm">
+            <i data-lucide="sparkles" class="w-4 h-4"></i>
+            Built for Indian D2C Brands
+          </div>
+          <h1 class="text-5xl sm:text-6xl lg:text-7xl font-extrabold text-white tracking-tight mb-8 leading-[1.1]">
+            Stop managing influencers <br class="hidden sm:block" />
+            in <span class="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-emerald-600">WhatsApp chaos.</span>
+          </h1>
+          <p class="text-lg sm:text-xl text-slate-400 max-w-2xl mx-auto mb-10 leading-relaxed">
+            Forward voice notes, negotiations, and deliverables to our AI bot. We instantly extract the data and track it in your campaign dashboard.
+          </p>
+          <div class="flex flex-col sm:flex-row items-center justify-center gap-4">
+            <a href="https://collabo-2.vercel.app/signup" class="inline-flex items-center justify-center rounded-xl text-sm font-semibold transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 bg-emerald-500 text-white hover:bg-emerald-400 hover:shadow-[0_0_20px_rgba(16,185,129,0.3)] h-12 px-8">
+              Try for Free
+              <i data-lucide="arrow-right" class="ml-2 w-4 h-4 group-hover:translate-x-1 transition-transform"></i>
+            </a>
+            <a href="https://collabo-2.vercel.app/login" class="inline-flex items-center justify-center rounded-xl text-sm font-semibold transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 bg-slate-900 border border-slate-700 text-slate-100 hover:bg-slate-800 hover:text-white h-12 px-8">
+              Login to Dashboard
+            </a>
+          </div>
+          <p class="mt-5 text-sm text-slate-500 flex items-center justify-center gap-2">
+            <i data-lucide="shield" class="w-4 h-4"></i> No credit card required. Cancel anytime.
+          </p>
         </div>
 
-        <!-- How It Works Section -->
-        <div class="w-full">
-            <h2 class="text-3xl font-bold text-center text-white mb-12">How it Works</h2>
-            <div class="grid md:grid-cols-3 gap-8">
-                <!-- Step 1 -->
-                <div class="bg-slate-900/80 border border-slate-800 rounded-2xl p-8 backdrop-blur-sm text-center">
-                    <div class="w-12 h-12 bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-6 border border-slate-700 text-emerald-400 font-bold text-xl">1</div>
-                    <h3 class="text-xl font-bold text-white mb-3">Negotiate</h3>
-                    <p class="text-slate-400 text-sm leading-relaxed">
-                        Chat with creators on WhatsApp. Finalize deliverables, costs, and timelines normally.
-                    </p>
-                </div>
-
-                <!-- Step 2 -->
-                <div class="bg-emerald-900/20 border border-emerald-500/20 rounded-2xl p-8 backdrop-blur-sm text-center">
-                    <div class="w-12 h-12 bg-emerald-500/20 rounded-full flex items-center justify-center mx-auto mb-6 border border-emerald-500/30 text-emerald-400 font-bold text-xl">2</div>
-                    <h3 class="text-xl font-bold text-white mb-3">Forward</h3>
-                    <p class="text-emerald-100/70 text-sm leading-relaxed">
-                        Forward the voice note or text to the Collabo Bot. AI instantly extracts details.
-                    </p>
-                </div>
-
-                <!-- Step 3 -->
-                <div class="bg-slate-900/80 border border-slate-800 rounded-2xl p-8 backdrop-blur-sm text-center">
-                    <div class="w-12 h-12 bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-6 border border-slate-700 text-emerald-400 font-bold text-xl">3</div>
-                    <h3 class="text-xl font-bold text-white mb-3">Track</h3>
-                    <p class="text-slate-400 text-sm leading-relaxed">
-                        Campaign is drafted on your dashboard. Monitor status and get automated reminders.
-                    </p>
-                </div>
+        <!-- Abstract Dashboard Mockup -->
+        <div class="max-w-6xl mx-auto mt-20 px-4 sm:px-6 relative" style="perspective: 1000px">
+          <div class="absolute inset-0 bg-gradient-to-t from-[#020617] via-transparent to-transparent z-10 pointer-events-none"></div>
+          <div class="relative rounded-2xl border border-slate-800 bg-slate-900/50 shadow-2xl overflow-hidden backdrop-blur-sm transform-gpu transition-all duration-1000 hover:rotate-x-0 hover:scale-100 opacity-90" style="transform-style: preserve-3d; transform: rotateX(12deg) scale(1.05)">
+            <div class="h-10 border-b border-slate-800 flex items-center px-4 gap-2 bg-slate-950/50">
+              <div class="w-3 h-3 rounded-full bg-rose-500"></div>
+              <div class="w-3 h-3 rounded-full bg-amber-500"></div>
+              <div class="w-3 h-3 rounded-full bg-emerald-500"></div>
             </div>
+            <div class="p-6 grid grid-cols-12 gap-6 h-[400px]">
+              <div class="col-span-3 space-y-4">
+                <div class="h-8 w-3/4 bg-slate-800 rounded-lg animate-pulse"></div>
+                <div class="h-4 w-full bg-slate-800/50 rounded animate-pulse"></div>
+                <div class="h-4 w-5/6 bg-slate-800/50 rounded animate-pulse"></div>
+                <div class="h-4 w-4/6 bg-slate-800/50 rounded animate-pulse"></div>
+              </div>
+              <div class="col-span-9 space-y-6">
+                <div class="flex gap-4">
+                  <div class="h-24 flex-1 bg-emerald-900/20 border border-emerald-500/20 rounded-xl flex items-center justify-center">
+                    <div class="text-emerald-400/50 font-mono text-sm">Active Campaigns</div>
+                  </div>
+                  <div class="h-24 flex-1 bg-slate-800/50 rounded-xl"></div>
+                  <div class="h-24 flex-1 bg-slate-800/50 rounded-xl"></div>
+                </div>
+                <div class="h-full bg-slate-800/30 rounded-xl border border-slate-800"></div>
+              </div>
+            </div>
+          </div>
         </div>
-    </div>
-    
+      </section>
+
+      <!-- Logos / Trust Signals -->
+      <section class="border-y border-white/5 bg-slate-900/20 py-10">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+          <p class="text-sm font-medium text-slate-500 uppercase tracking-widest mb-6">Trusted by fast-growing brands</p>
+          <div class="flex flex-wrap justify-center items-center gap-10 sm:gap-16 opacity-50 grayscale">
+             <span class="text-xl font-bold font-serif">Minimalist.</span>
+             <span class="text-xl font-black italic">FITNESS+</span>
+             <span class="text-xl font-bold tracking-tighter">GLOW</span>
+             <span class="text-xl font-light tracking-widest">NATURE</span>
+             <span class="text-xl font-bold">KetoInd</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- How It Works -->
+      <section class="py-24 relative overflow-hidden">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div class="text-center mb-20">
+            <h2 class="text-3xl sm:text-4xl font-bold text-white mb-4">How Collabo Works</h2>
+            <p class="text-slate-400 max-w-2xl mx-auto text-lg">From messy negotiations to perfectly structured campaigns in four simple steps.</p>
+          </div>
+          <div class="grid md:grid-cols-4 gap-6">
+            <div class="group relative bg-slate-900 border border-slate-800 hover:border-emerald-500/30 rounded-2xl p-8 transition-all duration-300 hover:shadow-2xl hover:shadow-emerald-500/10 hover:-translate-y-1">
+              <div class="w-12 h-12 bg-slate-950 rounded-xl flex items-center justify-center mb-6 border border-slate-800 group-hover:border-emerald-500/50 transition-colors">
+                <i data-lucide="message-square" class="w-6 h-6 text-emerald-400"></i>
+              </div>
+              <h3 class="text-lg font-bold text-white mb-3">1. Negotiate on WhatsApp</h3>
+              <p class="text-slate-400 text-sm leading-relaxed">Chat with creators normally. Discuss deliverables, timelines, and budgets just like you always do.</p>
+            </div>
+            <div class="group relative bg-slate-900 border border-slate-800 hover:border-emerald-500/30 rounded-2xl p-8 transition-all duration-300 hover:shadow-2xl hover:shadow-emerald-500/10 hover:-translate-y-1">
+              <div class="w-12 h-12 bg-slate-950 rounded-xl flex items-center justify-center mb-6 border border-slate-800 group-hover:border-emerald-500/50 transition-colors">
+                <i data-lucide="smartphone" class="w-6 h-6 text-emerald-400"></i>
+              </div>
+              <h3 class="text-lg font-bold text-white mb-3">2. Forward to Bot</h3>
+              <p class="text-slate-400 text-sm leading-relaxed">Simply forward the voice note, image, or text to our official Collabo WhatsApp Bot.</p>
+            </div>
+            <div class="group relative bg-slate-900 border border-slate-800 hover:border-emerald-500/30 rounded-2xl p-8 transition-all duration-300 hover:shadow-2xl hover:shadow-emerald-500/10 hover:-translate-y-1">
+              <div class="w-12 h-12 bg-slate-950 rounded-xl flex items-center justify-center mb-6 border border-slate-800 group-hover:border-emerald-500/50 transition-colors">
+                <i data-lucide="bot" class="w-6 h-6 text-emerald-400"></i>
+              </div>
+              <h3 class="text-lg font-bold text-white mb-3">3. AI Extracts Details</h3>
+              <p class="text-slate-400 text-sm leading-relaxed">Our Gemini AI instantly reads the chat and extracts dates, costs, and content requirements.</p>
+            </div>
+            <div class="group relative bg-slate-900 border border-slate-800 hover:border-emerald-500/30 rounded-2xl p-8 transition-all duration-300 hover:shadow-2xl hover:shadow-emerald-500/10 hover:-translate-y-1">
+              <div class="w-12 h-12 bg-slate-950 rounded-xl flex items-center justify-center mb-6 border border-slate-800 group-hover:border-emerald-500/50 transition-colors">
+                <i data-lucide="layout-dashboard" class="w-6 h-6 text-emerald-400"></i>
+              </div>
+              <h3 class="text-lg font-bold text-white mb-3">4. Track in Dashboard</h3>
+              <p class="text-slate-400 text-sm leading-relaxed">Your campaign is magically drafted. Approve it, track deadlines, and get automated reminders.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Features / Benefits -->
+      <section class="py-24 bg-slate-900/30 border-y border-white/5 relative">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div class="grid lg:grid-cols-2 gap-16 items-center">
+            <div>
+              <h2 class="text-3xl sm:text-4xl font-bold text-white mb-6 leading-tight">Scale your influencer marketing, <span class="text-emerald-400">without the headcount.</span></h2>
+              <p class="text-slate-400 text-lg mb-10">Collabo acts as your automated campaign manager, so you can focus on building relationships instead of updating spreadsheets.</p>
+              <div class="space-y-8">
+                <div class="flex gap-4 items-start">
+                  <div class="mt-1 bg-emerald-500/10 p-2 rounded-lg border border-emerald-500/20"><i data-lucide="check-circle" class="w-6 h-6 text-emerald-400"></i></div>
+                  <div>
+                    <h4 class="text-xl font-bold text-white mb-2">Never Miss a Deliverable</h4>
+                    <p class="text-slate-400 leading-relaxed">Automated email and WhatsApp reminders ensure creators post on time. Get notified before a deadline is missed.</p>
+                  </div>
+                </div>
+                <div class="flex gap-4 items-start">
+                  <div class="mt-1 bg-blue-500/10 p-2 rounded-lg border border-blue-500/20"><i data-lucide="zap" class="w-6 h-6 text-blue-400"></i></div>
+                  <div>
+                    <h4 class="text-xl font-bold text-white mb-2">Save 10+ Hours a Week</h4>
+                    <p class="text-slate-400 leading-relaxed">Stop manually updating Google Sheets. The AI bot logs data, tracks payments, and organizes deliverables for you.</p>
+                  </div>
+                </div>
+                <div class="flex gap-4 items-start">
+                  <div class="mt-1 bg-purple-500/10 p-2 rounded-lg border border-purple-500/20"><i data-lucide="shield" class="w-6 h-6 text-purple-400"></i></div>
+                  <div>
+                    <h4 class="text-xl font-bold text-white mb-2">Zero-Trust Security</h4>
+                    <p class="text-slate-400 leading-relaxed">Your campaign data is encrypted via Supabase RLS. We don't train public AI models on your private negotiations.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="relative">
+              <div class="absolute inset-0 bg-emerald-500/20 blur-[100px] rounded-full pointer-events-none"></div>
+              <div class="relative bg-[#020617] border border-slate-800 rounded-3xl p-8 shadow-2xl">
+                 <div class="space-y-6">
+                    <div class="flex items-start gap-4">
+                      <div class="w-10 h-10 rounded-full bg-emerald-600 flex items-center justify-center text-white font-bold text-xs shrink-0">CR</div>
+                      <div class="bg-slate-800 rounded-2xl rounded-tl-sm p-4 text-sm text-slate-200 shadow-sm border border-slate-700">
+                        "Hey! Yes, ₹15,000 works for 1 Reel and 2 Stories. Can post by Friday."
+                      </div>
+                    </div>
+                    <div class="flex justify-center">
+                      <div class="bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 text-xs px-4 py-2 rounded-full flex items-center gap-2 animate-pulse">
+                         <i data-lucide="sparkles" class="w-3 h-3"></i> AI Extracting Details...
+                      </div>
+                    </div>
+                    <div class="bg-slate-900 border border-emerald-500/50 rounded-xl p-5 shadow-[0_0_30px_rgba(16,185,129,0.15)] relative overflow-hidden">
+                      <div class="absolute top-0 right-0 w-32 h-32 bg-emerald-500/10 blur-2xl"></div>
+                      <div class="flex justify-between items-center mb-4">
+                        <span class="text-white font-bold">Campaign Drafted</span>
+                        <span class="bg-emerald-500 text-white text-xs px-2 py-1 rounded font-semibold shadow-sm">Ready</span>
+                      </div>
+                      <div class="space-y-3 text-sm relative z-10">
+                        <div class="flex justify-between border-b border-slate-800 pb-2">
+                          <span class="text-slate-400">Deliverables</span>
+                          <span class="text-white font-medium">1 Reel, 2 Stories</span>
+                        </div>
+                        <div class="flex justify-between border-b border-slate-800 pb-2">
+                          <span class="text-slate-400">Budget</span>
+                          <span class="text-emerald-400 font-medium">₹15,000</span>
+                        </div>
+                        <div class="flex justify-between pb-1">
+                          <span class="text-slate-400">Deadline</span>
+                          <span class="text-white font-medium">Friday</span>
+                        </div>
+                      </div>
+                    </div>
+                 </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- CTA Section -->
+      <section class="py-24 relative overflow-hidden">
+        <div class="absolute inset-0 bg-emerald-950/20"></div>
+        <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-2xl h-[400px] bg-emerald-500/20 rounded-full blur-[120px] pointer-events-none"></div>
+        <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 relative text-center">
+          <h2 class="text-4xl sm:text-5xl font-extrabold text-white mb-6 tracking-tight">Ready to bring order to the chaos?</h2>
+          <p class="text-xl text-emerald-100/70 mb-10 max-w-2xl mx-auto">
+            Join hundreds of D2C brands automating their influencer marketing with Collabo.
+          </p>
+          <div class="flex flex-col sm:flex-row items-center justify-center gap-4">
+            <a href="https://collabo-2.vercel.app/signup" class="inline-flex items-center justify-center rounded-xl text-sm font-semibold transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 bg-emerald-500 text-white hover:bg-emerald-400 hover:shadow-[0_0_20px_rgba(16,185,129,0.3)] h-12 px-8 scale-100 sm:scale-110 shadow-2xl shadow-emerald-500/20 group">
+              Start Your Free Trial
+              <i data-lucide="arrow-right" class="ml-2 w-4 h-4 group-hover:translate-x-1 transition-transform"></i>
+            </a>
+          </div>
+          <p class="mt-8 text-sm text-slate-400">14-day free trial • ₹599/month after • Cancel anytime</p>
+        </div>
+      </section>
+    </main>
+
     <!-- Footer -->
-    <footer class="z-10 border-t border-slate-800/60 bg-slate-950/80 backdrop-blur-md py-8 mt-auto w-full">
-        <div class="max-w-5xl mx-auto px-6 flex flex-col md:flex-row items-center justify-between gap-4">
-            <div class="text-sm text-slate-500">
-                &copy; 2026 Collabo. All rights reserved.
-            </div>
-            <div class="flex gap-6 text-sm">
-                <a href="https://collabo-2.vercel.app/privacy" class="text-slate-400 hover:text-emerald-400 transition-colors">Privacy Policy</a>
-                <a href="https://collabo-2.vercel.app/terms" class="text-slate-400 hover:text-emerald-400 transition-colors">Terms of Service</a>
-                <a href="mailto:support@collabo.app" class="text-slate-400 hover:text-emerald-400 transition-colors">Contact Support</a>
-            </div>
+    <footer class="border-t border-white/5 bg-[#020617] py-12">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row justify-between items-center gap-6">
+        <div class="flex items-center gap-2">
+          <svg viewBox="0 0 100 100" class="w-6 h-6 grayscale opacity-50" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M50 15L85 35V75L50 95L15 75V35L50 15Z" stroke="#10b981" stroke-width="6" fill="url(#gradLogo2)"/>
+            <path d="M50 15V55M15 35L50 55M85 35L50 55" stroke="#10b981" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M50 55V95" stroke="#10b981" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+            <defs>
+              <linearGradient id="gradLogo2" x1="15" y1="15" x2="85" y2="95" gradientUnits="userSpaceOnUse">
+                <stop offset="0%" stop-color="#34d399" stop-opacity="0.2" />
+                <stop offset="100%" stop-color="#059669" stop-opacity="0.8" />
+              </linearGradient>
+            </defs>
+          </svg>
+          <span class="text-lg font-bold tracking-tight text-slate-500">Collabo</span>
         </div>
+        <div class="flex gap-8 text-sm">
+          <a href="https://collabo-2.vercel.app/privacy" class="text-slate-400 hover:text-emerald-400 transition-colors">Privacy Policy</a>
+          <a href="https://collabo-2.vercel.app/terms" class="text-slate-400 hover:text-emerald-400 transition-colors">Terms of Service</a>
+          <a href="mailto:support@collabo.app" class="text-slate-400 hover:text-emerald-400 transition-colors">Contact</a>
+        </div>
+        <p class="text-sm text-slate-600">
+          © 2026 Collabo. All rights reserved.
+        </p>
+      </div>
     </footer>
+    <script>
+      lucide.createIcons();
+    </script>
 </body>
 </html>"""
     return HTMLResponse(content=html_content)
