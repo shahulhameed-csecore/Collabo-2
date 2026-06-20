@@ -28,18 +28,32 @@ export const metadata: Metadata = {
   description: "Manage your micro-influencer campaigns with AI-powered extraction and real-time tracking.",
   keywords: ["influencer marketing", "campaign management", "D2C brands", "India"],
   icons: {
-    icon: '/logo-icon.png',
+    icon: [
+      { url: '/logo-icon.png', type: 'image/png' },
+    ],
     shortcut: '/logo-icon.png',
-    apple: '/logo-icon.png',
-    other: {
-      rel: 'apple-touch-icon-precomposed',
-      url: '/logo-icon.png',
-    },
+    apple: [
+      { url: '/logo-icon.png', sizes: '180x180', type: 'image/png' },
+    ],
   },
   openGraph: {
-    title: "Collabo",
-    description: "AI-powered influencer campaign management for D2C brands.",
+    title: "Collabo — AI-powered Influencer Campaign Management",
+    description: "AI-powered influencer campaign management for D2C brands. Forward WhatsApp chats, auto-extract campaign data.",
     type: "website",
+    images: [
+      {
+        url: '/logo-full.png',
+        width: 1200,
+        height: 315,
+        alt: 'Collabo Logo',
+      },
+    ],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Collabo — AI-powered Influencer Campaign Management',
+    description: 'AI-powered influencer campaign management for D2C brands.',
+    images: ['/logo-full.png'],
   },
   verification: {
     other: {

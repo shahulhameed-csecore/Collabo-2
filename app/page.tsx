@@ -43,9 +43,7 @@ export default function LandingPage() {
       {/* Navbar */}
       <header className="fixed top-0 w-full z-50 border-b border-white/5 bg-[#020617]/80 backdrop-blur-md">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-2 group">
-            <Logo variant="full" size={32} href="" />
-          </Link>
+          <Logo variant="full" size={32} href="/" />
           <div className="flex items-center gap-4">
             <Link href="/login" className="text-sm font-medium text-slate-300 hover:text-white transition-colors hidden sm:block">
               Log in
@@ -291,7 +289,7 @@ export default function LandingPage() {
       <footer className="border-t border-white/5 bg-[#020617] py-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row justify-between items-center gap-6">
           <div className="flex items-center gap-2 opacity-50 grayscale">
-            <Logo variant="full" size={24} href="" />
+            <Logo variant="full" size={24} href="" className="grayscale opacity-50" />
           </div>
           
           <div className="flex gap-8 text-sm">
