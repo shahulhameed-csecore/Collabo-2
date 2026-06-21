@@ -66,10 +66,30 @@ async def extract_details(request: Request, file: UploadFile = File(...), user=D
             
         elif is_pdf:
             reader = pypdf.PdfReader(io.BytesIO(contents))
-            text = "\n".join(page.extract_text() for page in reader.pages if page.extract_text())
-            # Truncate to ~50k chars to prevent token overflow
-            text = text[:50000]
-            extracted_data = extract_campaign_details(text, filename=filename)
+            hybrid_content = []
+            extracted_texts = []
+            image_count = 0
+            
+            for page in reader.pages:
+                text = page.extract_text()
+                if text:
+                    extracted_texts.append(text)
+                
+                # Extract up to 3 images from the PDF to form a multimodal context
+                for image_file_object in page.images:
+                    if image_count < 3:
+                        try:
+                            pdf_img = Image.open(io.BytesIO(image_file_object.data))
+                            hybrid_content.append(pdf_img)
+                            image_count += 1
+                        except Exception as e:
+                            logger.warning(f"Failed to read PDF image: {e}")
+            
+            full_text = "\n".join(extracted_texts)[:50000]
+            if full_text.strip():
+                hybrid_content.append(full_text)
+                
+            extracted_data = extract_campaign_details(hybrid_content, filename=filename)
             
         elif is_docx:
             doc = docx.Document(io.BytesIO(contents))

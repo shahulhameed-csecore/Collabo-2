@@ -7,6 +7,7 @@ from google.genai import types
 from google.genai.errors import APIError
 from PIL import Image, ImageOps
 from pydantic import BaseModel, Field
+from tenacity import retry, wait_exponential, stop_after_attempt, retry_if_exception_type
 
 from app.core.config import settings
 
@@ -41,9 +42,10 @@ CRITICAL DIRECTIVES:
 3. DATES & DEADLINES: Convert all relative dates ("next Friday", "by EOD", "kal", "in 3 days") into strict YYYY-MM-DD format based on {today_str}. If no deadline is mentioned or it's vague, set it to null. Do NOT hallucinate dates.
 4. HINGLISH & MESSY TEXT: You are fluent in Hinglish (Hindi + English) and informal chat shorthand. Infer intent accurately even with typos, bad grammar, or poor screenshot quality.
 5. DELIVERABLES: Be concise but comprehensive. Extract exactly what was agreed (e.g., "1 IG Reel + 2 Stories", "1 Dedicated YouTube Integration").
-6. MISSING DATA: It is very common for documents to miss certain fields (e.g. handle, platform). If a field is not explicitly present or highly obvious, return null. Do not guess handles.
+6. MISSING DATA: It is very common for documents to miss certain fields (e.g. handle, platform). If a field is not explicitly present or highly obvious, return null. Do not guess handles or names.
 7. NEVER FAIL: Even if the document is totally empty or irrelevant, DO NOT crash. Simply return null for all fields. Always output valid JSON matching the exact schema below.
 8. WHATSAPP FORWARDS: If this is a forwarded WhatsApp chat log, parse the conversation flow carefully. Pay close attention to the final agreed terms (the last messages) rather than initial offers.
+9. HYBRID CONTEXT: You may receive a combination of text extracted from a PDF and screenshots of key pages. Correlate the text and images to form a complete understanding.
 
 Return ONLY valid JSON matching this exact structure:
 
@@ -61,63 +63,71 @@ DO NOT include markdown formatting like ```json.
 DO NOT include any commentary. Output raw JSON only.
 """
 
+@retry(
+    wait=wait_exponential(min=1, max=10),
+    stop=stop_after_attempt(3),
+    retry=retry_if_exception_type((APIError, ValueError)),
+    reraise=True
+)
+def _generate_with_retry(gemini_content: list) -> str:
+    response = client.models.generate_content(
+        model="gemini-2.5-flash",
+        contents=gemini_content,
+        config=types.GenerateContentConfig(
+            response_mime_type="application/json",
+            response_schema=GeminiExtractionSchema,
+            temperature=0.1,  # Low temperature to prevent hallucination
+        )
+    )
+    if not response.text:
+        raise ValueError("Gemini returned an empty response. It may have been blocked by safety filters.")
+    return response.text
 
-def extract_campaign_details(content: Image.Image | str | dict, filename: str = "image.png") -> dict:
+
+def extract_campaign_details(content: Image.Image | str | dict | list, filename: str = "image.png") -> dict:
     try:
         today_str = datetime.now().strftime("%Y-%m-%d (%A)")
         gemini_content = [get_extraction_prompt(today_str, filename)]
 
-        if isinstance(content, Image.Image):
-            # --- Image Preprocessing (Critical for Reliability) ---
-            if content.mode != "RGB":
-                content = content.convert("RGB")
-            
-            # Resize to max 1024px while keeping aspect ratio
-            content.thumbnail((1024, 1024), Image.Resampling.LANCZOS)
-            
-            # Auto-rotate based on EXIF if needed
-            content = ImageOps.exif_transpose(content)
-            gemini_content.append(content)
-        elif isinstance(content, dict) and "audio_bytes" in content:
-            # Handle WhatsApp Voice Notes (raw bytes)
-            audio_part = types.Part.from_bytes(
-                data=content["audio_bytes"],
-                mime_type=content.get("mime_type", "audio/ogg")
-            )
-            gemini_content.append(audio_part)
-            gemini_content.append("Please transcribe and analyze this voice note to extract the campaign details.")
-        elif isinstance(content, dict) and "image_bytes" in content:
-            # Handle WhatsApp Images
-            image_part = types.Part.from_bytes(
-                data=content["image_bytes"],
-                mime_type=content.get("mime_type", "image/jpeg")
-            )
-            gemini_content.append(image_part)
-            caption = content.get("caption", "")
-            if caption:
-                gemini_content.append(f"Image Caption/Context: {caption}")
-            gemini_content.append("Please analyze this image and caption to extract the campaign details.")
+        # Helper to process individual content parts
+        def process_part(part):
+            if isinstance(part, Image.Image):
+                if part.mode != "RGB":
+                    part = part.convert("RGB")
+                part.thumbnail((1024, 1024), Image.Resampling.LANCZOS)
+                part = ImageOps.exif_transpose(part)
+                gemini_content.append(part)
+            elif isinstance(part, dict) and "audio_bytes" in part:
+                audio_part = types.Part.from_bytes(
+                    data=part["audio_bytes"],
+                    mime_type=part.get("mime_type", "audio/ogg")
+                )
+                gemini_content.append(audio_part)
+                gemini_content.append("Please transcribe and analyze this voice note to extract the campaign details.")
+            elif isinstance(part, dict) and "image_bytes" in part:
+                image_part = types.Part.from_bytes(
+                    data=part["image_bytes"],
+                    mime_type=part.get("mime_type", "image/jpeg")
+                )
+                gemini_content.append(image_part)
+                caption = part.get("caption", "")
+                if caption:
+                    gemini_content.append(f"Image Caption/Context: {caption}")
+                gemini_content.append("Please analyze this image and caption to extract the campaign details.")
+            elif isinstance(part, str):
+                gemini_content.append(f"--- START OF CONTENT ---\n{part}\n--- END OF CONTENT ---")
+                
+        if isinstance(content, list):
+            for item in content:
+                process_part(item)
         else:
-            # Append extracted text for PDFs/DOCX/TXT/WhatsApp text
-            gemini_content.append(f"--- START OF CONTENT ---\n{content}\n--- END OF CONTENT ---")
+            process_part(content)
 
-        response = client.models.generate_content(
-            model="gemini-2.5-flash",
-            contents=gemini_content,
-            config=types.GenerateContentConfig(
-                response_mime_type="application/json",
-                response_schema=GeminiExtractionSchema,
-                temperature=0.1,  # Low temperature to prevent hallucination
-            )
-        )
-
-        # Handle refused or empty responses gracefully
-        if not response.text:
-            raise ValueError("Gemini returned an empty response. It may have been blocked by safety filters.")
+        # Call with exponential backoff retry
+        raw_text = _generate_with_retry(gemini_content)
 
         # Clean response text robustly
-        text = response.text.strip()
-        # Regex to strip markdown codeblocks reliably regardless of exact characters
+        text = raw_text.strip()
         text = re.sub(r"^```(?:json)?\s*\n", "", text)
         text = re.sub(r"\n```\s*$", "", text)
         text = text.strip()
