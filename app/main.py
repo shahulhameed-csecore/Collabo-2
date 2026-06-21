@@ -51,7 +51,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 
-from app.api import extract, campaigns, auth, whatsapp, uploads, settings as settings_api
+from app.api import extract, campaigns, auth, whatsapp, uploads, reports, settings as settings_api
 from app.core.config import settings
 from app.core.limiter import limiter
 
@@ -93,6 +93,24 @@ async def lifespan(app: FastAPI):
         coalesce=True,            # collapse stacked missed runs into one
         jitter=30,                # ±30 s spread to avoid thundering herd
     )
+
+    # Optional: Schedule monthly report generation
+    # Runs on the 1st of every month at 00:00 UTC
+    async def monthly_report_job():
+        logger.info("Starting monthly report background job...")
+        # Add logic here to iterate over users and email reports if desired
+        pass
+
+    scheduler.add_job(
+        monthly_report_job,
+        "cron",
+        day=1,
+        hour=0,
+        minute=0,
+        id="monthly_report_job",
+        replace_existing=True,
+    )
+
     scheduler.start()
 
     # Fire immediately so the first check isn't delayed by a full hour after deploy.
@@ -185,6 +203,7 @@ app.include_router(auth.router)
 app.include_router(whatsapp.router)
 app.include_router(settings_api.router)
 app.include_router(uploads.router)
+app.include_router(reports.router)
 
 
 # ─── Public routes ─────────────────────────────────────────────────────────────
