@@ -6,8 +6,8 @@ import os
 # Change this to your Render URL if you want to test production (e.g., "https://influencertrack-api.onrender.com")
 BASE_URL = "https://collabo-2.onrender.com"
 
-# Put your valid JWT token here
-TOKEN = "eyJhbGciOiJFUzI1NiIsImtpZCI6IjU5MjhjOTQ5LTc1ZjgtNGJmYy1iYmMxLTA2YWFkNDU5ZGE0MSIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwczovL2ljd3dkamlyeHZnZ3pyZmJwb2lhLnN1cGFiYXNlLmNvL2F1dGgvdjEiLCJzdWIiOiI0MGM1YTkxYi03MDVkLTRkZjktOGQ5Zi05ZTkyOTU4ZjM1MjMiLCJhdWQiOiJhdXRoZW50aWNhdGVkIiwiZXhwIjoxNzgxMTk3NTQ2LCJpYXQiOjE3ODExOTM5NDYsImVtYWlsIjoic2hhaHVsaGFtZWVkZWRpdEBnbWFpbC5jb20iLCJwaG9uZSI6IiIsImFwcF9tZXRhZGF0YSI6eyJwcm92aWRlciI6ImVtYWlsIiwicHJvdmlkZXJzIjpbImVtYWlsIl19LCJ1c2VyX21ldGFkYXRhIjp7ImVtYWlsX3ZlcmlmaWVkIjp0cnVlfSwicm9sZSI6ImF1dGhlbnRpY2F0ZWQiLCJhYWwiOiJhYWwxIiwiYW1yIjpbeyJtZXRob2QiOiJwYXNzd29yZCIsInRpbWVzdGFtcCI6MTc4MTE5Mzk0Nn1dLCJzZXNzaW9uX2lkIjoiMDA3NDY1YjItYTc5ZC00ODBkLTg2ZDctNDVkMDk4OWNhOTU4IiwiaXNfYW5vbnltb3VzIjpmYWxzZX0.kLU22njx6x9W3mSNiNNHGyXYsvNyyJu4xDKdQ32mxcQ3VooEmbBlh7GQPDvltnE4z3FvOF_g8W_fDvohXphPzg"
+# Put your valid JWT token here or as an environment variable
+TOKEN = os.getenv("TEST_JWT_TOKEN", "YOUR_JWT_TOKEN_HERE")
 HEADERS = {"Authorization": f"Bearer {TOKEN}"}
 
 def test_rate_limiting():

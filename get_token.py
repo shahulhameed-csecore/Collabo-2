@@ -6,9 +6,8 @@ load_dotenv()
 supabase = create_client(os.getenv("SUPABASE_URL"), os.getenv("SUPABASE_ANON_KEY"))
 
 # Create a test user (if it already exists, sign in instead)
-email = "shahulhameededit@gmail.com"
-password = "Editor97"
-
+email = os.getenv("TEST_EMAIL", "test@example.com")
+password = os.getenv("TEST_PASSWORD", "SecretPassword123")
 
 try:
     res = supabase.auth.sign_up({"email": email, "password": password})

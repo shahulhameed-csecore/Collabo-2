@@ -3,6 +3,8 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from typing import List
 from app.schemas.campaign import CampaignCreate, CampaignUpdate, CampaignStatusUpdate, CampaignResponse
 from app.api.dependencies import get_current_user, get_user_supabase_client, AuthenticatedUser
+from app.core.limiter import limiter
+from fastapi import Request
 
 logger = logging.getLogger(__name__)
 
@@ -10,7 +12,9 @@ router = APIRouter(prefix="/campaigns", tags=["Campaigns"])
 
 
 @router.get("/", response_model=List[CampaignResponse])
+@limiter.limit("60/minute")
 async def get_campaigns(
+    request: Request,
     limit: int = Query(50, ge=1, le=200),
     offset: int = Query(0, ge=0),
     client=Depends(get_user_supabase_client),
@@ -20,7 +24,9 @@ async def get_campaigns(
 
 
 @router.post("/", response_model=CampaignResponse)
+@limiter.limit("20/minute")
 async def create_campaign(
+    request: Request,
     campaign: CampaignCreate,
     client=Depends(get_user_supabase_client),
     user: AuthenticatedUser = Depends(get_current_user),
@@ -40,7 +46,9 @@ async def create_campaign(
 
 
 @router.put("/{id}", response_model=CampaignResponse)
+@limiter.limit("20/minute")
 async def update_campaign(
+    request: Request,
     id: str,
     campaign: CampaignUpdate,
     client=Depends(get_user_supabase_client),
@@ -53,7 +61,9 @@ async def update_campaign(
 
 
 @router.patch("/{id}/status", response_model=CampaignResponse)
+@limiter.limit("20/minute")
 async def update_campaign_status(
+    request: Request,
     id: str,
     status_update: CampaignStatusUpdate,
     client=Depends(get_user_supabase_client),
@@ -66,7 +76,8 @@ async def update_campaign_status(
 
 
 @router.delete("/{id}")
-async def delete_campaign(id: str, client=Depends(get_user_supabase_client)):
+@limiter.limit("20/minute")
+async def delete_campaign(request: Request, id: str, client=Depends(get_user_supabase_client)):
     response = client.table("campaigns").delete().eq("id", id).execute()
     if not response.data:
         raise HTTPException(status_code=404, detail="Campaign not found or access denied")
