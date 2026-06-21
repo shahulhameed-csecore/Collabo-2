@@ -20,7 +20,11 @@ class Settings(BaseSettings):
 
     # Email & Reminders
     RESEND_API_KEY: Optional[str] = None
-    SCHEDULER_INTERVAL_MINUTES: int = 60 # Default to 1 hour
+    SCHEDULER_INTERVAL_MINUTES: int = 60  # Default to 1 hour
+
+    # Internal debug endpoint secret (POST /internal/trigger-reminders)
+    # Set any random string here; leave empty to disable the endpoint.
+    INTERNAL_SECRET: Optional[str] = None
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
 
