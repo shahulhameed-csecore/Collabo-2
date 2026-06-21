@@ -21,43 +21,59 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
+  // metadataBase is REQUIRED on Vercel: it converts relative paths like
+  // '/logo-full.png' into absolute URLs ('https://collabo-2.vercel.app/logo-full.png')
+  // for Open Graph and Twitter card previews. Without it, social scrapers
+  // get a relative URL and show no image.
+  metadataBase: new URL('https://collabo-2.vercel.app'),
+
   title: {
     template: 'Collabo — %s',
-    default: 'Collabo',
+    default: 'Collabo — AI-powered Influencer Campaign Management',
   },
-  description: "Manage your micro-influencer campaigns with AI-powered extraction and real-time tracking.",
-  keywords: ["influencer marketing", "campaign management", "D2C brands", "India"],
+  description:
+    'Manage your micro-influencer campaigns with AI-powered extraction and real-time tracking. Built for Indian D2C brands.',
+  keywords: [
+    'influencer marketing', 'campaign management', 'D2C brands',
+    'India', 'micro-influencer', 'WhatsApp bot', 'AI extraction',
+  ],
+  authors: [{ name: 'Collabo', url: 'https://collabo-2.vercel.app' }],
+
   icons: {
-    icon: [
-      { url: '/logo-icon.png', type: 'image/png' },
-    ],
+    icon: [{ url: '/logo-icon.png', type: 'image/png' }],
     shortcut: '/logo-icon.png',
-    apple: [
-      { url: '/logo-icon.png', sizes: '180x180', type: 'image/png' },
-    ],
+    apple: [{ url: '/logo-icon.png', sizes: '180x180', type: 'image/png' }],
   },
+
   openGraph: {
-    title: "Collabo — AI-powered Influencer Campaign Management",
-    description: "AI-powered influencer campaign management for D2C brands. Forward WhatsApp chats, auto-extract campaign data.",
-    type: "website",
+    title: 'Collabo — AI-powered Influencer Campaign Management',
+    description:
+      'Forward WhatsApp negotiations to our AI bot. Instantly extract campaign data and track deadlines in your dashboard.',
+    url: 'https://collabo-2.vercel.app',
+    siteName: 'Collabo',
+    type: 'website',
+    locale: 'en_IN',
     images: [
       {
-        url: '/logo-full.png',
+        url: '/logo-full.png',   // resolved to absolute by metadataBase
         width: 1200,
-        height: 315,
-        alt: 'Collabo Logo',
+        height: 630,
+        alt: 'Collabo — AI-powered Influencer Campaign Management',
       },
     ],
   },
+
   twitter: {
     card: 'summary_large_image',
+    site: '@collabo_app',
     title: 'Collabo — AI-powered Influencer Campaign Management',
-    description: 'AI-powered influencer campaign management for D2C brands.',
+    description: 'AI-powered influencer campaign management for Indian D2C brands.',
     images: ['/logo-full.png'],
   },
+
   verification: {
     other: {
-      "facebook-domain-verification": "8xf7nmugvhpww8kfivu8gpnzur6fpx",
+      'facebook-domain-verification': '8xf7nmugvhpww8kfivu8gpnzur6fpx',
     },
   },
 };
