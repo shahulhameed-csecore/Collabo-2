@@ -243,7 +243,7 @@ export default function DashboardPage() {
               id="stat-total"
               label="Total Campaigns"
               value={String(stats.total)}
-              sub={`${stats.completed} completed · ${stats.cancelled} cancelled`}
+              sub={`${stats.completed} paid · ${stats.cancelled} cancelled`}
               icon={Users}
               accent="slate"
             />
@@ -383,7 +383,9 @@ export default function DashboardPage() {
                   {[
                     { label: 'Draft',     value: campaigns.filter(c => c.status === 'draft').length,     color: 'text-amber-400',   dot: 'bg-amber-400' },
                     { label: 'Active',    value: stats.active,                                            color: 'text-emerald-400', dot: 'bg-emerald-400' },
-                    { label: 'Done',      value: stats.completed,                                         color: 'text-slate-400',   dot: 'bg-slate-400' },
+                    { label: 'In Review', value: campaigns.filter(c => c.status === 'content_received').length, color: 'text-purple-400', dot: 'bg-purple-400' },
+                    { label: 'Approved',  value: campaigns.filter(c => c.status === 'approved').length, color: 'text-blue-400', dot: 'bg-blue-400' },
+                    { label: 'Paid',      value: stats.completed,                                         color: 'text-slate-400',   dot: 'bg-slate-400' },
                     { label: 'Cancelled', value: stats.cancelled,                                         color: 'text-rose-400',    dot: 'bg-rose-400' },
                   ].map(({ label, value, color, dot }) => (
                     <div key={label} className="flex items-center justify-between p-2.5 bg-slate-800/30 rounded-xl border border-slate-700/20">
