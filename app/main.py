@@ -26,6 +26,7 @@ import sentry_sdk
 # ─── Step 1: Configure structlog FIRST ────────────────────────────────────────
 # This MUST happen before any module-level structlog.get_logger() call.
 # Previously this was on line 73, after reminders.py was imported on line 17.
+logging.basicConfig(level=logging.INFO)
 structlog.configure(
     processors=[
         structlog.stdlib.add_log_level,
