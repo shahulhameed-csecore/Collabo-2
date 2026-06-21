@@ -564,7 +564,7 @@ async def check_deadlines_job() -> None:
             # ── Parse deadline ─────────────────────────────────────────────
             deadline_raw = campaign.get("deadline")
             if not deadline_raw:
-                clog.warning("reminders.skipped_no_deadline")
+                clog.debug("reminders.skipped_no_deadline")
                 skipped += 1
                 continue
 
