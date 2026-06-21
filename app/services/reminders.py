@@ -116,7 +116,12 @@ async def _send_email(to_email: str, subject: str, html: str) -> bool:
         async with httpx.AsyncClient(follow_redirects=True) as client:
             resp = await client.post(settings.GMAIL_WEBHOOK_URL, json=payload, timeout=15.0)
             resp.raise_for_status()
+            response_text = resp.text
             
+            # Apps Script might return a 200 OK but with an error message in JSON or HTML
+            if "error" in response_text.lower() or "exception" in response_text.lower() or "html" in response_text.lower():
+                logger.error("reminders.webhook_returned_error", response=response_text)
+                return False
         logger.info(
             "reminders.email_sent",
             to=to_email,
