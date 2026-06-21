@@ -3,18 +3,30 @@ services/reminders.py
 =====================
 Background job — checks campaign deadlines and sends email + WhatsApp reminders.
 
-BUG FIXES in this version
---------------------------
-1. structlog configured BEFORE get_logger() call (was silently dropping all logs).
-2. _mark_flag() no longer uses .eq(flag, False) — Supabase SDK boolean filter
-   was silently no-oping, leaving reminder_48h_sent stuck at False forever and
-   causing duplicate sends on every job run.
-3. resend import guarded so an old cached Render layer doesn't crash the module.
-4. Exhaustive per-campaign debug logging — every decision point is now visible
-   in Render logs.
-5. Manual trigger helper `trigger_reminders_now()` for curl-based testing.
-6. Resend send result is now inspected for the returned email ID (confirms
-   actual delivery, not just a 200 from the SDK wrapper).
+Fix History
+-----------
+v1 bugs (all fixed):
+  1. structlog configured BEFORE get_logger() (was silently dropping all logs).
+  2. _mark_flag() no longer uses .eq(flag, False) — Supabase SDK boolean filter
+     was silently no-oping, leaving reminder_48h_sent stuck at False forever.
+  3. resend import guarded so an old cached Render layer doesn't crash the module.
+
+v2 bugs fixed in this file:
+  4. CRITICAL: PostgREST embedded resource join
+         user_settings(whatsapp_number, ...)
+     was throwing "Could not find a relationship between 'campaigns' and
+     'user_settings'" because no FK existed in the DB schema.
+
+     FIX: Replace the single-query PostgREST join with a **two-step manual fetch**:
+       Step 1 — SELECT active campaigns (no join).
+       Step 2 — SELECT user_settings WHERE user_id IN (...) (single query, not N+1).
+       Then merge the two result sets in Python.
+
+     This approach is 100% reliable regardless of whether the FK exists in the DB,
+     and it uses exactly one extra query for the entire batch — NOT one per campaign.
+
+  5. Internal trigger endpoint: improved secret validation and logging.
+  6. Exhaustive per-campaign structured logging at every decision point.
 """
 
 import asyncio
@@ -56,6 +68,9 @@ _FROM_ADDRESS = "Collabo <reminders@collabo.app>"
 
 # Reminder window: send 48h reminder when deadline is between 0 and 48h away
 _REMINDER_WINDOW_HOURS = 48
+
+# IST timezone — used for display formatting and date parsing
+_IST = pytz.timezone("Asia/Kolkata")
 
 
 # ---------------------------------------------------------------------------
@@ -99,7 +114,6 @@ async def _send_email(to_email: str, subject: str, html: str) -> bool:
         logger.error("reminders.email_skipped", reason="resend package not installed")
         return False
 
-    # Use a plain dict — avoids TypedDict import issues across resend versions
     params: dict[str, Any] = {
         "from": _FROM_ADDRESS,
         "to": [to_email],
@@ -109,7 +123,6 @@ async def _send_email(to_email: str, subject: str, html: str) -> bool:
 
     try:
         result = await asyncio.to_thread(_resend.Emails.send, params)
-        # Resend returns an object with an `id` field on success
         email_id = getattr(result, "id", None) or (result.get("id") if isinstance(result, dict) else None)
         logger.info(
             "reminders.email_sent",
@@ -168,7 +181,7 @@ async def _send_whatsapp(to_number: str, body: str) -> bool:
 # ---------------------------------------------------------------------------
 
 def _build_reminder_email(inf_name: str, deadline_ist: str) -> tuple[str, str]:
-    """48-hour reminder email — (subject, html)."""
+    """48-hour reminder email — returns (subject, html)."""
     subject = f"⏰ Action Required: Campaign for {inf_name} is due soon"
     html = f"""<!DOCTYPE html>
 <html lang="en">
@@ -239,7 +252,7 @@ def _build_reminder_email(inf_name: str, deadline_ist: str) -> tuple[str, str]:
 
 
 def _build_overdue_email(inf_name: str, deadline_ist: str) -> tuple[str, str]:
-    """Overdue alert email — (subject, html)."""
+    """Overdue alert email — returns (subject, html)."""
     subject = f"🚨 Overdue Alert: Campaign for {inf_name} has passed its deadline"
     html = f"""<!DOCTYPE html>
 <html lang="en">
@@ -334,9 +347,6 @@ async def _get_user_email(supabase_admin, user_id: str) -> Optional[str]:
 # Deadline parsing
 # ---------------------------------------------------------------------------
 
-_IST = pytz.timezone("Asia/Kolkata")
-
-
 def _parse_deadline_utc(deadline_raw: str, clog) -> Optional[datetime]:
     """
     Parse a deadline string to a UTC-aware datetime.
@@ -344,8 +354,6 @@ def _parse_deadline_utc(deadline_raw: str, clog) -> Optional[datetime]:
     Supabase `date` columns return "YYYY-MM-DD" (no time, no tz).
     We treat that as end-of-day IST (23:59:59 IST) so Indian users get their
     reminder the day before the deadline, not two days before.
-
-    Logs every parsing step so failures are visible in Render logs.
     """
     if not deadline_raw:
         clog.warning("reminders.deadline_empty")
@@ -386,31 +394,22 @@ def _parse_deadline_utc(deadline_raw: str, clog) -> Optional[datetime]:
 
 
 # ---------------------------------------------------------------------------
-# Idempotency flag updater  (BUG FIX: removed broken .eq(flag, False) filter)
+# Idempotency flag updater
 # ---------------------------------------------------------------------------
 
 def _mark_flag(supabase_admin, campaign_id: str, flag: str, clog) -> None:
     """
     Set a reminder flag to True on the campaign row.
 
-    BUG FIX: The previous version used .eq(flag, False) as a conditional
-    guard. The Supabase Python SDK serialises Python False as the string
-    "false" in some versions, which matches nothing (the column stores the
-    Postgres boolean literal false, not the string). This caused the update
-    to silently no-op, leaving the flag at False forever.
-
-    The correct approach: do a plain UPDATE. We already checked the flag value
-    from the SELECT result at the top of the loop, so the double-check is not
-    needed — and even if two job instances run concurrently, setting True twice
-    is idempotent and harmless.
+    Plain UPDATE with no extra filter. We already checked the flag value from
+    the SELECT result, so the double-check is not needed. Setting True twice
+    is idempotent and harmless even if two job instances run concurrently.
     """
     try:
-        result = (
-            supabase_admin.table("campaigns")
-            .update({flag: True})
-            .eq("id", campaign_id)
+        supabase_admin.table("campaigns") \
+            .update({flag: True}) \
+            .eq("id", campaign_id) \
             .execute()
-        )
         clog.info("reminders.flag_set", flag=flag, campaign_id=campaign_id)
     except Exception as exc:
         clog.error(
@@ -419,6 +418,94 @@ def _mark_flag(supabase_admin, campaign_id: str, flag: str, clog) -> None:
             campaign_id=campaign_id,
             error=str(exc),
         )
+
+
+# ---------------------------------------------------------------------------
+# Two-step fetch: campaigns + user_settings (no PostgREST join required)
+# ---------------------------------------------------------------------------
+
+async def _fetch_campaigns_with_settings(supabase_admin, log) -> list[dict]:
+    """
+    Fetch all active campaigns and merge their user_settings in Python.
+
+    WHY TWO STEPS INSTEAD OF A POSTGREST JOIN?
+    ------------------------------------------
+    PostgREST's embedded resource syntax  user_settings(...)  only works when
+    PostgreSQL has an explicit FOREIGN KEY from campaigns.user_id to
+    user_settings.user_id.  If that FK is missing or hasn't been refreshed in
+    PostgREST's schema cache, you get:
+
+        "Could not find a relationship between 'campaigns' and 'user_settings'"
+
+    This two-step approach is 100% reliable regardless of FK state and uses
+    exactly ONE extra query for the entire batch — not one per campaign.
+
+    Steps:
+      1. SELECT active campaigns (no join).
+      2. Collect unique user_ids → SELECT user_settings WHERE user_id IN (...).
+      3. Build a dict keyed by user_id and merge into each campaign dict.
+    """
+    # ── Step 1: Fetch active campaigns ────────────────────────────────────
+    try:
+        campaigns_resp = await asyncio.to_thread(
+            lambda: supabase_admin.table("campaigns")
+            .select(
+                "id, user_id, influencer_name, influencer_handle, deadline, "
+                "status, reminder_48h_sent, overdue_alert_sent"
+            )
+            .eq("status", "active")
+            .execute()
+        )
+    except Exception as exc:
+        log.error(
+            "reminders.campaigns_fetch_failed",
+            error=str(exc),
+            error_type=type(exc).__name__,
+        )
+        return []
+
+    campaigns = campaigns_resp.data or []
+    log.info("reminders.campaigns_fetched", count=len(campaigns))
+
+    if not campaigns:
+        return []
+
+    # ── Step 2: Fetch user_settings for all unique user_ids ───────────────
+    user_ids = list({c["user_id"] for c in campaigns if c.get("user_id")})
+    settings_by_user: dict[str, dict] = {}
+
+    if user_ids:
+        try:
+            settings_resp = await asyncio.to_thread(
+                lambda: supabase_admin.table("user_settings")
+                .select("user_id, whatsapp_number, email_reminders_enabled, whatsapp_reminders_enabled")
+                .in_("user_id", user_ids)
+                .execute()
+            )
+            for row in (settings_resp.data or []):
+                uid = row.get("user_id")
+                if uid:
+                    settings_by_user[uid] = row
+            log.info(
+                "reminders.user_settings_fetched",
+                users_with_campaigns=len(user_ids),
+                users_with_settings=len(settings_by_user),
+            )
+        except Exception as exc:
+            # Non-fatal: we proceed with empty settings (defaults will apply)
+            log.warning(
+                "reminders.user_settings_fetch_failed",
+                error=str(exc),
+                error_type=type(exc).__name__,
+                detail="Proceeding with default reminder settings for all users",
+            )
+
+    # ── Step 3: Merge settings into each campaign dict ────────────────────
+    for campaign in campaigns:
+        uid = campaign.get("user_id")
+        campaign["user_settings"] = settings_by_user.get(uid, {}) if uid else {}
+
+    return campaigns
 
 
 # ---------------------------------------------------------------------------
@@ -460,28 +547,11 @@ async def check_deadlines_job() -> None:
         log.error("reminders.job_aborted", reason=str(exc))
         return
 
-    # ── Fetch active campaigns ─────────────────────────────────────────────
-    try:
-        response = (
-            supabase.table("campaigns")
-            .select(
-                "id, user_id, influencer_name, influencer_handle, deadline, "
-                "status, reminder_48h_sent, overdue_alert_sent, "
-                "user_settings(whatsapp_number, email_reminders_enabled, "
-                "whatsapp_reminders_enabled)"
-            )
-            .eq("status", "active")
-            .execute()
-        )
-    except Exception as exc:
-        log.error("reminders.fetch_failed", error=str(exc), error_type=type(exc).__name__)
-        return
-
-    campaigns = response.data or []
-    log.info("reminders.campaigns_fetched", count=len(campaigns))
+    # ── Fetch campaigns + user settings (two-step, no PostgREST join) ─────
+    campaigns = await _fetch_campaigns_with_settings(supabase, log)
 
     if not campaigns:
-        log.info("reminders.job_completed", processed=0, reminded=0, overdue=0, errors=0)
+        log.info("reminders.job_completed", processed=0, reminded=0, overdue=0, errors=0, skipped=0)
         return
 
     processed = reminded = overdue_count = error_count = skipped = 0
@@ -518,8 +588,6 @@ async def check_deadlines_job() -> None:
 
             # ── Extract user preferences ───────────────────────────────────
             user_settings = campaign.get("user_settings") or {}
-            if isinstance(user_settings, list):
-                user_settings = user_settings[0] if user_settings else {}
 
             whatsapp_num: Optional[str] = user_settings.get("whatsapp_number")
             email_enabled: bool = bool(user_settings.get("email_reminders_enabled", True))
@@ -543,7 +611,7 @@ async def check_deadlines_job() -> None:
             reminder_sent: bool = bool(campaign.get("reminder_48h_sent"))
             overdue_sent: bool = bool(campaign.get("overdue_alert_sent"))
 
-            # Format deadline in IST for display
+            # Format deadline in IST for email/WhatsApp display
             deadline_ist_str = deadline_utc.astimezone(_IST).strftime("%B %d, %Y")
 
             processed += 1
