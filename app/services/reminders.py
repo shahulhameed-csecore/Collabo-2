@@ -113,7 +113,7 @@ async def _send_email(to_email: str, subject: str, html: str) -> bool:
     }
 
     try:
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(follow_redirects=True) as client:
             resp = await client.post(settings.GMAIL_WEBHOOK_URL, json=payload, timeout=15.0)
             resp.raise_for_status()
             
