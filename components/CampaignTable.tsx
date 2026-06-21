@@ -54,7 +54,14 @@ const STATUS_FILTERS: { value: FilterState['status']; label: string }[] = [
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 function StatusBadge({ status }: { status: CampaignStatus }) {
-  const cfg = STATUS_CONFIG[status];
+  // Defensive fallback for legacy or invalid statuses
+  const normalizedStatus = (status as string === 'completed') ? 'paid' : status;
+  const cfg = STATUS_CONFIG[normalizedStatus as CampaignStatus] || {
+    label: String(status || 'Unknown'),
+    dotClass: 'bg-slate-400',
+    badgeClass: 'bg-slate-700/60 text-slate-400 border-slate-600/30',
+    icon: Clock,
+  };
   return (
     <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold border ${cfg.badgeClass}`}>
       <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${cfg.dotClass}`} />
@@ -370,7 +377,7 @@ export default function CampaignTable({ campaigns, isLoading, onRefresh, onCreat
                 ? Array.from({ length: 5 }).map((_, i) => <SkeletonRow key={i} />)
                 : filtered.map(c => {
                     const overdue = isOverdue(c);
-                    const name = c.influencer_name ?? c.influencer_handle;
+                    const name = c.influencer_name || c.influencer_handle || 'Unknown';
                     const initial = name.slice(0, 2).toUpperCase();
                     return (
                       <tr
@@ -389,11 +396,11 @@ export default function CampaignTable({ campaigns, isLoading, onRefresh, onCreat
                             </div>
                             <div className="min-w-0">
                               <p className="font-semibold text-white truncate max-w-[140px]">
-                                {c.influencer_name ?? (
+                                {c.influencer_name || (
                                   <span className="text-slate-500 italic font-normal text-xs">No name</span>
                                 )}
                               </p>
-                              <p className="text-xs text-slate-500 truncate max-w-[140px] font-mono">{c.influencer_handle}</p>
+                              <p className="text-xs text-slate-500 truncate max-w-[140px] font-mono">{c.influencer_handle || 'No handle'}</p>
                             </div>
                           </div>
                         </td>
@@ -426,9 +433,9 @@ export default function CampaignTable({ campaigns, isLoading, onRefresh, onCreat
 
                         {/* Payment */}
                         <td className="px-4 py-3.5">
-                          {c.payment_amount > 0 ? (
+                          {(c.payment_amount || 0) > 0 ? (
                             <span className="font-bold text-white">
-                              ₹{c.payment_amount.toLocaleString('en-IN')}
+                              ₹{(c.payment_amount || 0).toLocaleString('en-IN')}
                             </span>
                           ) : (
                             <span className="text-xs text-emerald-400 font-semibold bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-md">
@@ -511,7 +518,7 @@ export default function CampaignTable({ campaigns, isLoading, onRefresh, onCreat
                             {/* Status select */}
                             <select
                               id={`status-select-${c.id}`}
-                              value={c.status}
+                              value={(c.status as string === 'completed') ? 'paid' : c.status}
                               disabled={updatingId === c.id}
                               onChange={e => handleStatusChange(c.id, e.target.value as CampaignStatus)}
                               className="bg-slate-800/80 border border-slate-700/50 text-slate-300 text-xs rounded-lg px-2 py-1.5 focus:outline-none focus:border-emerald-500/40 disabled:opacity-50 cursor-pointer hover:border-slate-600 transition-colors max-w-[96px]"

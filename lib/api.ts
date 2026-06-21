@@ -256,7 +256,7 @@ export function computeDashboardStats(campaigns: Campaign[]): DashboardStats {
     ? Math.round((completed.length / closedCount) * 100)
     : 0;
 
-  const paidCampaigns = campaigns.filter(c => c.payment_amount > 0);
+  const paidCampaigns = campaigns.filter(c => (c.payment_amount || 0) > 0);
   const totalSpend   = campaigns.reduce((s, c) => s + (c.payment_amount || 0), 0);
   const pendingSpend = active.reduce((s, c) => s + (c.payment_amount || 0), 0);
   const avgPayment   = paidCampaigns.length > 0
