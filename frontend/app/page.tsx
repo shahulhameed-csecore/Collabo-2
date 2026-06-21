@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase';
+import { Logo } from '@/components/Logo';
 import { 
   MessageSquare, 
   LayoutDashboard, 
@@ -17,28 +18,14 @@ import {
   Bot
 } from 'lucide-react';
 
-const GeometricLogo = ({ className = "w-8 h-8" }: { className?: string }) => (
-  <svg viewBox="0 0 100 100" className={className} fill="none" xmlns="http://www.w3.org/2000/svg">
-    <path d="M50 15L85 35V75L50 95L15 75V35L50 15Z" stroke="#10b981" strokeWidth="6" fill="url(#gradLogo)"/>
-    <path d="M50 15V55M15 35L50 55M85 35L50 55" stroke="#10b981" strokeWidth="6" strokeLinecap="round" strokeLinejoin="round"/>
-    <path d="M50 55V95" stroke="#10b981" strokeWidth="6" strokeLinecap="round" strokeLinejoin="round"/>
-    <defs>
-      <linearGradient id="gradLogo" x1="15" y1="15" x2="85" y2="95" gradientUnits="userSpaceOnUse">
-        <stop offset="0%" stopColor="#34d399" stopOpacity="0.2" />
-        <stop offset="100%" stopColor="#059669" stopOpacity="0.8" />
-      </linearGradient>
-    </defs>
-  </svg>
-);
-
 export default function LandingPage() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const router = useRouter();
   const supabase = createClient();
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
-      if (data?.session) {
+    supabase.auth.getUser().then(({ data }) => {
+      if (data?.user) {
         setIsAuthenticated(true);
         router.push('/dashboard');
       }
@@ -56,10 +43,7 @@ export default function LandingPage() {
       {/* Navbar */}
       <header className="fixed top-0 w-full z-50 border-b border-white/5 bg-[#020617]/80 backdrop-blur-md">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-2 group">
-            <GeometricLogo className="w-8 h-8 group-hover:scale-105 transition-transform" />
-            <span className="text-xl font-bold tracking-tight text-white">Collabo</span>
-          </Link>
+          <Logo variant="full" size={32} href="/" />
           <div className="flex items-center gap-4">
             <Link href="/login" className="text-sm font-medium text-slate-300 hover:text-white transition-colors hidden sm:block">
               Log in
@@ -304,9 +288,8 @@ export default function LandingPage() {
       {/* Footer */}
       <footer className="border-t border-white/5 bg-[#020617] py-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row justify-between items-center gap-6">
-          <div className="flex items-center gap-2">
-            <GeometricLogo className="w-6 h-6 grayscale opacity-50" />
-            <span className="text-lg font-bold tracking-tight text-slate-500">Collabo</span>
+          <div className="flex items-center gap-2 opacity-50 grayscale">
+            <Logo variant="full" size={24} href="" className="grayscale opacity-50" />
           </div>
           
           <div className="flex gap-8 text-sm">

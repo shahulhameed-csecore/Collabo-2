@@ -70,13 +70,13 @@ export default function DashboardLayout({ children, onNewCampaign }: DashboardLa
   useEffect(() => {
     setMounted(true);
     const getUser = async () => {
-      const { data: { session }, error } = await supabase.auth.getSession();
-      if (!session || error) {
-        if (error) console.error("Session error:", error);
-        router.replace('/login'); 
-        return; 
+      const { data: { user }, error } = await supabase.auth.getUser();
+      if (!user || error) {
+        if (error) console.error("Auth error:", error.message);
+        router.replace('/login');
+        return;
       }
-      setUser(session.user);
+      setUser(user);
       setLoading(false);
     };
     getUser();

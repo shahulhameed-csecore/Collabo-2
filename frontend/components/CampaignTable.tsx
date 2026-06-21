@@ -23,10 +23,12 @@ interface CampaignTableProps {
 const STATUS_CONFIG: Record<CampaignStatus, {
   label: string; dotClass: string; badgeClass: string; icon: React.ElementType;
 }> = {
-  active:    { label: 'Active',    dotClass: 'bg-emerald-400', badgeClass: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/25', icon: CheckCircle2 },
-  draft:     { label: 'Draft',     dotClass: 'bg-amber-400',   badgeClass: 'bg-amber-500/10 text-amber-400 border-amber-500/25',   icon: Clock },
-  completed: { label: 'Completed', dotClass: 'bg-slate-400',   badgeClass: 'bg-slate-700/60 text-slate-400 border-slate-600/30',   icon: Check },
-  cancelled: { label: 'Cancelled', dotClass: 'bg-rose-400',    badgeClass: 'bg-rose-500/10 text-rose-400 border-rose-500/25',     icon: XCircle },
+  active:           { label: 'Active',           dotClass: 'bg-emerald-400', badgeClass: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/25', icon: CheckCircle2 },
+  draft:            { label: 'Draft',            dotClass: 'bg-amber-400',   badgeClass: 'bg-amber-500/10 text-amber-400 border-amber-500/25',   icon: Clock },
+  content_received: { label: 'In Review',        dotClass: 'bg-purple-400',  badgeClass: 'bg-purple-500/10 text-purple-400 border-purple-500/25', icon: CheckCircle2 },
+  approved:         { label: 'Approved',         dotClass: 'bg-blue-400',    badgeClass: 'bg-blue-500/10 text-blue-400 border-blue-500/25',      icon: Check },
+  paid:             { label: 'Paid',             dotClass: 'bg-slate-400',   badgeClass: 'bg-slate-700/60 text-slate-400 border-slate-600/30',   icon: DollarSign },
+  cancelled:        { label: 'Cancelled',        dotClass: 'bg-rose-400',    badgeClass: 'bg-rose-500/10 text-rose-400 border-rose-500/25',      icon: XCircle },
 };
 
 // ─── Platform config ──────────────────────────────────────────────────────────
@@ -41,16 +43,25 @@ const PLATFORM_CONFIG: Record<string, { color: string; bg: string; emoji: string
 };
 
 const STATUS_FILTERS: { value: FilterState['status']; label: string }[] = [
-  { value: 'all',       label: 'All' },
-  { value: 'active',    label: 'Active' },
-  { value: 'draft',     label: 'Draft' },
-  { value: 'completed', label: 'Completed' },
-  { value: 'cancelled', label: 'Cancelled' },
+  { value: 'all',              label: 'All' },
+  { value: 'active',           label: 'Active' },
+  { value: 'draft',            label: 'Draft' },
+  { value: 'content_received', label: 'In Review' },
+  { value: 'approved',         label: 'Approved' },
+  { value: 'paid',             label: 'Paid' },
+  { value: 'cancelled',        label: 'Cancelled' },
 ];
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 function StatusBadge({ status }: { status: CampaignStatus }) {
-  const cfg = STATUS_CONFIG[status];
+  // Defensive fallback for legacy or invalid statuses
+  const normalizedStatus = (status as string === 'completed') ? 'paid' : status;
+  const cfg = STATUS_CONFIG[normalizedStatus as CampaignStatus] || {
+    label: String(status || 'Unknown'),
+    dotClass: 'bg-slate-400',
+    badgeClass: 'bg-slate-700/60 text-slate-400 border-slate-600/30',
+    icon: Clock,
+  };
   return (
     <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold border ${cfg.badgeClass}`}>
       <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${cfg.dotClass}`} />
@@ -366,7 +377,7 @@ export default function CampaignTable({ campaigns, isLoading, onRefresh, onCreat
                 ? Array.from({ length: 5 }).map((_, i) => <SkeletonRow key={i} />)
                 : filtered.map(c => {
                     const overdue = isOverdue(c);
-                    const name = c.influencer_name ?? c.influencer_handle;
+                    const name = c.influencer_name || c.influencer_handle || 'Unknown';
                     const initial = name.slice(0, 2).toUpperCase();
                     return (
                       <tr
@@ -385,11 +396,11 @@ export default function CampaignTable({ campaigns, isLoading, onRefresh, onCreat
                             </div>
                             <div className="min-w-0">
                               <p className="font-semibold text-white truncate max-w-[140px]">
-                                {c.influencer_name ?? (
+                                {c.influencer_name || (
                                   <span className="text-slate-500 italic font-normal text-xs">No name</span>
                                 )}
                               </p>
-                              <p className="text-xs text-slate-500 truncate max-w-[140px] font-mono">{c.influencer_handle}</p>
+                              <p className="text-xs text-slate-500 truncate max-w-[140px] font-mono">{c.influencer_handle || 'No handle'}</p>
                             </div>
                           </div>
                         </td>
@@ -422,9 +433,9 @@ export default function CampaignTable({ campaigns, isLoading, onRefresh, onCreat
 
                         {/* Payment */}
                         <td className="px-4 py-3.5">
-                          {c.payment_amount > 0 ? (
+                          {(c.payment_amount || 0) > 0 ? (
                             <span className="font-bold text-white">
-                              ₹{c.payment_amount.toLocaleString('en-IN')}
+                              ₹{(c.payment_amount || 0).toLocaleString('en-IN')}
                             </span>
                           ) : (
                             <span className="text-xs text-emerald-400 font-semibold bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-md">
@@ -441,41 +452,82 @@ export default function CampaignTable({ campaigns, isLoading, onRefresh, onCreat
                         {/* Actions */}
                         <td className="px-4 py-3.5">
                           <div className="flex items-center gap-1">
-                            {/* Quick: Mark Complete */}
-                            {c.status === 'active' && (
+                            {/* Action Buttons based on status */}
+                            {c.status === 'draft' && (
                               <button
-                                onClick={() => handleStatusChange(c.id, 'completed')}
+                                onClick={() => handleStatusChange(c.id, 'active')}
                                 disabled={!!updatingId}
-                                title="Mark as Completed"
+                                title="Activate campaign"
                                 className="p-1.5 text-slate-500 hover:text-emerald-400 hover:bg-emerald-500/10 rounded-lg transition-all opacity-100 sm:opacity-0 sm:group-hover:opacity-100 disabled:opacity-30"
                               >
                                 <Check className="w-3.5 h-3.5" />
                               </button>
                             )}
 
-                            {/* Quick: Activate draft */}
-                            {c.status === 'draft' && (
+                            {c.status === 'active' && (
                               <button
-                                onClick={() => handleStatusChange(c.id, 'active')}
-                                disabled={!!updatingId}
-                                title="Activate campaign"
+                                onClick={() => {
+                                  if (c.magic_link_token) {
+                                    const link = `${window.location.origin}/submit-proof/${c.magic_link_token}`;
+                                    navigator.clipboard.writeText(link);
+                                    toast.success('Magic link copied to clipboard!');
+                                  }
+                                }}
+                                title="Copy Magic Link for Influencer"
                                 className="p-1.5 text-slate-500 hover:text-blue-400 hover:bg-blue-500/10 rounded-lg transition-all opacity-100 sm:opacity-0 sm:group-hover:opacity-100 disabled:opacity-30"
                               >
                                 <ExternalLink className="w-3.5 h-3.5" />
                               </button>
                             )}
 
+                            {c.status === 'content_received' && (
+                              <>
+                                {c.proof_url && (
+                                  <a
+                                    href={c.proof_url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    title="View Proof of Posting"
+                                    className="p-1.5 text-slate-500 hover:text-purple-400 hover:bg-purple-500/10 rounded-lg transition-all opacity-100 sm:opacity-0 sm:group-hover:opacity-100"
+                                  >
+                                    <Globe className="w-3.5 h-3.5" />
+                                  </a>
+                                )}
+                                <button
+                                  onClick={() => handleStatusChange(c.id, 'approved')}
+                                  disabled={!!updatingId}
+                                  title="Approve Content"
+                                  className="p-1.5 text-slate-500 hover:text-emerald-400 hover:bg-emerald-500/10 rounded-lg transition-all opacity-100 sm:opacity-0 sm:group-hover:opacity-100 disabled:opacity-30"
+                                >
+                                  <CheckCircle2 className="w-3.5 h-3.5" />
+                                </button>
+                              </>
+                            )}
+
+                            {c.status === 'approved' && (
+                              <button
+                                onClick={() => handleStatusChange(c.id, 'paid')}
+                                disabled={!!updatingId}
+                                title="Mark as Paid"
+                                className="p-1.5 text-slate-500 hover:text-emerald-400 hover:bg-emerald-500/10 rounded-lg transition-all opacity-100 sm:opacity-0 sm:group-hover:opacity-100 disabled:opacity-30"
+                              >
+                                <DollarSign className="w-3.5 h-3.5" />
+                              </button>
+                            )}
+
                             {/* Status select */}
                             <select
                               id={`status-select-${c.id}`}
-                              value={c.status}
+                              value={(c.status as string === 'completed') ? 'paid' : c.status}
                               disabled={updatingId === c.id}
                               onChange={e => handleStatusChange(c.id, e.target.value as CampaignStatus)}
                               className="bg-slate-800/80 border border-slate-700/50 text-slate-300 text-xs rounded-lg px-2 py-1.5 focus:outline-none focus:border-emerald-500/40 disabled:opacity-50 cursor-pointer hover:border-slate-600 transition-colors max-w-[96px]"
                             >
                               <option value="draft">Draft</option>
                               <option value="active">Active</option>
-                              <option value="completed">Completed</option>
+                              <option value="content_received" disabled>In Review</option>
+                              <option value="approved">Approved</option>
+                              <option value="paid">Paid</option>
                               <option value="cancelled">Cancelled</option>
                             </select>
 

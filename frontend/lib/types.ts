@@ -1,5 +1,5 @@
 // ─── Campaign Status ─────────────────────────────────────────────────────────
-export type CampaignStatus = 'draft' | 'active' | 'completed' | 'cancelled';
+export type CampaignStatus = 'draft' | 'active' | 'content_received' | 'approved' | 'paid' | 'cancelled';
 
 // ─── Platform ────────────────────────────────────────────────────────────────
 export const PLATFORMS = [
@@ -27,6 +27,8 @@ export interface Campaign {
   payment_amount: number;
   special_notes: string | null;
   status: CampaignStatus;
+  proof_url: string | null;
+  magic_link_token: string | null;
   created_at: string;             // ISO datetime string
   updated_at: string;             // ISO datetime string
 }

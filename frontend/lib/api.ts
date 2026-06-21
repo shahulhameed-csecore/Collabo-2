@@ -190,8 +190,10 @@ export async function extractFromFile(file: File): Promise<ExtractedData> {
   const formData = new FormData();
   formData.append('file', file);
 
-  // Use native fetch to bypass Axios global JSON headers, guaranteeing a perfect multipart boundary
-  const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/extract/`, {
+  // Use native fetch for multipart — bypasses Axios global JSON Content-Type header
+  // Fall back to PRODUCTION_API_URL (not localhost) if env var is missing
+  const apiUrl = (process.env.NEXT_PUBLIC_API_URL ?? '').trim() || PRODUCTION_API_URL;
+  const res = await fetch(`${apiUrl}/extract/`, {
     method: 'POST',
     body: formData,
     headers: {
@@ -237,7 +239,7 @@ export function computeDashboardStats(campaigns: Campaign[]): DashboardStats {
   sevenDaysLater.setDate(now.getDate() + 7);
 
   const active    = campaigns.filter(c => c.status === 'active');
-  const completed = campaigns.filter(c => c.status === 'completed');
+  const completed = campaigns.filter(c => c.status === 'paid');
   const cancelled = campaigns.filter(c => c.status === 'cancelled');
   const overdue   = active.filter(c => c.deadline && new Date(c.deadline) < now);
 
@@ -254,7 +256,7 @@ export function computeDashboardStats(campaigns: Campaign[]): DashboardStats {
     ? Math.round((completed.length / closedCount) * 100)
     : 0;
 
-  const paidCampaigns = campaigns.filter(c => c.payment_amount > 0);
+  const paidCampaigns = campaigns.filter(c => (c.payment_amount || 0) > 0);
   const totalSpend   = campaigns.reduce((s, c) => s + (c.payment_amount || 0), 0);
   const pendingSpend = active.reduce((s, c) => s + (c.payment_amount || 0), 0);
   const avgPayment   = paidCampaigns.length > 0
