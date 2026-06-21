@@ -11,6 +11,7 @@ import {
   Plus, RefreshCw, TrendingUp, Users, Clock,
   DollarSign, AlertCircle, Calendar,
   Zap, CheckCircle2, BarChart2,
+  FileText, Table as TableIcon, Download, ChevronDown
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -135,6 +136,8 @@ export default function DashboardPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingCampaign, setEditingCampaign] = useState<Campaign | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [isDownloading, setIsDownloading] = useState(false);
+  const [showDownloadMenu, setShowDownloadMenu] = useState(false);
 
   const fetchCampaigns = useCallback(async (silent = false) => {
     if (!silent) setIsLoading(true);
@@ -156,6 +159,24 @@ export default function DashboardPage() {
 
   useEffect(() => { fetchCampaigns(); }, [fetchCampaigns]);
 
+  const handleDownload = async (format: 'pdf' | 'excel') => {
+    try {
+      setIsDownloading(true);
+      setShowDownloadMenu(false);
+      // Format current month as YYYY-MM
+      const now = new Date();
+      const monthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+      
+      const { downloadReport } = await import('@/lib/api');
+      await downloadReport(monthStr, format);
+      toast.success(`${format.toUpperCase()} report downloaded!`);
+    } catch (err) {
+      toast.error(getApiErrorMessage(err, 'Failed to download report'));
+    } finally {
+      setIsDownloading(false);
+    }
+  };
+
   const isFirstTime = !isLoading && campaigns.length === 0 && !error;
 
   return (
@@ -171,6 +192,44 @@ export default function DashboardPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          {/* Download Report Button */}
+          {!isFirstTime && (
+            <div className="relative">
+              <button
+                onClick={() => setShowDownloadMenu(!showDownloadMenu)}
+                disabled={isDownloading || isLoading}
+                className="flex items-center gap-1.5 bg-slate-800/80 hover:bg-slate-800 border border-slate-700/50 text-slate-300 hover:text-white font-semibold rounded-xl px-3.5 py-2.5 text-sm transition-all disabled:opacity-50"
+              >
+                {isDownloading ? (
+                  <RefreshCw className="w-4 h-4 animate-spin text-emerald-400" />
+                ) : (
+                  <Download className="w-4 h-4 text-emerald-400" />
+                )}
+                <span className="hidden sm:inline">Report</span>
+                <ChevronDown className="w-3.5 h-3.5 opacity-50" />
+              </button>
+              
+              {showDownloadMenu && (
+                <div className="absolute right-0 mt-2 w-48 bg-slate-800 border border-slate-700 rounded-xl shadow-xl py-1 z-50 animate-fade-in">
+                  <button
+                    onClick={() => handleDownload('pdf')}
+                    className="w-full text-left px-4 py-2.5 text-sm text-slate-300 hover:text-white hover:bg-slate-700/50 flex items-center gap-2"
+                  >
+                    <FileText className="w-4 h-4 text-rose-400" />
+                    Download PDF
+                  </button>
+                  <button
+                    onClick={() => handleDownload('excel')}
+                    className="w-full text-left px-4 py-2.5 text-sm text-slate-300 hover:text-white hover:bg-slate-700/50 flex items-center gap-2"
+                  >
+                    <TableIcon className="w-4 h-4 text-emerald-400" />
+                    Download Excel
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+          
           <button
             id="refresh-btn"
             onClick={() => fetchCampaigns(true)}
