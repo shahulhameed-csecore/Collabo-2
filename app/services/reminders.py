@@ -64,7 +64,9 @@ except ImportError:
 logger = structlog.get_logger(__name__)
 
 # Sender address — must be a verified domain in your Resend account
-_FROM_ADDRESS = "Collabo <reminders@collabo.app>"
+# If you haven't verified a domain yet, use "onboarding@resend.dev" for testing
+# (Note: testing mode only allows sending to the email you registered with Resend)
+_FROM_ADDRESS = "Collabo <onboarding@resend.dev>"
 
 # Reminder window: send 48h reminder when deadline is between 0 and 48h away
 _REMINDER_WINDOW_HOURS = 48
