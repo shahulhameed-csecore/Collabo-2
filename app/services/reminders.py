@@ -534,7 +534,7 @@ async def check_deadlines_job() -> None:
         "reminders.job_started",
         now_utc=now_utc.isoformat(),
         now_ist=now_utc.astimezone(_IST).isoformat(),
-        resend_configured=bool(settings.RESEND_API_KEY),
+        smtp_configured=bool(settings.SMTP_EMAIL and settings.SMTP_PASSWORD),
         service_role_configured=bool(settings.SUPABASE_SERVICE_ROLE_KEY),
         wa_configured=bool(settings.WHATSAPP_TOKEN and settings.WHATSAPP_PHONE_NUMBER_ID),
     )
