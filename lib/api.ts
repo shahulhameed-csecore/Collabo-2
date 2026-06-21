@@ -239,7 +239,7 @@ export function computeDashboardStats(campaigns: Campaign[]): DashboardStats {
   sevenDaysLater.setDate(now.getDate() + 7);
 
   const active    = campaigns.filter(c => c.status === 'active');
-  const completed = campaigns.filter(c => c.status === 'completed');
+  const completed = campaigns.filter(c => c.status === 'paid');
   const cancelled = campaigns.filter(c => c.status === 'cancelled');
   const overdue   = active.filter(c => c.deadline && new Date(c.deadline) < now);
 
