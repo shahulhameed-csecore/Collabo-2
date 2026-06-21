@@ -1,7 +1,7 @@
 import logging
 import uuid
 import magic
-from fastapi import APIRouter, UploadFile, File, HTTPException
+from fastapi import APIRouter, UploadFile, File, HTTPException, BackgroundTasks
 from app.core.limiter import limiter
 from fastapi import Request
 from supabase import create_client
@@ -26,17 +26,59 @@ def get_service_client():
         raise HTTPException(status_code=500, detail="Supabase service role key not configured.")
     return create_client(settings.SUPABASE_URL, settings.SUPABASE_SERVICE_ROLE_KEY)
 
+async def notify_owner_of_proof(user_id: str, inf_name: str):
+    service_client = get_service_client()
+    
+    # Fetch user settings
+    resp = service_client.table("user_settings").select("*").eq("user_id", user_id).execute()
+    if not resp.data:
+        return
+    
+    user_settings = resp.data[0]
+    wa_num = user_settings.get("whatsapp_number")
+    wa_enabled = user_settings.get("whatsapp_reminders_enabled", True)
+    email_enabled = user_settings.get("email_reminders_enabled", True)
+
+    from app.services.whatsapp import send_whatsapp_message
+    
+    if wa_enabled and wa_num:
+        body = (
+            f"🎉 *Proof Received!*\nThe influencer *{inf_name}* just uploaded their proof of posting.\n\n"
+            "Please log into Collabo to review and approve the content:\n"
+            "https://collabo-2.vercel.app/dashboard"
+        )
+        await send_whatsapp_message(wa_num, body)
+
+    if email_enabled:
+        from app.services.reminders import _send_email, _get_user_email
+        email = await _get_user_email(service_client, user_id)
+        if email:
+            subject = f"🎉 Proof Received for {inf_name}"
+            html = f"""<!DOCTYPE html>
+<html lang="en">
+<body style="font-family:system-ui,-apple-system,sans-serif;background:#0f172a;margin:0;padding:40px 16px;">
+  <div style="max-width:600px;margin:0 auto;background:#1e293b;border-radius:16px;padding:32px;color:#e2e8f0;border:1px solid #334155;">
+    <h1 style="color:#34d399;margin-top:0;">🎉 Proof Received!</h1>
+    <p>The influencer <strong style="color:#fbbf24;">{inf_name}</strong> just uploaded their proof of posting.</p>
+    <p>Please log in to review and approve the content.</p>
+    <a href="https://collabo-2.vercel.app/dashboard" style="display:inline-block;background:#10b981;color:#ffffff;text-decoration:none;font-weight:bold;padding:12px 24px;border-radius:8px;margin-top:16px;">View Dashboard →</a>
+  </div>
+</body>
+</html>"""
+            await _send_email(email, subject, html)
+
 @router.post("/{token}/upload-proof")
 @limiter.limit("10/minute")
 async def upload_proof(
     request: Request,
     token: str,
+    background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
 ):
     service_client = get_service_client()
 
     # 1. Validate Token and Campaign State
-    campaign_resp = service_client.table("campaigns").select("id", "status").eq("magic_link_token", token).execute()
+    campaign_resp = service_client.table("campaigns").select("id", "status", "user_id", "influencer_name").eq("magic_link_token", token).execute()
     if not campaign_resp.data:
         raise HTTPException(status_code=404, detail="Invalid token.")
     
@@ -81,6 +123,11 @@ async def upload_proof(
             "proof_url": public_url
         }
         service_client.table("campaigns").update(update_data).eq("id", campaign["id"]).execute()
+
+        # 7. Notify Owner
+        inf_name = campaign.get("influencer_name") or "Unknown Creator"
+        if campaign.get("user_id"):
+            background_tasks.add_task(notify_owner_of_proof, campaign["user_id"], inf_name)
 
         return {"message": "Proof uploaded successfully.", "proof_url": public_url}
         
