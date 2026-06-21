@@ -1,59 +1,72 @@
+import logging
 from fastapi import APIRouter, Depends, HTTPException, Query
 from typing import List
-from supabase import create_client, ClientOptions
 from app.schemas.campaign import CampaignCreate, CampaignUpdate, CampaignStatusUpdate, CampaignResponse
-from app.api.dependencies import get_current_user
-from app.core.config import settings
+from app.api.dependencies import get_current_user, get_user_supabase_client, AuthenticatedUser
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/campaigns", tags=["Campaigns"])
 
-def get_user_client(user=Depends(get_current_user)):
-    client = create_client(
-        settings.SUPABASE_URL,
-        settings.SUPABASE_ANON_KEY,
-        options=ClientOptions(headers={'Authorization': f'Bearer {user.jwt_token}'})
-    )
-    return client
 
 @router.get("/", response_model=List[CampaignResponse])
 async def get_campaigns(
     limit: int = Query(50, ge=1, le=200),
     offset: int = Query(0, ge=0),
-    client = Depends(get_user_client)
+    client=Depends(get_user_supabase_client),
 ):
     response = client.table("campaigns").select("*").range(offset, offset + limit - 1).execute()
     return response.data
 
+
 @router.post("/", response_model=CampaignResponse)
-async def create_campaign(campaign: CampaignCreate, client = Depends(get_user_client), user = Depends(get_current_user)):
-    data = campaign.model_dump(mode='json', exclude_unset=True)
+async def create_campaign(
+    campaign: CampaignCreate,
+    client=Depends(get_user_supabase_client),
+    user: AuthenticatedUser = Depends(get_current_user),
+):
+    data = campaign.model_dump(mode="json", exclude_unset=True)
     data["user_id"] = user.user.id
     try:
         response = client.table("campaigns").insert(data).execute()
         if not response.data:
             raise HTTPException(status_code=400, detail="Failed to create campaign")
         return response.data[0]
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error("Campaign creation failed", error=type(e).__name__, user_id=user.user.id)
+        raise HTTPException(status_code=500, detail="Failed to create campaign. Please try again.")
+
 
 @router.put("/{id}", response_model=CampaignResponse)
-async def update_campaign(id: str, campaign: CampaignUpdate, client = Depends(get_user_client)):
-    data = campaign.model_dump(mode='json', exclude_unset=True)
+async def update_campaign(
+    id: str,
+    campaign: CampaignUpdate,
+    client=Depends(get_user_supabase_client),
+):
+    data = campaign.model_dump(mode="json", exclude_unset=True)
     response = client.table("campaigns").update(data).eq("id", id).execute()
     if not response.data:
         raise HTTPException(status_code=404, detail="Campaign not found or access denied")
     return response.data[0]
+
 
 @router.patch("/{id}/status", response_model=CampaignResponse)
-async def update_campaign_status(id: str, status_update: CampaignStatusUpdate, client = Depends(get_user_client)):
-    data = status_update.model_dump(mode='json')
+async def update_campaign_status(
+    id: str,
+    status_update: CampaignStatusUpdate,
+    client=Depends(get_user_supabase_client),
+):
+    data = status_update.model_dump(mode="json")
     response = client.table("campaigns").update(data).eq("id", id).execute()
     if not response.data:
         raise HTTPException(status_code=404, detail="Campaign not found or access denied")
     return response.data[0]
 
+
 @router.delete("/{id}")
-async def delete_campaign(id: str, client = Depends(get_user_client)):
+async def delete_campaign(id: str, client=Depends(get_user_supabase_client)):
     response = client.table("campaigns").delete().eq("id", id).execute()
     if not response.data:
         raise HTTPException(status_code=404, detail="Campaign not found or access denied")

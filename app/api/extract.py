@@ -1,9 +1,11 @@
+import logging
 from fastapi import APIRouter, UploadFile, File, HTTPException, Depends, Request
 from PIL import Image
 import pillow_heif
 import io
 import pypdf
 import docx
+import pathlib
 
 pillow_heif.register_heif_opener()
 from app.services.gemini import extract_campaign_details
@@ -11,13 +13,14 @@ from app.schemas.campaign import ExtractionResult
 from app.api.dependencies import get_current_user
 from app.core.limiter import limiter
 
-router = APIRouter(prefix="/extract", tags=["Extract"])
+logger = logging.getLogger(__name__)
 
-import pathlib
+router = APIRouter(prefix="/extract", tags=["Extract"])
 
 MAX_IMAGE_SIZE = 5 * 1024 * 1024   # 5 MB
 MAX_DOC_SIZE = 10 * 1024 * 1024    # 10 MB
-ALLOWED_EXTENSIONS = {".pdf", ".docx", ".txt", ".png", ".jpg", ".jpeg"}
+# .heic is included because pillow_heif registers the HEIF opener
+ALLOWED_EXTENSIONS = {".pdf", ".docx", ".txt", ".png", ".jpg", ".jpeg", ".heic", ".heif"}
 
 @router.post("/", response_model=ExtractionResult)
 @limiter.limit("10/minute")
@@ -83,10 +86,11 @@ async def extract_details(request: Request, file: UploadFile = File(...), user=D
             raise HTTPException(status_code=400, detail="Unsupported file format.")
             
         return extracted_data
-        
+
     except ValueError as e:
         raise HTTPException(status_code=422, detail=str(e))
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+        logger.error("File extraction error", filename=filename, error=type(e).__name__, exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal server error during extraction. Please try again.")
