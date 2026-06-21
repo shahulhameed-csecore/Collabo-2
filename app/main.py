@@ -13,31 +13,60 @@ from app.core.limiter import limiter
 
 from contextlib import asynccontextmanager
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from apscheduler.executors.asyncio import AsyncIOExecutor
 from app.services.reminders import check_deadlines_job
 
-scheduler = AsyncIOScheduler()
+# One async executor — runs jobs inside the existing event loop (no threads needed)
+_executors = {"default": AsyncIOExecutor()}
+scheduler = AsyncIOScheduler(executors=_executors)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup: Start the scheduler
+    """FastAPI lifespan: start/stop the background deadline scheduler."""
     interval_minutes = settings.SCHEDULER_INTERVAL_MINUTES
-    scheduler.add_job(check_deadlines_job, 'interval', minutes=interval_minutes, id='deadlines_job', replace_existing=True)
+
+    scheduler.add_job(
+        check_deadlines_job,
+        trigger="interval",
+        minutes=interval_minutes,
+        id="deadlines_job",
+        replace_existing=True,
+        # If the job was missed (e.g. server was down), allow it to run
+        # up to 10 minutes late instead of being skipped entirely.
+        misfire_grace_time=600,
+        # If multiple runs stacked up (paused scheduler), execute only once.
+        coalesce=True,
+        # Spread runs across ±30 s to avoid exact-hour thundering herd
+        # on multi-worker Render plans.
+        jitter=30,
+    )
     scheduler.start()
-    logger.info(f"Background scheduler started with interval {interval_minutes} minutes.")
-    
+
+    # Run immediately on startup so the first check is not delayed a full hour
+    # (important after a deploy or server restart).
+    import asyncio as _asyncio
+    _asyncio.ensure_future(check_deadlines_job())
+
+    logger.info(
+        "scheduler_started",
+        interval_minutes=interval_minutes,
+        next_run=str(scheduler.get_job("deadlines_job").next_run_time),
+    )
+
     yield
-    
-    # Shutdown: Stop the scheduler
-    scheduler.shutdown()
-    logger.info("Background scheduler stopped.")
+
+    scheduler.shutdown(wait=False)
+    logger.info("scheduler_stopped")
 
 # --- Sentry Setup ---
 if settings.SENTRY_DSN:
     sentry_sdk.init(
         dsn=settings.SENTRY_DSN,
         environment=settings.ENVIRONMENT,
-        traces_sample_rate=1.0,
-        profiles_sample_rate=1.0,
+        # 10% trace sampling in production keeps costs manageable.
+        # Increase to 1.0 only during active debugging sessions.
+        traces_sample_rate=0.1 if settings.ENVIRONMENT == "production" else 1.0,
+        profiles_sample_rate=0.1 if settings.ENVIRONMENT == "production" else 1.0,
     )
 
 # --- Structlog Setup ---
@@ -85,8 +114,9 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins_list,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    # Lock to only the methods this API actually uses
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type", "Accept"],
 )
 
 @app.middleware("http")

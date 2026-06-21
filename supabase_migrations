@@ -1,18 +1,54 @@
--- 1. Add reminder tracking columns to campaigns table
-ALTER TABLE public.campaigns 
-ADD COLUMN IF NOT EXISTS reminder_48h_sent BOOLEAN DEFAULT FALSE,
-ADD COLUMN IF NOT EXISTS overdue_alert_sent BOOLEAN DEFAULT FALSE;
+-- =============================================================================
+-- Collabo — Reminder System Migration
+-- Run this in the Supabase SQL editor (Project → SQL Editor → New query)
+-- Safe to re-run: all statements use IF NOT EXISTS / IF EXISTS guards.
+-- =============================================================================
 
--- 2. Add reminder preference columns to user_settings table
-ALTER TABLE public.user_settings 
-ADD COLUMN IF NOT EXISTS email_reminders_enabled BOOLEAN DEFAULT TRUE,
-ADD COLUMN IF NOT EXISTS whatsapp_reminders_enabled BOOLEAN DEFAULT TRUE;
+-- ---------------------------------------------------------------------------
+-- 1. Add idempotency flag columns to the campaigns table
+-- ---------------------------------------------------------------------------
+ALTER TABLE public.campaigns
+    ADD COLUMN IF NOT EXISTS reminder_48h_sent  BOOLEAN NOT NULL DEFAULT FALSE,
+    ADD COLUMN IF NOT EXISTS overdue_alert_sent BOOLEAN NOT NULL DEFAULT FALSE;
 
--- (Optional) If you want to log last run time, create a simple tracking table
+-- Performance index: the hourly job filters on status='active' and both flags.
+-- A partial index keeps it tiny — only unprocessed active campaigns are indexed.
+CREATE INDEX IF NOT EXISTS idx_campaigns_reminder_active
+    ON public.campaigns (status, reminder_48h_sent, overdue_alert_sent)
+    WHERE status = 'active';
+
+-- ---------------------------------------------------------------------------
+-- 2. Add reminder-preference columns to user_settings
+-- ---------------------------------------------------------------------------
+ALTER TABLE public.user_settings
+    ADD COLUMN IF NOT EXISTS email_reminders_enabled     BOOLEAN NOT NULL DEFAULT TRUE,
+    ADD COLUMN IF NOT EXISTS whatsapp_reminders_enabled  BOOLEAN NOT NULL DEFAULT TRUE;
+
+-- ---------------------------------------------------------------------------
+-- 3. Scheduler job log (optional but recommended for observability)
+-- ---------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS public.scheduler_logs (
-    id SERIAL PRIMARY KEY,
-    job_name TEXT NOT NULL,
-    status TEXT NOT NULL,
-    run_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    details JSONB
+    id         BIGSERIAL PRIMARY KEY,
+    job_name   TEXT                     NOT NULL,
+    status     TEXT                     NOT NULL,   -- 'completed' | 'error'
+    run_at     TIMESTAMPTZ              NOT NULL DEFAULT NOW(),
+    details    JSONB
 );
+
+-- Keep only last 30 days of logs (a pg_cron job or manual purge)
+-- You can automate this later; for now it is just a comment reminder.
+-- DELETE FROM public.scheduler_logs WHERE run_at < NOW() - INTERVAL '30 days';
+
+-- RLS: scheduler_logs is only accessed via service role; deny anon/user reads.
+ALTER TABLE public.scheduler_logs ENABLE ROW LEVEL SECURITY;
+
+-- No policies = no access for JWT-scoped clients. The service-role key
+-- used by the background job bypasses RLS entirely, so no policy is needed.
+
+-- ---------------------------------------------------------------------------
+-- 4. Reset reminder flags helper (useful for manual testing)
+-- ---------------------------------------------------------------------------
+-- To re-trigger reminders for a specific campaign during testing:
+--   UPDATE public.campaigns
+--   SET reminder_48h_sent = FALSE, overdue_alert_sent = FALSE
+--   WHERE id = '<your-campaign-uuid>';
