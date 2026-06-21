@@ -231,6 +231,29 @@ export async function getWhatsAppNumber(): Promise<UserSettings> {
   return res.data;
 }
 
+// ─── Reporting API Calls ────────────────────────────────────────────────────────
+
+export async function downloadReport(month: string, format: 'pdf' | 'excel'): Promise<void> {
+  // Use axios to fetch the file as a blob so the JWT token is included
+  const res = await api.get('/campaigns/reports/monthly', {
+    params: { month, format },
+    responseType: 'blob'
+  });
+  
+  // Create a temporary link to trigger the browser download
+  const blob = new Blob([res.data], { 
+    type: format === 'pdf' ? 'application/pdf' : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' 
+  });
+  const url = window.URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.setAttribute('download', `Collabo_Report_${month}.${format === 'pdf' ? 'pdf' : 'xlsx'}`);
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.URL.revokeObjectURL(url);
+}
+
 // ─── Client-side Dashboard Stats Computation ─────────────────────────────────
 
 export function computeDashboardStats(campaigns: Campaign[]): DashboardStats {
