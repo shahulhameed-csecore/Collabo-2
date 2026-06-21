@@ -58,9 +58,7 @@ except ImportError:
 # the configuration on first use, not at get_logger() call time.
 logger = structlog.get_logger(__name__)
 
-# Sender address from settings
-_FROM_ADDRESS = settings.SMTP_EMAIL or "collabo@example.com"
-
+# Removed _FROM_ADDRESS because the Webhook handles the sender identity natively
 # Reminder window: send 48h reminder when deadline is between 0 and 48h away
 _REMINDER_WINDOW_HOURS = 48
 
