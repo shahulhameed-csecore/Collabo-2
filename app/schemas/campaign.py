@@ -8,7 +8,9 @@ from enum import Enum
 class CampaignStatus(str, Enum):
     draft = 'draft'
     active = 'active'
-    completed = 'completed'
+    content_received = 'content_received'
+    approved = 'approved'
+    paid = 'paid'
     cancelled = 'cancelled'
 
 
@@ -56,6 +58,10 @@ class CampaignBase(BaseModel):
     status: CampaignStatus = Field(
         default=CampaignStatus.draft,
         description="Current stage of the campaign lifecycle."
+    )
+    proof_url: Optional[str] = Field(
+        default=None,
+        description="URL to the uploaded proof of posting file."
     )
 
     @field_validator('influencer_name', 'influencer_handle', 'platform', 'deliverables', 'special_notes', mode='before')
@@ -109,6 +115,7 @@ class CampaignResponse(CampaignBase):
 
     id: str = Field(description="The unique UUID of the campaign in the database.")
     user_id: str = Field(description="The UUID of the brand/user who owns this campaign.")
+    magic_link_token: Optional[str] = Field(description="The token for unauthenticated influencers to upload proof.")
     created_at: str = Field(description="ISO-8601 timestamp of creation.")
     updated_at: str = Field(description="ISO-8601 timestamp of the last update.")
 

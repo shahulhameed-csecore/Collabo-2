@@ -68,6 +68,31 @@ async def update_campaign_status(
     status_update: CampaignStatusUpdate,
     client=Depends(get_user_supabase_client),
 ):
+    # Fetch current campaign
+    current_campaign = client.table("campaigns").select("status").eq("id", id).execute()
+    if not current_campaign.data:
+        raise HTTPException(status_code=404, detail="Campaign not found or access denied")
+    
+    current_status = current_campaign.data[0]["status"]
+    new_status = status_update.status.value
+
+    # RBAC for Brand: Cannot trigger 'content_received'
+    if new_status == "content_received" and current_status != "content_received":
+        raise HTTPException(status_code=403, detail="Only influencers can mark content as received via proof upload.")
+
+    # State Machine Rules
+    valid_transitions = {
+        "draft": ["active", "cancelled"],
+        "active": ["cancelled"], # 'content_received' happens via file upload only
+        "content_received": ["approved", "cancelled"],
+        "approved": ["paid", "cancelled"],
+        "paid": ["cancelled"],
+        "cancelled": ["draft", "active"] # allow restoring from cancelled
+    }
+
+    if new_status != current_status and new_status not in valid_transitions.get(current_status, []):
+        raise HTTPException(status_code=400, detail=f"Invalid transition from {current_status} to {new_status}")
+
     data = status_update.model_dump(mode="json")
     response = client.table("campaigns").update(data).eq("id", id).execute()
     if not response.data:
