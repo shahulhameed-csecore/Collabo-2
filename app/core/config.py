@@ -18,9 +18,9 @@ class Settings(BaseSettings):
     # Required for webhook to insert data without user JWT
     SUPABASE_SERVICE_ROLE_KEY: Optional[str] = None
 
-    # Email & Reminders
-    SMTP_EMAIL: Optional[str] = None
-    SMTP_PASSWORD: Optional[str] = None
+    # Email Webhook (Google Apps Script)
+    GMAIL_WEBHOOK_URL: Optional[str] = None
+    GMAIL_WEBHOOK_SECRET: Optional[str] = None
     SCHEDULER_INTERVAL_MINUTES: int = 60  # Default to 1 hour
 
     # Internal debug endpoint secret (POST /internal/trigger-reminders)

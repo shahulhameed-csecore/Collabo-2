@@ -92,42 +92,38 @@ def _get_supabase_admin():
 # Email sending
 # ---------------------------------------------------------------------------
 
+import httpx
+
 async def _send_email(to_email: str, subject: str, html: str) -> bool:
     """
-    Send a transactional email via standard SMTP TLS (e.g. Gmail).
+    Send a transactional email via a Google Apps Script Webhook.
     Returns True on confirmed delivery, False on any failure.
     """
-    if not settings.SMTP_EMAIL or not settings.SMTP_PASSWORD:
+    if not settings.GMAIL_WEBHOOK_URL:
         logger.warning(
             "reminders.email_skipped",
-            reason="SMTP_EMAIL or SMTP_PASSWORD not configured in environment",
+            reason="GMAIL_WEBHOOK_URL not configured in environment",
             to=to_email,
         )
         return False
 
-    def _sync_send():
-        msg = MIMEMultipart("alternative")
-        msg["Subject"] = subject
-        msg["From"] = _FROM_ADDRESS
-        msg["To"] = to_email
-        msg.attach(MIMEText(html, "html"))
-
-        # Gmail requires TLS on port 587
-        server = smtplib.SMTP("smtp.gmail.com", 587)
-        server.ehlo()
-        server.starttls()
-        server.ehlo()
-        server.login(settings.SMTP_EMAIL, settings.SMTP_PASSWORD)
-        server.send_message(msg)
-        server.quit()
+    payload = {
+        "secret": settings.GMAIL_WEBHOOK_SECRET,
+        "to": to_email,
+        "subject": subject,
+        "html": html
+    }
 
     try:
-        await asyncio.to_thread(_sync_send)
+        async with httpx.AsyncClient() as client:
+            resp = await client.post(settings.GMAIL_WEBHOOK_URL, json=payload, timeout=15.0)
+            resp.raise_for_status()
+            
         logger.info(
             "reminders.email_sent",
             to=to_email,
             subject=subject,
-            method="SMTP",
+            method="GMAIL_WEBHOOK",
         )
         return True
     except Exception as exc:
@@ -534,7 +530,7 @@ async def check_deadlines_job() -> None:
         "reminders.job_started",
         now_utc=now_utc.isoformat(),
         now_ist=now_utc.astimezone(_IST).isoformat(),
-        smtp_configured=bool(settings.SMTP_EMAIL and settings.SMTP_PASSWORD),
+        webhook_configured=bool(settings.GMAIL_WEBHOOK_URL),
         service_role_configured=bool(settings.SUPABASE_SERVICE_ROLE_KEY),
         wa_configured=bool(settings.WHATSAPP_TOKEN and settings.WHATSAPP_PHONE_NUMBER_ID),
     )
