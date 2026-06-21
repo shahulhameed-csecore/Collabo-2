@@ -1,8 +1,8 @@
 import httpx
-import logging
+import structlog
 from app.core.config import settings
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 # Graph API version — update here when Meta deprecates v20.0
 _GRAPH_API_VERSION = "v20.0"
