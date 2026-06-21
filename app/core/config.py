@@ -19,7 +19,8 @@ class Settings(BaseSettings):
     SUPABASE_SERVICE_ROLE_KEY: Optional[str] = None
 
     # Email & Reminders
-    RESEND_API_KEY: Optional[str] = None
+    SMTP_EMAIL: Optional[str] = None
+    SMTP_PASSWORD: Optional[str] = None
     SCHEDULER_INTERVAL_MINUTES: int = 60  # Default to 1 hour
 
     # Internal debug endpoint secret (POST /internal/trigger-reminders)

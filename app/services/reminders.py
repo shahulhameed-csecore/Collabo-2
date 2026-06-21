@@ -41,16 +41,11 @@ from supabase import create_client
 from app.core.config import settings
 
 # ---------------------------------------------------------------------------
-# Resend — import defensively so a stale cached layer on Render doesn't crash
-# the whole module at startup.
+# SMTP configuration for Gmail
 # ---------------------------------------------------------------------------
-try:
-    import resend as _resend_module
-    if settings.RESEND_API_KEY:
-        _resend_module.api_key = settings.RESEND_API_KEY
-    _resend = _resend_module
-except ImportError:
-    _resend = None  # type: ignore[assignment]
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 
 # WhatsApp helper — optional (during Meta App Review period)
 try:
@@ -63,10 +58,8 @@ except ImportError:
 # the configuration on first use, not at get_logger() call time.
 logger = structlog.get_logger(__name__)
 
-# Sender address — must be a verified domain in your Resend account
-# If you haven't verified a domain yet, use "onboarding@resend.dev" for testing
-# (Note: testing mode only allows sending to the email you registered with Resend)
-_FROM_ADDRESS = "Collabo <onboarding@resend.dev>"
+# Sender address from settings
+_FROM_ADDRESS = settings.SMTP_EMAIL or "collabo@example.com"
 
 # Reminder window: send 48h reminder when deadline is between 0 and 48h away
 _REMINDER_WINDOW_HOURS = 48
@@ -101,36 +94,40 @@ def _get_supabase_admin():
 
 async def _send_email(to_email: str, subject: str, html: str) -> bool:
     """
-    Send a transactional email via Resend (sync SDK → asyncio.to_thread).
+    Send a transactional email via standard SMTP TLS (e.g. Gmail).
     Returns True on confirmed delivery, False on any failure.
     """
-    if not settings.RESEND_API_KEY:
+    if not settings.SMTP_EMAIL or not settings.SMTP_PASSWORD:
         logger.warning(
             "reminders.email_skipped",
-            reason="RESEND_API_KEY not configured in environment",
+            reason="SMTP_EMAIL or SMTP_PASSWORD not configured in environment",
             to=to_email,
         )
         return False
 
-    if _resend is None:
-        logger.error("reminders.email_skipped", reason="resend package not installed")
-        return False
+    def _sync_send():
+        msg = MIMEMultipart("alternative")
+        msg["Subject"] = subject
+        msg["From"] = _FROM_ADDRESS
+        msg["To"] = to_email
+        msg.attach(MIMEText(html, "html"))
 
-    params: dict[str, Any] = {
-        "from": _FROM_ADDRESS,
-        "to": [to_email],
-        "subject": subject,
-        "html": html,
-    }
+        # Gmail requires TLS on port 587
+        server = smtplib.SMTP("smtp.gmail.com", 587)
+        server.ehlo()
+        server.starttls()
+        server.ehlo()
+        server.login(settings.SMTP_EMAIL, settings.SMTP_PASSWORD)
+        server.send_message(msg)
+        server.quit()
 
     try:
-        result = await asyncio.to_thread(_resend.Emails.send, params)
-        email_id = getattr(result, "id", None) or (result.get("id") if isinstance(result, dict) else None)
+        await asyncio.to_thread(_sync_send)
         logger.info(
             "reminders.email_sent",
             to=to_email,
             subject=subject,
-            resend_id=email_id,
+            method="SMTP",
         )
         return True
     except Exception as exc:
