@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { Toaster } from "sonner";
+import { ThemeProvider } from "@/components/ThemeProvider";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -84,20 +85,23 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}>
-      <body className="min-h-full flex flex-col bg-slate-950 text-white">
-        {children}
-        <Toaster
-          position="bottom-right"
-          toastOptions={{
-            style: {
-              background: '#1e293b',
-              border: '1px solid #334155',
-              color: '#f1f5f9',
-            },
-          }}
-          richColors
-        />
+    <html lang="en" suppressHydrationWarning className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}>
+      <body className="min-h-full flex flex-col bg-slate-950 dark:bg-slate-950 text-slate-900 dark:text-white transition-colors duration-200">
+        <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
+          {children}
+          <Toaster
+            position="bottom-right"
+            toastOptions={{
+              className: 'dark:bg-slate-800 dark:border-slate-700 dark:text-slate-100',
+              style: {
+                background: 'var(--toast-bg, #1e293b)',
+                border: '1px solid var(--toast-border, #334155)',
+                color: 'var(--toast-color, #f1f5f9)',
+              },
+            }}
+            richColors
+          />
+        </ThemeProvider>
       </body>
     </html>
   );

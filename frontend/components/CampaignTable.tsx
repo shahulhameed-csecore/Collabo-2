@@ -7,7 +7,7 @@ import {
   ChevronUp, ChevronDown, Trash2,
   Calendar, DollarSign, AlertCircle, CheckCircle2,
   Clock, XCircle, Plus, Search, Filter,
-  Globe, X, Check, ExternalLink, Edit2,
+  Globe, X, Check, ExternalLink, Edit2, FileSpreadsheet, Database
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -17,6 +17,8 @@ interface CampaignTableProps {
   onRefresh: () => void;
   onCreateNew: () => void;
   onEdit?: (campaign: Campaign) => void;
+  onLoadSampleData?: () => void;
+  onClearSampleData?: () => void;
 }
 
 // ─── Status config ────────────────────────────────────────────────────────────
@@ -95,14 +97,14 @@ function SkeletonRow() {
   );
 }
 
-function EmptyState({ onCreateNew, hasFilters }: { onCreateNew: () => void; hasFilters: boolean }) {
+function EmptyState({ onCreateNew, onLoadSampleData, hasFilters }: { onCreateNew: () => void; onLoadSampleData?: () => void; hasFilters: boolean }) {
   if (hasFilters) {
     return (
       <div className="flex flex-col items-center justify-center py-20 text-center animate-fade-in">
-        <div className="p-4 bg-slate-800/40 rounded-2xl mb-4 border border-slate-700/30">
-          <Search className="w-8 h-8 text-slate-600" />
+        <div className="p-4 bg-slate-800/40 dark:bg-slate-800/60 rounded-2xl mb-4 border border-slate-700/30">
+          <Search className="w-8 h-8 text-slate-600 dark:text-slate-400" />
         </div>
-        <h3 className="text-base font-semibold text-white mb-1">No campaigns match</h3>
+        <h3 className="text-base font-semibold text-slate-900 dark:text-white mb-1">No campaigns match</h3>
         <p className="text-slate-500 text-sm">Try adjusting your search or filter.</p>
       </div>
     );
@@ -111,27 +113,38 @@ function EmptyState({ onCreateNew, hasFilters }: { onCreateNew: () => void; hasF
     <div className="flex flex-col items-center justify-center py-20 text-center animate-fade-in">
       <div className="relative mb-6">
         <div className="absolute inset-0 bg-emerald-500/10 rounded-3xl blur-xl" />
-        <div className="relative p-6 bg-slate-800/60 rounded-2xl border border-slate-700/40">
-          <DollarSign className="w-10 h-10 text-emerald-400" />
+        <div className="relative p-6 bg-white dark:bg-slate-800/60 rounded-2xl border border-slate-200 dark:border-slate-700/40 shadow-xl shadow-slate-200/50 dark:shadow-none">
+          <DollarSign className="w-10 h-10 text-emerald-500 dark:text-emerald-400" />
         </div>
       </div>
-      <h3 className="text-lg font-bold text-white mb-2">No campaigns yet</h3>
-      <p className="text-slate-500 text-sm max-w-xs mb-6 leading-relaxed">
-        Start tracking your influencer deals. Upload a DM screenshot and let AI fill in the details.
+      <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">No campaigns yet</h3>
+      <p className="text-slate-500 text-sm max-w-sm mb-8 leading-relaxed">
+        Start tracking your influencer deals. Upload a DM screenshot and let our AI instantly fill in all the details for you.
       </p>
-      <button
-        onClick={onCreateNew}
-        className="flex items-center gap-2 bg-emerald-500 hover:bg-emerald-400 active:scale-95 text-white font-semibold rounded-xl px-5 py-2.5 text-sm transition-all shadow-lg shadow-emerald-500/25"
-      >
-        <Plus className="w-4 h-4" />
-        Create First Campaign
-      </button>
+      <div className="flex flex-col sm:flex-row items-center gap-3">
+        <button
+          onClick={onCreateNew}
+          className="flex items-center gap-2 bg-emerald-500 hover:bg-emerald-400 active:scale-95 text-white font-semibold rounded-xl px-5 py-2.5 text-sm transition-all shadow-lg shadow-emerald-500/25"
+        >
+          <Plus className="w-4 h-4" />
+          Create First Campaign
+        </button>
+        {onLoadSampleData && (
+          <button
+            onClick={onLoadSampleData}
+            className="flex items-center gap-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 active:scale-95 text-slate-700 dark:text-slate-300 font-semibold rounded-xl px-5 py-2.5 text-sm transition-all border border-slate-200 dark:border-slate-700"
+          >
+            <Database className="w-4 h-4" />
+            Load Sample Data
+          </button>
+        )}
+      </div>
     </div>
   );
 }
 
 // ─── Main Component ───────────────────────────────────────────────────────────
-export default function CampaignTable({ campaigns, isLoading, onRefresh, onCreateNew, onEdit }: CampaignTableProps) {
+export default function CampaignTable({ campaigns, isLoading, onRefresh, onCreateNew, onEdit, onLoadSampleData, onClearSampleData }: CampaignTableProps) {
   const [filters, setFilters] = useState<FilterState>({ search: '', status: 'all', platform: '' });
   const [sortKey, setSortKey] = useState<keyof Campaign>('created_at');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
@@ -211,6 +224,37 @@ export default function CampaignTable({ campaigns, isLoading, onRefresh, onCreat
 
   const uniquePlatforms = [...new Set(campaigns.map(c => c.platform).filter(Boolean))] as string[];
 
+  const handleExportCSV = () => {
+    if (filtered.length === 0) {
+      toast.error('No campaigns to export.');
+      return;
+    }
+    
+    const headers = ['Influencer Name', 'Handle', 'Platform', 'Deliverables', 'Deadline', 'Payment Amount', 'Status', 'Created At'];
+    const rows = filtered.map(c => [
+      `"${c.influencer_name || ''}"`,
+      `"${c.influencer_handle || ''}"`,
+      `"${c.platform || ''}"`,
+      `"${(c.deliverables || '').replace(/"/g, '""')}"`,
+      c.deadline || '',
+      c.payment_amount || 0,
+      c.status,
+      c.created_at
+    ]);
+
+    const csvContent = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `collabo_campaigns_${new Date().toISOString().split('T')[0]}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    toast.success('CSV Exported successfully!');
+  };
+
   return (
     <div className="animate-fade-in">
       {/* ── Search + Filter Bar ── */}
@@ -237,21 +281,33 @@ export default function CampaignTable({ campaigns, isLoading, onRefresh, onCreat
         </div>
 
         {/* Filter toggle */}
-        <button
-          id="filter-toggle-btn"
-          onClick={() => setShowFilters(v => !v)}
-          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium border transition-all ${
-            showFilters || hasFilters
-              ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
-              : 'bg-slate-900/60 border-slate-800/60 text-slate-400 hover:text-white hover:border-slate-700'
-          }`}
-        >
-          <Filter className="w-4 h-4" />
-          Filters
-          {hasFilters && (
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-          )}
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            id="filter-toggle-btn"
+            onClick={() => setShowFilters(v => !v)}
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium border transition-all ${
+              showFilters || hasFilters
+                ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-500 dark:text-emerald-400'
+                : 'bg-white dark:bg-slate-900/60 border-slate-200 dark:border-slate-800/60 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+            }`}
+          >
+            <Filter className="w-4 h-4" />
+            <span className="hidden sm:inline">Filters</span>
+            {hasFilters && (
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 dark:bg-emerald-400" />
+            )}
+          </button>
+          
+          <button
+            id="tour-csv-export"
+            onClick={handleExportCSV}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium border bg-white dark:bg-slate-900/60 border-slate-200 dark:border-slate-800/60 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-all"
+            title="Export filtered campaigns to CSV"
+          >
+            <FileSpreadsheet className="w-4 h-4" />
+            <span className="hidden sm:inline">Export CSV</span>
+          </button>
+        </div>
       </div>
 
       {/* ── Status Quick Filters (always visible) ── */}
@@ -329,15 +385,25 @@ export default function CampaignTable({ campaigns, isLoading, onRefresh, onCreat
 
       {/* ── Result count ── */}
       {!isLoading && campaigns.length > 0 && (
-        <p className="text-xs text-slate-500 mb-3">
-          Showing <span className="text-white font-medium">{filtered.length}</span> of {campaigns.length} campaigns
-          {hasFilters && <span className="text-emerald-500/70"> (filtered)</span>}
-        </p>
+        <div className="flex items-center justify-between mb-3">
+          <p className="text-xs text-slate-500">
+            Showing <span className="text-slate-900 dark:text-white font-medium">{filtered.length}</span> of {campaigns.length} campaigns
+            {hasFilters && <span className="text-emerald-500/70"> (filtered)</span>}
+          </p>
+          {onClearSampleData && campaigns.some(c => c.influencer_name?.includes('Sample')) && (
+            <button 
+              onClick={onClearSampleData}
+              className="text-xs text-rose-500 hover:text-rose-600 dark:text-rose-400 dark:hover:text-rose-300 font-medium underline"
+            >
+              Clear Sample Data
+            </button>
+          )}
+        </div>
       )}
 
       {/* ── Empty State ── */}
       {!isLoading && campaigns.length === 0 && (
-        <EmptyState onCreateNew={onCreateNew} hasFilters={false} />
+        <EmptyState onCreateNew={onCreateNew} onLoadSampleData={onLoadSampleData} hasFilters={false} />
       )}
       {!isLoading && campaigns.length > 0 && filtered.length === 0 && (
         <EmptyState onCreateNew={onCreateNew} hasFilters={true} />

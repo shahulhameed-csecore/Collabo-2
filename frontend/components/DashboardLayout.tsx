@@ -7,8 +7,9 @@ import type { User } from '@supabase/supabase-js';
 import {
   Zap, LayoutDashboard, BarChart3, Settings,
   LogOut, Menu, X, ChevronRight, Bell, Plus,
-  Sparkles, TrendingUp,
+  Sparkles, TrendingUp, Sun, Moon
 } from 'lucide-react';
+import { useTheme } from 'next-themes';
 import Link from 'next/link';
 import { toast } from 'sonner';
 import { Logo } from '@/components/Logo';
@@ -25,13 +26,14 @@ const navItems = [
 ];
 
 function NavLink({
-  href, label, icon: Icon, disabled, soon, isActive, onClick,
+  href, label, icon: Icon, disabled, soon, isActive, onClick, id,
 }: {
   href: string; label: string; icon: React.ElementType;
-  disabled?: boolean; soon?: boolean; isActive: boolean; onClick: () => void;
+  disabled?: boolean; soon?: boolean; isActive: boolean; onClick: () => void; id?: string;
 }) {
   return (
     <Link
+      id={id}
       href={disabled ? '#' : href}
       onClick={disabled ? undefined : onClick}
       className={`
@@ -66,6 +68,7 @@ export default function DashboardLayout({ children, onNewCampaign }: DashboardLa
   const router = useRouter();
   const pathname = usePathname();
   const supabase = useMemo(() => createClient(), []);
+  const { theme, setTheme } = useTheme();
 
   useEffect(() => {
     setMounted(true);
@@ -176,12 +179,13 @@ export default function DashboardLayout({ children, onNewCampaign }: DashboardLa
             soon={soon}
             isActive={pathname === href || (href !== '/dashboard' && pathname.startsWith(href))}
             onClick={() => setSidebarOpen(false)}
+            id={href === '/settings' ? 'tour-nav-settings' : undefined}
           />
         ))}
       </nav>
 
       {/* AI Insight card */}
-      <div className="mx-3 mb-3 p-3.5 bg-gradient-to-br from-emerald-500/8 to-teal-500/5 border border-emerald-500/15 rounded-xl">
+      <div id="tour-ai-insight" className="mx-3 mb-3 p-3.5 bg-gradient-to-br from-emerald-500/8 to-teal-500/5 border border-emerald-500/15 rounded-xl">
         <div className="flex items-start gap-2.5">
           <div className="p-1.5 bg-emerald-500/15 rounded-lg flex-shrink-0">
             <Sparkles className="w-3 h-3 text-emerald-400" />
@@ -286,6 +290,20 @@ export default function DashboardLayout({ children, onNewCampaign }: DashboardLa
                 New
               </button>
             )}
+            
+            {/* Theme Toggle */}
+            <button
+              onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+              className="p-2 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition-colors"
+              aria-label="Toggle theme"
+            >
+              {mounted && theme === 'dark' ? (
+                <Sun className="w-4 h-4 text-emerald-400" />
+              ) : (
+                <Moon className="w-4 h-4 text-slate-400" />
+              )}
+            </button>
+
             <button
               className="relative p-2 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition-colors"
               aria-label="Notifications"

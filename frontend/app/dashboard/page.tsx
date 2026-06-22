@@ -5,7 +5,10 @@ import DashboardLayout from '@/components/DashboardLayout';
 import CampaignTable from '@/components/CampaignTable';
 import CreateCampaignModal from '@/components/CreateCampaignModal';
 import EditCampaignModal from '@/components/EditCampaignModal';
+import dynamic from 'next/dynamic';
 import { getCampaigns, computeDashboardStats, getApiErrorMessage } from '@/lib/api';
+
+const OnboardingTour = dynamic(() => import('@/components/OnboardingTour'), { ssr: false });
 import type { Campaign, DashboardStats } from '@/lib/types';
 import {
   Plus, RefreshCw, TrendingUp, Users, Clock,
@@ -159,6 +162,70 @@ export default function DashboardPage() {
 
   useEffect(() => { fetchCampaigns(); }, [fetchCampaigns]);
 
+  const loadSampleData = () => {
+    const sampleCampaigns: Campaign[] = [
+      {
+        id: 'sample-1',
+        user_id: 'sample-user',
+        influencer_name: 'Sample: Riya Sharma',
+        influencer_handle: '@riya_creates',
+        platform: 'Instagram',
+        deliverables: '1 Reel + 2 Stories',
+        payment_amount: 15000,
+        deadline: new Date(Date.now() + 86400000 * 2).toISOString(), // 2 days from now
+        status: 'active',
+        special_notes: null,
+        magic_link_token: null,
+        proof_url: null,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      },
+      {
+        id: 'sample-2',
+        user_id: 'sample-user',
+        influencer_name: 'Sample: Tech Guru',
+        influencer_handle: '@techguru_in',
+        platform: 'YouTube',
+        deliverables: 'Dedicated Integration (60s)',
+        payment_amount: 45000,
+        deadline: new Date(Date.now() - 86400000).toISOString(), // Overdue 1 day
+        status: 'active',
+        special_notes: null,
+        magic_link_token: null,
+        proof_url: null,
+        created_at: new Date(Date.now() - 86400000 * 5).toISOString(),
+        updated_at: new Date(Date.now() - 86400000 * 5).toISOString(),
+      },
+      {
+        id: 'sample-3',
+        user_id: 'sample-user',
+        influencer_name: 'Sample: Style with Sneha',
+        influencer_handle: '@sneha.styles',
+        platform: 'Instagram',
+        deliverables: '1 Carousel Post',
+        payment_amount: 0,
+        deadline: new Date(Date.now() + 86400000 * 10).toISOString(),
+        status: 'content_received',
+        special_notes: 'Barter deal',
+        magic_link_token: null,
+        proof_url: 'https://instagram.com/p/sample',
+        created_at: new Date(Date.now() - 86400000 * 10).toISOString(),
+        updated_at: new Date(Date.now() - 86400000 * 2).toISOString(),
+      }
+    ];
+    const newCampaigns = [...campaigns, ...sampleCampaigns];
+    setCampaigns(newCampaigns);
+    setStats(computeDashboardStats(newCampaigns));
+    toast.success('Sample data loaded! Feel free to explore.');
+  };
+
+  const clearSampleData = () => {
+    const newCampaigns = campaigns.filter(c => !c.influencer_name?.includes('Sample:'));
+    setCampaigns(newCampaigns);
+    setStats(computeDashboardStats(newCampaigns));
+    toast.success('Sample data cleared!');
+  };
+
   const handleDownload = async (format: 'pdf' | 'excel') => {
     try {
       setIsDownloading(true);
@@ -181,6 +248,7 @@ export default function DashboardPage() {
 
   return (
     <DashboardLayout onNewCampaign={() => setIsModalOpen(true)}>
+      <OnboardingTour />
       {/* ── Page header ── */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
         <div>
@@ -363,6 +431,8 @@ export default function DashboardPage() {
               onRefresh={() => fetchCampaigns(true)}
               onCreateNew={() => setIsModalOpen(true)}
               onEdit={setEditingCampaign}
+              onLoadSampleData={loadSampleData}
+              onClearSampleData={clearSampleData}
             />
           </div>
         </div>
