@@ -41,11 +41,8 @@ from supabase import create_client
 from app.core.config import settings
 
 # ---------------------------------------------------------------------------
-# SMTP configuration for Gmail
+# Email sending via GMail Webhook
 # ---------------------------------------------------------------------------
-import smtplib
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
 
 # WhatsApp helper — optional (during Meta App Review period)
 try:

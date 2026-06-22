@@ -15,7 +15,10 @@ logger = logging.getLogger(__name__)
 
 # STRIP whitespace and hidden quotes! Extremely common issue when pasting into Render Dashboard
 clean_api_key = settings.GEMINI_API_KEY.strip(' "\'')
-client = genai.Client(api_key=clean_api_key)
+client = genai.Client(
+    api_key=clean_api_key,
+    http_options={'timeout': 30.0} # Added explicit timeout for production reliability
+)
 
 
 class GeminiExtractionSchema(BaseModel):
@@ -138,8 +141,11 @@ def extract_campaign_details(content: Image.Image | str | dict | list, filename:
         data['requires_human_review'] = not bool(data.get('influencer_name') and data.get('deliverables'))
         data['status'] = 'draft'
 
-        if data.get('payment_amount') is None:
-            data['payment_amount'] = 0.0
+        # If payment is explicitly set to 0.0 (barter), leave it. Otherwise None if missing.
+        # Actually, the schema already sets it to None if missing.
+        # Removing the aggressive zeroing so we don't mask missing data.
+        # if data.get('payment_amount') is None:
+        #     data['payment_amount'] = None
 
         # Protect against strict Pydantic date crashes
         deadline_str = data.get('deadline')
@@ -164,7 +170,7 @@ def extract_campaign_details(content: Image.Image | str | dict | list, filename:
             "platform": None,
             "deliverables": None,
             "deadline": None,
-            "payment_amount": 0.0,
+            "payment_amount": None, # Changed from 0.0 to None to indicate missing data
             "special_notes": friendly_error,
             "requires_human_review": True,
             "status": "draft"
