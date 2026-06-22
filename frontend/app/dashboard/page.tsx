@@ -252,7 +252,7 @@ export default function DashboardPage() {
       {/* ── Page header ── */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
         <div>
-          <h1 className="text-xl font-extrabold text-white tracking-tight">Campaign Dashboard</h1>
+          <h1 className="text-xl font-extrabold text-slate-900 dark:text-white tracking-tight">Campaign Dashboard</h1>
           <p className="text-slate-500 text-sm mt-0.5">
             {isLoading
               ? 'Loading your campaigns...'
@@ -546,7 +546,7 @@ export default function DashboardPage() {
           {/* Tips card for new users */}
           {!isLoading && campaigns.length === 0 && (
             <div className="bg-gradient-to-br from-slate-900/60 to-slate-800/40 border border-slate-700/40 rounded-2xl p-4">
-              <h3 className="text-sm font-bold text-white mb-3">💡 Quick Tips</h3>
+              <h3 className="text-sm font-bold text-slate-900 dark:text-white mb-3">💡 Quick Tips</h3>
               <ul className="space-y-2.5">
                 {[
                   'Upload a WhatsApp DM screenshot to auto-extract campaign details',
