@@ -1,7 +1,7 @@
 import json
-import logging
 import re
 from datetime import datetime
+import structlog
 from google import genai
 from google.genai import types
 from google.genai.errors import APIError
@@ -11,7 +11,7 @@ from tenacity import retry, wait_exponential, stop_after_attempt, retry_if_excep
 
 from app.core.config import settings
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 # STRIP whitespace and hidden quotes! Extremely common issue when pasting into Render Dashboard
 clean_api_key = settings.GEMINI_API_KEY.strip(' "\'')
@@ -41,7 +41,7 @@ Context File: {filename}
 
 CRITICAL DIRECTIVES:
 1. FORMAL DOCUMENTS & EMAILS: If this is a PDF contract, proposal, or formal email, carefully extract the exact deliverables, compensation, and deadlines. Look for terms like "Compensation:", "Deliverables:", "Timeline:", "Go-live date".
-2. PAYMENT vs GIFTED: If the text mentions "barter", "collab", "gifted", "sending a sample", "trying the product", "PR package", "send details", or similar without monetary value, it is Barter. Set payment_amount to EXACTLY 0.0. ONLY set a payment_amount if a specific monetary value (e.g., INR, Rs, ₹) is explicitly negotiated and agreed upon.
+2. PAYMENT vs GIFTED: If the text clearly mentions "barter", "collab", "gifted", "sending a sample", "PR package", "gift", "unpaid", or similar non-monetary compensation, it is Barter. Set payment_amount to EXACTLY 0.0. ONLY set a payment_amount if a specific monetary value (e.g., INR, Rs, ₹) is explicitly negotiated and agreed upon. If payment details are totally missing, leave it as null.
 3. DATES & DEADLINES: Convert all relative dates ("next Friday", "by EOD", "kal", "in 3 days") into strict YYYY-MM-DD format based on {today_str}. If no deadline is mentioned or it's vague, set it to null. Do NOT hallucinate dates.
 4. HINGLISH & MESSY TEXT: You are fluent in Hinglish (Hindi + English) and informal chat shorthand. Infer intent accurately even with typos, bad grammar, or poor screenshot quality.
 5. DELIVERABLES: Be concise but comprehensive. Extract exactly what was agreed (e.g., "1 IG Reel + 2 Stories", "1 Dedicated YouTube Integration").
@@ -49,6 +49,7 @@ CRITICAL DIRECTIVES:
 7. NEVER FAIL: Even if the document is totally empty or irrelevant, DO NOT crash. Simply return null for all fields. Always output valid JSON matching the exact schema below.
 8. WHATSAPP FORWARDS: If this is a forwarded WhatsApp chat log, parse the conversation flow carefully. Pay close attention to the final agreed terms (the last messages) rather than initial offers.
 9. HYBRID CONTEXT: You may receive a combination of text extracted from a PDF and screenshots of key pages. Correlate the text and images to form a complete understanding.
+10. UNCERTAINTY: If you are unsure about any extracted data or if the context is highly ambiguous, prepend a small note to the `special_notes` field (e.g., "[Low Confidence] ", "[Note: Deadline was vague, inferred from context] ").
 
 Return ONLY valid JSON matching this exact structure:
 
@@ -159,7 +160,7 @@ def extract_campaign_details(content: Image.Image | str | dict | list, filename:
 
     except Exception as e:
         error_msg = str(e)
-        logger.error(f"Gemini Extraction Failed: {error_msg}", exc_info=True)
+        logger.error("gemini_extraction_failed", error=error_msg, exc_info=True)
         
         # We append a snippet of the ACTUAL error here so it's instantly visible in the frontend!
         friendly_error = f"AI Extraction Failed ({error_msg[:120]}). Please enter details manually."
