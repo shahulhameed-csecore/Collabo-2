@@ -25,23 +25,23 @@ interface CampaignTableProps {
 const STATUS_CONFIG: Record<CampaignStatus, {
   label: string; dotClass: string; badgeClass: string; icon: React.ElementType;
 }> = {
-  active:           { label: 'Active',           dotClass: 'bg-emerald-400', badgeClass: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/25', icon: CheckCircle2 },
-  draft:            { label: 'Draft',            dotClass: 'bg-amber-400',   badgeClass: 'bg-amber-500/10 text-amber-400 border-amber-500/25',   icon: Clock },
-  content_received: { label: 'In Review',        dotClass: 'bg-purple-400',  badgeClass: 'bg-purple-500/10 text-purple-400 border-purple-500/25', icon: CheckCircle2 },
-  approved:         { label: 'Approved',         dotClass: 'bg-blue-400',    badgeClass: 'bg-blue-500/10 text-blue-400 border-blue-500/25',      icon: Check },
-  paid:             { label: 'Paid',             dotClass: 'bg-slate-400',   badgeClass: 'bg-slate-700/60 text-slate-400 border-slate-600/30',   icon: DollarSign },
-  cancelled:        { label: 'Cancelled',        dotClass: 'bg-rose-400',    badgeClass: 'bg-rose-500/10 text-rose-400 border-rose-500/25',      icon: XCircle },
+  active:           { label: 'Active',           dotClass: 'bg-emerald-500 dark:bg-emerald-400', badgeClass: 'bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-500/25', icon: CheckCircle2 },
+  draft:            { label: 'Draft',            dotClass: 'bg-amber-500 dark:bg-amber-400',   badgeClass: 'bg-amber-50 dark:bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-500/25',   icon: Clock },
+  content_received: { label: 'In Review',        dotClass: 'bg-purple-500 dark:bg-purple-400',  badgeClass: 'bg-purple-50 dark:bg-purple-500/10 text-purple-700 dark:text-purple-400 border-purple-200 dark:border-purple-500/25', icon: CheckCircle2 },
+  approved:         { label: 'Approved',         dotClass: 'bg-blue-500 dark:bg-blue-400',    badgeClass: 'bg-blue-50 dark:bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-200 dark:border-blue-500/25',      icon: Check },
+  paid:             { label: 'Paid',             dotClass: 'bg-slate-500 dark:bg-slate-400',   badgeClass: 'bg-slate-100 dark:bg-slate-700/60 text-slate-700 dark:text-slate-400 border-slate-200 dark:border-slate-600/30',   icon: DollarSign },
+  cancelled:        { label: 'Cancelled',        dotClass: 'bg-rose-500 dark:bg-rose-400',    badgeClass: 'bg-rose-50 dark:bg-rose-500/10 text-rose-700 dark:text-rose-400 border-rose-200 dark:border-rose-500/25',      icon: XCircle },
 };
 
 // ─── Platform config ──────────────────────────────────────────────────────────
 const PLATFORM_CONFIG: Record<string, { color: string; bg: string; emoji: string }> = {
-  'Instagram':  { color: 'text-pink-400',   bg: 'bg-pink-500/10 border-pink-500/20',    emoji: '📸' },
-  'YouTube':    { color: 'text-red-400',    bg: 'bg-red-500/10 border-red-500/20',      emoji: '▶️' },
-  'Twitter/X':  { color: 'text-sky-400',    bg: 'bg-sky-500/10 border-sky-500/20',      emoji: '𝕏' },
-  'LinkedIn':   { color: 'text-blue-400',   bg: 'bg-blue-500/10 border-blue-500/20',    emoji: 'in' },
-  'TikTok':     { color: 'text-purple-400', bg: 'bg-purple-500/10 border-purple-500/20', emoji: '♪' },
-  'Pinterest':  { color: 'text-rose-400',   bg: 'bg-rose-500/10 border-rose-500/20',    emoji: '📌' },
-  'Snapchat':   { color: 'text-yellow-400', bg: 'bg-yellow-500/10 border-yellow-500/20', emoji: '👻' },
+  'Instagram':  { color: 'text-pink-600 dark:text-pink-400',   bg: 'bg-pink-50 dark:bg-pink-500/10 border-pink-200 dark:border-pink-500/20',    emoji: '📸' },
+  'YouTube':    { color: 'text-red-600 dark:text-red-400',    bg: 'bg-red-50 dark:bg-red-500/10 border-red-200 dark:border-red-500/20',      emoji: '▶️' },
+  'Twitter/X':  { color: 'text-sky-600 dark:text-sky-400',    bg: 'bg-sky-50 dark:bg-sky-500/10 border-sky-200 dark:border-sky-500/20',      emoji: '𝕏' },
+  'LinkedIn':   { color: 'text-blue-600 dark:text-blue-400',   bg: 'bg-blue-50 dark:bg-blue-500/10 border-blue-200 dark:border-blue-500/20',    emoji: 'in' },
+  'TikTok':     { color: 'text-purple-600 dark:text-purple-400', bg: 'bg-purple-50 dark:bg-purple-500/10 border-purple-200 dark:border-purple-500/20', emoji: '♪' },
+  'Pinterest':  { color: 'text-rose-600 dark:text-rose-400',   bg: 'bg-rose-50 dark:bg-rose-500/10 border-rose-200 dark:border-rose-500/20',    emoji: '📌' },
+  'Snapchat':   { color: 'text-yellow-600 dark:text-yellow-400', bg: 'bg-yellow-50 dark:bg-yellow-500/10 border-yellow-200 dark:border-yellow-500/20', emoji: '👻' },
 };
 
 const STATUS_FILTERS: { value: FilterState['status']; label: string }[] = [
@@ -61,7 +61,7 @@ function StatusBadge({ status }: { status: CampaignStatus }) {
   const cfg = STATUS_CONFIG[normalizedStatus as CampaignStatus] || {
     label: String(status || 'Unknown'),
     dotClass: 'bg-slate-400',
-    badgeClass: 'bg-slate-700/60 text-slate-400 border-slate-600/30',
+    badgeClass: 'bg-slate-100 dark:bg-slate-700/60 text-slate-700 dark:text-slate-400 border-slate-200 dark:border-slate-600/30',
     icon: Clock,
   };
   return (
@@ -76,7 +76,7 @@ function PlatformBadge({ platform }: { platform: string | null }) {
   if (!platform) return <span className="text-slate-600 text-sm">—</span>;
   const cfg = PLATFORM_CONFIG[platform];
   return (
-    <span className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-lg text-xs font-semibold border ${cfg ? cfg.bg : 'bg-slate-700/40 border-slate-600/30'} ${cfg ? cfg.color : 'text-slate-300'}`}>
+    <span className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-lg text-xs font-semibold border ${cfg ? cfg.bg : 'bg-slate-50 dark:bg-slate-700/40 border-slate-200 dark:border-slate-600/30'} ${cfg ? cfg.color : 'text-slate-600 dark:text-slate-300'}`}>
       {cfg
         ? <span className="text-[10px] leading-none">{cfg.emoji}</span>
         : <Globe className="w-3 h-3 opacity-70" />}
@@ -87,7 +87,7 @@ function PlatformBadge({ platform }: { platform: string | null }) {
 
 function SkeletonRow() {
   return (
-    <tr className="border-b border-slate-800/40">
+    <tr className="border-b border-slate-100 dark:border-slate-800/40">
       {[75, 55, 65, 50, 55, 40].map((w, i) => (
         <td key={i} className="px-4 py-4">
           <div className="skeleton h-4 rounded-lg" style={{ width: `${w}%` }} />
@@ -101,8 +101,8 @@ function EmptyState({ onCreateNew, onLoadSampleData, hasFilters }: { onCreateNew
   if (hasFilters) {
     return (
       <div className="flex flex-col items-center justify-center py-20 text-center animate-fade-in">
-        <div className="p-4 bg-slate-800/40 dark:bg-slate-800/60 rounded-2xl mb-4 border border-slate-700/30">
-          <Search className="w-8 h-8 text-slate-600 dark:text-slate-400" />
+        <div className="p-4 bg-slate-50 dark:bg-slate-800/60 rounded-2xl mb-4 border border-slate-200 dark:border-slate-700/30 shadow-sm dark:shadow-none">
+          <Search className="w-8 h-8 text-slate-400 dark:text-slate-400" />
         </div>
         <h3 className="text-base font-semibold text-slate-900 dark:text-white mb-1">No campaigns match</h3>
         <p className="text-slate-500 text-sm">Try adjusting your search or filter.</p>
@@ -113,7 +113,7 @@ function EmptyState({ onCreateNew, onLoadSampleData, hasFilters }: { onCreateNew
     <div className="flex flex-col items-center justify-center py-20 text-center animate-fade-in">
       <div className="relative mb-6">
         <div className="absolute inset-0 bg-emerald-500/10 rounded-3xl blur-xl" />
-        <div className="relative p-6 bg-white dark:bg-slate-800/60 rounded-2xl border border-slate-200 dark:border-slate-700/40 shadow-xl shadow-slate-200/50 dark:shadow-none">
+        <div className="relative p-6 bg-white dark:bg-slate-800/60 rounded-2xl border border-slate-200 dark:border-slate-700/40 shadow-sm dark:shadow-none">
           <DollarSign className="w-10 h-10 text-emerald-500 dark:text-emerald-400" />
         </div>
       </div>
@@ -268,7 +268,7 @@ export default function CampaignTable({ campaigns, isLoading, onRefresh, onCreat
             placeholder="Search by name, handle, platform..."
             value={filters.search}
             onChange={e => setFilters(f => ({ ...f, search: e.target.value }))}
-            className="w-full bg-slate-900/60 border border-slate-800/60 text-white placeholder-slate-600 rounded-xl pl-10 pr-4 py-2.5 text-sm focus:outline-none focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/20 transition-all"
+            className="w-full bg-white dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800/60 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-600 rounded-xl pl-10 pr-4 py-2.5 text-sm focus:outline-none focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/20 transition-all shadow-sm dark:shadow-none"
           />
           {filters.search && (
             <button
@@ -285,10 +285,10 @@ export default function CampaignTable({ campaigns, isLoading, onRefresh, onCreat
           <button
             id="filter-toggle-btn"
             onClick={() => setShowFilters(v => !v)}
-            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium border transition-all ${
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium border transition-all shadow-sm dark:shadow-none ${
               showFilters || hasFilters
-                ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-500 dark:text-emerald-400'
-                : 'bg-white dark:bg-slate-900/60 border-slate-200 dark:border-slate-800/60 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                ? 'bg-emerald-50 dark:bg-emerald-500/10 border-emerald-200 dark:border-emerald-500/30 text-emerald-600 dark:text-emerald-400'
+                : 'bg-white dark:bg-slate-900/60 border-slate-200 dark:border-slate-800/60 text-slate-600 dark:text-slate-400 hover:bg-slate-50 hover:text-slate-900 dark:hover:bg-slate-900 dark:hover:text-white'
             }`}
           >
             <Filter className="w-4 h-4" />
@@ -301,7 +301,7 @@ export default function CampaignTable({ campaigns, isLoading, onRefresh, onCreat
           <button
             id="tour-csv-export"
             onClick={handleExportCSV}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium border bg-white dark:bg-slate-900/60 border-slate-200 dark:border-slate-800/60 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-all"
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium border bg-white dark:bg-slate-900/60 border-slate-200 dark:border-slate-800/60 text-slate-600 dark:text-slate-400 hover:bg-slate-50 hover:text-slate-900 dark:hover:text-white transition-all shadow-sm dark:shadow-none"
             title="Export filtered campaigns to CSV"
           >
             <FileSpreadsheet className="w-4 h-4" />
@@ -323,13 +323,13 @@ export default function CampaignTable({ campaigns, isLoading, onRefresh, onCreat
               onClick={() => setFilters(prev => ({ ...prev, status: f.value }))}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-all ${
                 filters.status === f.value
-                  ? 'bg-emerald-500/15 border-emerald-500/35 text-emerald-400 shadow-sm shadow-emerald-500/10'
-                  : 'bg-slate-800/50 border-slate-700/40 text-slate-400 hover:text-white hover:border-slate-600'
+                  ? 'bg-emerald-50 dark:bg-emerald-500/15 border-emerald-200 dark:border-emerald-500/35 text-emerald-700 dark:text-emerald-400 shadow-sm shadow-emerald-500/10'
+                  : 'bg-white dark:bg-slate-800/50 border-slate-200 dark:border-slate-700/40 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800 hover:border-slate-300 dark:hover:border-slate-600 shadow-sm dark:shadow-none'
               }`}
             >
               {f.label}
               <span className={`text-[10px] font-bold px-1 py-0.5 rounded ${
-                filters.status === f.value ? 'text-emerald-400/70' : 'text-slate-600'
+                filters.status === f.value ? 'text-emerald-600/70 dark:text-emerald-400/70' : 'text-slate-500 dark:text-slate-600'
               }`}>
                 {count}
               </span>
@@ -340,7 +340,7 @@ export default function CampaignTable({ campaigns, isLoading, onRefresh, onCreat
 
       {/* ── Platform Filter Pills (expanded) ── */}
       {showFilters && (
-        <div className="flex flex-wrap gap-2 mb-4 p-3 bg-slate-900/40 border border-slate-800/40 rounded-xl animate-slide-down">
+        <div className="flex flex-wrap gap-2 mb-4 p-3 bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-800/40 rounded-xl animate-slide-down shadow-sm dark:shadow-none">
           {uniquePlatforms.length > 0 ? (
             <div className="flex items-center gap-1.5 flex-wrap w-full">
               <span className="text-xs text-slate-500 font-medium mr-1">Platform:</span>
@@ -348,8 +348,8 @@ export default function CampaignTable({ campaigns, isLoading, onRefresh, onCreat
                 onClick={() => setFilters(f => ({ ...f, platform: '' }))}
                 className={`px-2.5 py-1 rounded-lg text-xs font-medium border transition-all ${
                   !filters.platform
-                    ? 'bg-emerald-500/15 border-emerald-500/30 text-emerald-400'
-                    : 'bg-slate-800/60 border-slate-700/40 text-slate-400 hover:text-white'
+                    ? 'bg-emerald-50 dark:bg-emerald-500/15 border-emerald-200 dark:border-emerald-500/30 text-emerald-700 dark:text-emerald-400 shadow-sm'
+                    : 'bg-white dark:bg-slate-800/60 border-slate-200 dark:border-slate-700/40 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50'
                 }`}
               >
                 All Platforms
@@ -360,8 +360,8 @@ export default function CampaignTable({ campaigns, isLoading, onRefresh, onCreat
                   onClick={() => setFilters(f => ({ ...f, platform: f.platform === p ? '' : p }))}
                   className={`px-2.5 py-1 rounded-lg text-xs font-medium border transition-all ${
                     filters.platform === p
-                      ? 'bg-emerald-500/15 border-emerald-500/30 text-emerald-400'
-                      : 'bg-slate-800/60 border-slate-700/40 text-slate-400 hover:text-white'
+                      ? 'bg-emerald-50 dark:bg-emerald-500/15 border-emerald-200 dark:border-emerald-500/30 text-emerald-700 dark:text-emerald-400 shadow-sm'
+                      : 'bg-white dark:bg-slate-800/60 border-slate-200 dark:border-slate-700/40 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50'
                   }`}
                 >
                   {p}
@@ -411,10 +411,10 @@ export default function CampaignTable({ campaigns, isLoading, onRefresh, onCreat
 
       {/* ── Table ── */}
       {(isLoading || filtered.length > 0) && (
-        <div className="overflow-x-auto rounded-xl border border-slate-800/50">
+        <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800/50 shadow-sm dark:shadow-none bg-white dark:bg-transparent">
           <table className="w-full text-sm min-w-[680px]">
             <thead>
-              <tr className="border-b border-slate-800/60 bg-slate-900/60">
+              <tr className="border-b border-slate-200 dark:border-slate-800/60 bg-slate-50 dark:bg-slate-900/60">
                 {([
                   { key: 'influencer_name', label: 'Influencer' },
                   { key: 'platform',        label: 'Platform' },
@@ -433,12 +433,12 @@ export default function CampaignTable({ campaigns, isLoading, onRefresh, onCreat
                     </div>
                   </th>
                 ))}
-                <th className="px-4 py-3 text-left text-[11px] font-bold text-slate-500 uppercase tracking-wider w-36">
+                <th className="px-4 py-3 text-left text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider w-36">
                   Actions
                 </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-800/40">
+            <tbody className="divide-y divide-slate-100 dark:divide-slate-800/40">
               {isLoading
                 ? Array.from({ length: 5 }).map((_, i) => <SkeletonRow key={i} />)
                 : filtered.map(c => {
@@ -449,7 +449,7 @@ export default function CampaignTable({ campaigns, isLoading, onRefresh, onCreat
                       <tr
                         key={c.id}
                         className={`
-                          hover:bg-slate-800/20 transition-colors group relative
+                          hover:bg-slate-50 dark:hover:bg-slate-800/20 transition-colors group relative
                           ${deletingId === c.id ? 'opacity-30 pointer-events-none' : ''}
                           ${updatingId === c.id ? 'opacity-60' : ''}
                         `}
@@ -461,9 +461,9 @@ export default function CampaignTable({ campaigns, isLoading, onRefresh, onCreat
                               <span className="text-xs font-bold text-emerald-400">{initial}</span>
                             </div>
                             <div className="min-w-0">
-                              <p className="font-semibold text-white truncate max-w-[140px]">
+                              <p className="font-semibold text-slate-900 dark:text-white truncate max-w-[140px]">
                                 {c.influencer_name || (
-                                  <span className="text-slate-500 italic font-normal text-xs">No name</span>
+                                  <span className="text-slate-400 dark:text-slate-500 italic font-normal text-xs">No name</span>
                                 )}
                               </p>
                               <p className="text-xs text-slate-500 truncate max-w-[140px] font-mono">{c.influencer_handle || 'No handle'}</p>
@@ -479,15 +479,15 @@ export default function CampaignTable({ campaigns, isLoading, onRefresh, onCreat
                         {/* Deadline */}
                         <td className="px-4 py-3.5">
                           {c.deadline ? (
-                            <div className={`flex items-center gap-1.5 ${overdue ? 'text-rose-400' : 'text-slate-300'}`}>
+                            <div className={`flex items-center gap-1.5 ${overdue ? 'text-rose-600 dark:text-rose-400' : 'text-slate-700 dark:text-slate-300'}`}>
                               {overdue
                                 ? <AlertCircle className="w-3.5 h-3.5 flex-shrink-0 animate-pulse" />
-                                : <Calendar className="w-3.5 h-3.5 text-slate-500 flex-shrink-0" />}
+                                : <Calendar className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500 flex-shrink-0" />}
                               <span className="text-sm whitespace-nowrap">
                                 {new Date(c.deadline).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
                               </span>
                               {overdue && (
-                                <span className="text-[10px] font-bold text-rose-400 bg-rose-500/10 border border-rose-500/20 px-1.5 py-0.5 rounded-md whitespace-nowrap">
+                                <span className="text-[10px] font-bold text-rose-700 dark:text-rose-400 bg-rose-50 dark:bg-rose-500/10 border border-rose-200 dark:border-rose-500/20 px-1.5 py-0.5 rounded-md whitespace-nowrap">
                                   Overdue
                                 </span>
                               )}
@@ -500,11 +500,11 @@ export default function CampaignTable({ campaigns, isLoading, onRefresh, onCreat
                         {/* Payment */}
                         <td className="px-4 py-3.5">
                           {(c.payment_amount || 0) > 0 ? (
-                            <span className="font-bold text-white">
+                            <span className="font-bold text-slate-900 dark:text-white">
                               ₹{(c.payment_amount || 0).toLocaleString('en-IN')}
                             </span>
                           ) : (
-                            <span className="text-xs text-emerald-400 font-semibold bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-md">
+                            <span className="text-xs text-emerald-700 dark:text-emerald-400 font-semibold bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/20 px-2 py-0.5 rounded-md">
                               Gifted 🎁
                             </span>
                           )}
@@ -587,7 +587,7 @@ export default function CampaignTable({ campaigns, isLoading, onRefresh, onCreat
                               value={(c.status as string === 'completed') ? 'paid' : c.status}
                               disabled={updatingId === c.id}
                               onChange={e => handleStatusChange(c.id, e.target.value as CampaignStatus)}
-                              className="bg-slate-800/80 border border-slate-700/50 text-slate-300 text-xs rounded-lg px-2 py-1.5 focus:outline-none focus:border-emerald-500/40 disabled:opacity-50 cursor-pointer hover:border-slate-600 transition-colors max-w-[96px]"
+                              className="bg-white dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/50 text-slate-700 dark:text-slate-300 text-xs rounded-lg px-2 py-1.5 focus:outline-none focus:border-emerald-500/40 disabled:opacity-50 cursor-pointer hover:border-slate-300 dark:hover:border-slate-600 transition-colors max-w-[96px] shadow-sm dark:shadow-none"
                             >
                               <option value="draft">Draft</option>
                               <option value="active">Active</option>

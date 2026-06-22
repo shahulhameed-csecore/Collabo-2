@@ -40,8 +40,8 @@ function NavLink({
         group flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium
         transition-all duration-200 select-none relative overflow-hidden
         ${isActive
-          ? 'bg-emerald-500/12 text-emerald-600 dark:text-emerald-400 border border-emerald-500/25 shadow-sm shadow-emerald-500/10'
-          : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800/70 border border-transparent'}
+          ? 'bg-white dark:bg-emerald-500/12 text-slate-900 dark:text-emerald-400 border border-slate-200 dark:border-emerald-500/25 shadow-sm dark:shadow-emerald-500/10'
+          : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200/50 dark:hover:bg-slate-800/70 border border-transparent'}
         ${disabled ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'}
       `}
     >
@@ -205,7 +205,7 @@ export default function DashboardLayout({ children, onNewCampaign }: DashboardLa
 
       {/* User Profile */}
       <div className="px-3 pb-4 border-t border-slate-200 dark:border-slate-800/50 pt-3">
-        <div className="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800/40 mb-2 border border-slate-200 dark:border-slate-700/25 hover:border-slate-300 dark:hover:border-slate-600/40 transition-all">
+        <div className="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-white dark:bg-slate-800/40 mb-2 border border-slate-200 dark:border-slate-700/25 hover:border-slate-300 dark:hover:border-slate-600/40 transition-all shadow-sm dark:shadow-none">
           <div className="w-8 h-8 rounded-full bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center flex-shrink-0 shadow-md shadow-emerald-500/20 ring-2 ring-emerald-500/20">
             <span className="text-xs font-bold text-white">{userInitials}</span>
           </div>
@@ -229,7 +229,7 @@ export default function DashboardLayout({ children, onNewCampaign }: DashboardLa
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex">
       {/* Desktop Sidebar */}
-      <aside className="hidden lg:flex w-60 bg-white/95 dark:bg-slate-900/95 border-r border-slate-200 dark:border-slate-800/50 flex-col flex-shrink-0 fixed h-full z-20 backdrop-blur-xl">
+      <aside className="hidden lg:flex w-60 bg-slate-50 dark:bg-slate-900/95 border-r border-slate-200 dark:border-slate-800/50 flex-col flex-shrink-0 fixed h-full z-20 backdrop-blur-xl">
         <SidebarContent />
       </aside>
 
@@ -240,7 +240,7 @@ export default function DashboardLayout({ children, onNewCampaign }: DashboardLa
             className="absolute inset-0 bg-slate-900/40 dark:bg-black/70 backdrop-blur-sm"
             onClick={() => setSidebarOpen(false)}
           />
-          <aside className="absolute left-0 top-0 bottom-0 w-72 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800/60 flex flex-col z-50 animate-slide-up shadow-2xl shadow-slate-900/10">
+          <aside className="absolute left-0 top-0 bottom-0 w-72 bg-slate-50 dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800/60 flex flex-col z-50 animate-slide-up shadow-2xl shadow-slate-900/5 dark:shadow-slate-900/50">
             <button
               onClick={() => setSidebarOpen(false)}
               className="absolute right-4 top-4 p-1.5 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-all"
@@ -255,7 +255,7 @@ export default function DashboardLayout({ children, onNewCampaign }: DashboardLa
       {/* Main Content */}
       <div className="flex-1 flex flex-col lg:ml-60 min-w-0">
         {/* Top Header */}
-        <header className="sticky top-0 z-10 h-14 bg-white/90 dark:bg-slate-950/90 backdrop-blur-xl border-b border-slate-200 dark:border-slate-800/40 flex items-center justify-between px-4 lg:px-6">
+        <header className="sticky top-0 z-10 h-14 bg-white/80 dark:bg-slate-950/90 backdrop-blur-xl border-b border-slate-200 dark:border-slate-800/40 flex items-center justify-between px-4 lg:px-6">
           {/* Mobile menu button */}
           <button
             onClick={() => setSidebarOpen(true)}

@@ -440,12 +440,12 @@ export default function DashboardPage() {
         {/* Sidebar Widgets */}
         <div className="space-y-4">
           {/* Upcoming Deadlines */}
-          <div className="bg-slate-900/40 border border-slate-800/50 rounded-2xl overflow-hidden">
-            <div className="flex items-center gap-2 px-4 py-3.5 border-b border-slate-800/40">
-              <Clock className="w-4 h-4 text-amber-400" />
-              <h3 className="text-sm font-bold text-white">Upcoming Deadlines</h3>
+          <div className="bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-800/50 rounded-2xl overflow-hidden shadow-sm">
+            <div className="flex items-center gap-2 px-4 py-3.5 border-b border-slate-100 dark:border-slate-800/40">
+              <Clock className="w-4 h-4 text-amber-500 dark:text-amber-400" />
+              <h3 className="text-sm font-bold text-slate-900 dark:text-white">Upcoming Deadlines</h3>
               {stats && stats.upcomingDeadlines.length > 0 && (
-                <span className="ml-auto text-xs font-bold bg-amber-500/10 text-amber-400 border border-amber-500/20 px-2 py-0.5 rounded-md">
+                <span className="ml-auto text-xs font-bold bg-amber-50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-500/20 px-2 py-0.5 rounded-md">
                   {stats.upcomingDeadlines.length}
                 </span>
               )}
@@ -467,11 +467,11 @@ export default function DashboardPage() {
                 ))
               ) : (
                 <div className="flex flex-col items-center py-10 text-center">
-                  <div className="p-3 bg-slate-800/40 rounded-xl mb-3 border border-slate-700/30">
-                    <Calendar className="w-6 h-6 text-slate-600" />
+                  <div className="p-3 bg-slate-50 dark:bg-slate-800/40 rounded-xl mb-3 border border-slate-100 dark:border-slate-700/30">
+                    <Calendar className="w-6 h-6 text-slate-400" />
                   </div>
-                  <p className="text-sm text-slate-500 font-semibold">No deadlines this week</p>
-                  <p className="text-xs text-slate-600 mt-0.5">You're all clear 🎉</p>
+                  <p className="text-sm text-slate-600 dark:text-slate-500 font-semibold">No deadlines this week</p>
+                  <p className="text-xs text-slate-500 dark:text-slate-600 mt-0.5">You're all clear 🎉</p>
                 </div>
               )}
             </div>
@@ -479,10 +479,10 @@ export default function DashboardPage() {
 
           {/* Performance Card */}
           {!isLoading && stats && stats.total > 0 && (
-            <div className="bg-slate-900/40 border border-slate-800/50 rounded-2xl overflow-hidden">
-              <div className="flex items-center gap-2 px-4 py-3.5 border-b border-slate-800/40">
-                <BarChart2 className="w-4 h-4 text-blue-400" />
-                <h3 className="text-sm font-bold text-white">Performance</h3>
+            <div className="bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-800/50 rounded-2xl overflow-hidden shadow-sm">
+              <div className="flex items-center gap-2 px-4 py-3.5 border-b border-slate-100 dark:border-slate-800/40">
+                <BarChart2 className="w-4 h-4 text-blue-500 dark:text-blue-400" />
+                <h3 className="text-sm font-bold text-slate-900 dark:text-white">Performance</h3>
               </div>
               <div className="p-4 space-y-4">
                 {/* Success Rate */}
@@ -490,13 +490,13 @@ export default function DashboardPage() {
                   <div className="flex justify-between items-center mb-2">
                     <span className="text-xs text-slate-500 font-medium">Success Rate</span>
                     <span className={`text-sm font-extrabold ${
-                      stats.successRate >= 70 ? 'text-emerald-400'
-                      : stats.successRate >= 40 ? 'text-amber-400'
-                      : 'text-rose-400'}`}>
+                      stats.successRate >= 70 ? 'text-emerald-600 dark:text-emerald-400'
+                      : stats.successRate >= 40 ? 'text-amber-600 dark:text-amber-400'
+                      : 'text-rose-600 dark:text-rose-400'}`}>
                       {stats.successRate}%
                     </span>
                   </div>
-                  <div className="h-2 bg-slate-800 rounded-full overflow-hidden">
+                  <div className="h-2 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
                     <div
                       className={`h-full rounded-full transition-all duration-700 ease-out ${
                         stats.successRate >= 70 ? 'bg-gradient-to-r from-emerald-500 to-teal-400'
@@ -510,17 +510,17 @@ export default function DashboardPage() {
                 {/* Status Breakdown */}
                 <div className="grid grid-cols-2 gap-2">
                   {[
-                    { label: 'Draft',     value: campaigns.filter(c => c.status === 'draft').length,     color: 'text-amber-400',   dot: 'bg-amber-400' },
-                    { label: 'Active',    value: stats.active,                                            color: 'text-emerald-400', dot: 'bg-emerald-400' },
-                    { label: 'In Review', value: campaigns.filter(c => c.status === 'content_received').length, color: 'text-purple-400', dot: 'bg-purple-400' },
-                    { label: 'Approved',  value: campaigns.filter(c => c.status === 'approved').length, color: 'text-blue-400', dot: 'bg-blue-400' },
-                    { label: 'Paid',      value: stats.completed,                                         color: 'text-slate-400',   dot: 'bg-slate-400' },
-                    { label: 'Cancelled', value: stats.cancelled,                                         color: 'text-rose-400',    dot: 'bg-rose-400' },
+                    { label: 'Draft',     value: campaigns.filter(c => c.status === 'draft').length,     color: 'text-amber-600 dark:text-amber-400',   dot: 'bg-amber-400' },
+                    { label: 'Active',    value: stats.active,                                            color: 'text-emerald-600 dark:text-emerald-400', dot: 'bg-emerald-400' },
+                    { label: 'In Review', value: campaigns.filter(c => c.status === 'content_received').length, color: 'text-purple-600 dark:text-purple-400', dot: 'bg-purple-400' },
+                    { label: 'Approved',  value: campaigns.filter(c => c.status === 'approved').length, color: 'text-blue-600 dark:text-blue-400', dot: 'bg-blue-400' },
+                    { label: 'Paid',      value: stats.completed,                                         color: 'text-slate-600 dark:text-slate-400',   dot: 'bg-slate-400' },
+                    { label: 'Cancelled', value: stats.cancelled,                                         color: 'text-rose-600 dark:text-rose-400',    dot: 'bg-rose-400' },
                   ].map(({ label, value, color, dot }) => (
-                    <div key={label} className="flex items-center justify-between p-2.5 bg-slate-800/30 rounded-xl border border-slate-700/20">
+                    <div key={label} className="flex items-center justify-between p-2.5 bg-slate-50 dark:bg-slate-800/30 rounded-xl border border-slate-100 dark:border-slate-700/20">
                       <div className="flex items-center gap-1.5">
                         <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${dot}`} />
-                        <span className="text-xs text-slate-500">{label}</span>
+                        <span className="text-xs text-slate-500 dark:text-slate-500">{label}</span>
                       </div>
                       <span className={`text-sm font-extrabold ${color}`}>{value}</span>
                     </div>
@@ -529,12 +529,12 @@ export default function DashboardPage() {
 
                 {/* Average payment */}
                 {stats.avgPayment > 0 && (
-                  <div className="flex items-center justify-between p-3 bg-amber-500/5 border border-amber-500/15 rounded-xl">
+                  <div className="flex items-center justify-between p-3 bg-amber-50 dark:bg-amber-500/5 border border-amber-100 dark:border-amber-500/15 rounded-xl">
                     <div className="flex items-center gap-2">
-                      <DollarSign className="w-3.5 h-3.5 text-amber-400" />
-                      <span className="text-xs text-slate-500">Avg. Payment</span>
+                      <DollarSign className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
+                      <span className="text-xs text-slate-500 dark:text-slate-500">Avg. Payment</span>
                     </div>
-                    <span className="text-sm font-extrabold text-amber-400">
+                    <span className="text-sm font-extrabold text-amber-600 dark:text-amber-400">
                       ₹{stats.avgPayment.toLocaleString('en-IN')}
                     </span>
                   </div>
@@ -545,7 +545,7 @@ export default function DashboardPage() {
 
           {/* Tips card for new users */}
           {!isLoading && campaigns.length === 0 && (
-            <div className="bg-gradient-to-br from-slate-900/60 to-slate-800/40 border border-slate-700/40 rounded-2xl p-4">
+            <div className="bg-white dark:bg-gradient-to-br dark:from-slate-900/60 dark:to-slate-800/40 border border-slate-200 dark:border-slate-700/40 rounded-2xl p-4 shadow-sm">
               <h3 className="text-sm font-bold text-slate-900 dark:text-white mb-3">💡 Quick Tips</h3>
               <ul className="space-y-2.5">
                 {[
@@ -555,7 +555,7 @@ export default function DashboardPage() {
                   'Toggle "Launch immediately" to skip Draft and go Active',
                 ].map((tip, i) => (
                   <li key={i} className="flex items-start gap-2.5">
-                    <span className="w-4 h-4 rounded-full bg-emerald-500/15 border border-emerald-500/25 text-emerald-400 text-[10px] font-bold flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <span className="w-4 h-4 rounded-full bg-emerald-50 dark:bg-emerald-500/15 border border-emerald-100 dark:border-emerald-500/25 text-emerald-600 dark:text-emerald-400 text-[10px] font-bold flex items-center justify-center flex-shrink-0 mt-0.5">
                       {i + 1}
                     </span>
                     <span className="text-xs text-slate-400 leading-relaxed">{tip}</span>
