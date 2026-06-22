@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import Joyride, { CallBackProps, STATUS, Step } from 'react-joyride';
+import { Joyride, EventData, STATUS, Step } from 'react-joyride';
 import { useTheme } from 'next-themes';
 
 export default function OnboardingTour() {
@@ -16,7 +16,7 @@ export default function OnboardingTour() {
     }
   }, []);
 
-  const handleJoyrideCallback = (data: CallBackProps) => {
+  const handleJoyrideCallback = (data: EventData) => {
     const { status } = data;
     const finishedStatuses: string[] = [STATUS.FINISHED, STATUS.SKIPPED];
 
@@ -32,7 +32,7 @@ export default function OnboardingTour() {
       target: 'body',
       content: 'Welcome to Collabo! Let\'s take a quick tour to help you manage your micro-influencer campaigns effortlessly.',
       placement: 'center',
-      disableBeacon: true,
+      skipBeacon: true,
     },
     {
       target: '#new-campaign-header-btn',
@@ -66,18 +66,18 @@ export default function OnboardingTour() {
       run={run}
       continuous
       scrollToFirstStep
-      showProgress
-      showSkipButton
-      callback={handleJoyrideCallback}
+      onEvent={handleJoyrideCallback}
+      options={{
+        arrowColor: bgColor,
+        backgroundColor: bgColor,
+        overlayColor: 'rgba(0, 0, 0, 0.6)',
+        primaryColor: primaryColor,
+        textColor: textColor,
+        zIndex: 1000,
+        showProgress: true,
+        buttons: ['back', 'close', 'primary', 'skip'],
+      }}
       styles={{
-        options: {
-          arrowColor: bgColor,
-          backgroundColor: bgColor,
-          overlayColor: 'rgba(0, 0, 0, 0.6)',
-          primaryColor: primaryColor,
-          textColor: textColor,
-          zIndex: 1000,
-        },
         buttonClose: {
           display: 'none',
         },
@@ -85,7 +85,7 @@ export default function OnboardingTour() {
           color: resolvedTheme === 'dark' ? '#94a3b8' : '#64748b',
           fontSize: '14px',
         },
-        buttonNext: {
+        buttonPrimary: {
           backgroundColor: primaryColor,
           borderRadius: '8px',
           padding: '8px 16px',
