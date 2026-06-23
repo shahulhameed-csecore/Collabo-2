@@ -46,6 +46,9 @@ export default function LandingPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           <Logo variant="full" size={32} href="/" />
           <div className="flex items-center gap-4">
+            <Link href="/pricing" className="text-sm font-medium text-slate-300 hover:text-white transition-colors hidden sm:block">
+              Pricing
+            </Link>
             <Link href="/login" className="text-sm font-medium text-slate-300 hover:text-white transition-colors hidden sm:block">
               Log in
             </Link>
@@ -337,7 +340,7 @@ export default function LandingPage() {
                 <ArrowRight className="ml-2 w-4 h-4 group-hover:translate-x-1 transition-transform" />
               </Link>
             </div>
-            <p className="mt-8 text-sm text-slate-400">14-day free trial • ₹599/month after • Cancel anytime</p>
+            <p className="mt-8 text-sm text-slate-400">14-day free trial • ₹299/month after • Cancel anytime</p>
           </div>
         </section>
       </main>
