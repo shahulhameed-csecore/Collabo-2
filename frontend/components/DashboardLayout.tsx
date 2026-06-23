@@ -7,12 +7,17 @@ import type { User } from '@supabase/supabase-js';
 import {
   Zap, LayoutDashboard, BarChart3, Settings,
   LogOut, Menu, X, ChevronRight, Bell, Plus,
-  Sparkles, TrendingUp, Sun, Moon
+  Sparkles, TrendingUp, Sun, Moon, Clock
 } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import Link from 'next/link';
 import { toast } from 'sonner';
 import { Logo } from '@/components/Logo';
+
+interface Subscription {
+  tier: string;
+  trial_ends_at: string | null;
+}
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -62,6 +67,7 @@ function NavLink({
 
 export default function DashboardLayout({ children, onNewCampaign }: DashboardLayoutProps) {
   const [user, setUser] = useState<User | null>(null);
+  const [subscription, setSubscription] = useState<Subscription | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [mounted, setMounted] = useState(false);
@@ -80,6 +86,18 @@ export default function DashboardLayout({ children, onNewCampaign }: DashboardLa
         return;
       }
       setUser(user);
+
+      // Fetch subscription
+      const { data: subData } = await supabase
+        .from('subscriptions')
+        .select('tier, trial_ends_at')
+        .eq('user_id', user.id)
+        .single();
+        
+      if (subData) {
+        setSubscription(subData);
+      }
+
       setLoading(false);
     };
     getUser();
@@ -126,11 +144,24 @@ export default function DashboardLayout({ children, onNewCampaign }: DashboardLa
   const userInitials = user?.email?.slice(0, 2).toUpperCase() ?? 'IT';
   const userName = user?.email?.split('@')[0] ?? 'there';
   
-  // Safe greeting calculation without hydration error
   const getGreeting = () => {
     const hour = new Date().getHours();
     return hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
   };
+
+  const getTrialDaysLeft = () => {
+    if (!subscription?.trial_ends_at) return null;
+    const endDate = new Date(subscription.trial_ends_at);
+    const now = new Date();
+    const diffTime = endDate.getTime() - now.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    return diffDays > 0 ? diffDays : 0;
+  };
+
+  const trialDaysLeft = getTrialDaysLeft();
+  // Compute effective tier
+  const isPro = subscription?.tier === 'pro' || (trialDaysLeft !== null && trialDaysLeft > 0);
+  const displayTier = isPro ? 'PRO PLAN' : 'FREE PLAN';
 
   const SidebarContent = () => (
     <div className="flex flex-col h-full">
@@ -138,8 +169,14 @@ export default function DashboardLayout({ children, onNewCampaign }: DashboardLa
       <div className="flex items-center gap-3 px-5 py-5 border-b border-slate-200 dark:border-slate-800/50">
         <Logo variant="full" size={24} href="/dashboard" />
         <div className="flex items-center gap-1 ml-auto">
-          <Sparkles className="w-2.5 h-2.5 text-emerald-500 dark:text-emerald-400" />
-          <p className="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold tracking-wide">PRO PLAN</p>
+          {isPro ? (
+             <Sparkles className="w-2.5 h-2.5 text-emerald-500 dark:text-emerald-400" />
+          ) : (
+             <Zap className="w-2.5 h-2.5 text-slate-500 dark:text-slate-400" />
+          )}
+          <p className={`text-[10px] font-semibold tracking-wide ${isPro ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-500 dark:text-slate-400'}`}>
+            {displayTier}
+          </p>
         </div>
       </div>
 
@@ -280,6 +317,19 @@ export default function DashboardLayout({ children, onNewCampaign }: DashboardLa
 
           {/* Right side actions */}
           <div className="flex items-center gap-2">
+            {trialDaysLeft !== null && trialDaysLeft > 0 && (
+              <Link href="/pricing" className="hidden sm:flex items-center gap-1.5 bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-400 hover:text-amber-500 text-xs font-semibold rounded-lg px-3 py-1.5 transition-all">
+                <Clock className="w-3.5 h-3.5" />
+                {trialDaysLeft} days left in trial
+              </Link>
+            )}
+            {subscription && trialDaysLeft === 0 && subscription.tier === 'free' && (
+               <Link href="/pricing" className="hidden sm:flex items-center gap-1.5 bg-rose-500/10 border border-rose-500/20 text-rose-600 dark:text-rose-400 hover:text-rose-500 text-xs font-semibold rounded-lg px-3 py-1.5 transition-all">
+                <Zap className="w-3.5 h-3.5" />
+                Upgrade to Pro
+               </Link>
+            )}
+
             {/* New Campaign quick access on desktop */}
             {onNewCampaign && (
               <button

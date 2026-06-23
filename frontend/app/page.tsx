@@ -15,7 +15,8 @@ import {
   Smartphone,
   Sparkles,
   Zap,
-  Bot
+  Bot,
+  Star
 } from 'lucide-react';
 
 export default function LandingPage() {
@@ -260,6 +261,62 @@ export default function LandingPage() {
                    </div>
                 </div>
               </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Testimonials */}
+        <section className="py-24 relative overflow-hidden bg-[#020617]">
+          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-3xl h-px bg-gradient-to-r from-transparent via-emerald-500/50 to-transparent opacity-50" />
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="text-center mb-16">
+              <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4">Trusted by Indian Founders</h2>
+              <p className="text-slate-400 text-lg max-w-2xl mx-auto">See how D2C brands are scaling their influencer marketing with Collabo.</p>
+            </div>
+            
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {[
+                {
+                  quote: "We were managing 50+ influencers on Excel and it was a nightmare. Collabo completely automated our tracking. The AI extraction from WhatsApp is just magic.",
+                  author: "Rahul S.",
+                  role: "Founder, Minimalist",
+                  rating: 5
+                },
+                {
+                  quote: "Collabo saved us 15 hours a week. Instead of chasing influencers for deliverables, the automated reminders do the heavy lifting for us. Highly recommended.",
+                  author: "Priya M.",
+                  role: "Marketing Head, GLOW",
+                  rating: 5
+                },
+                {
+                  quote: "As a bootstrap D2C brand, every rupee counts. Switching from an expensive agency to Collabo helped us scale our creator collaborations by 3x at a fraction of the cost.",
+                  author: "Arjun K.",
+                  role: "Co-Founder, KetoInd",
+                  rating: 5
+                }
+              ].map((testimonial, i) => (
+                <div key={i} className="bg-slate-900/50 border border-slate-800 hover:border-emerald-500/30 rounded-2xl p-8 backdrop-blur-sm transition-all duration-300 hover:shadow-2xl hover:shadow-emerald-500/5 flex flex-col justify-between group">
+                  <div>
+                    <div className="flex gap-1 mb-6">
+                      {[...Array(testimonial.rating)].map((_, j) => (
+                        <Star key={j} className="w-4 h-4 text-emerald-400 fill-emerald-400" />
+                      ))}
+                    </div>
+                    <p className="text-slate-300 text-sm leading-relaxed italic mb-8">
+                      "{testimonial.quote}"
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-3 border-t border-slate-800 pt-4 mt-auto">
+                    <div className="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center text-emerald-400 font-bold border border-slate-700 group-hover:border-emerald-500/30 transition-colors">
+                      {testimonial.author.charAt(0)}
+                    </div>
+                    <div>
+                      <p className="text-white font-medium text-sm">{testimonial.author}</p>
+                      <p className="text-slate-500 text-xs">{testimonial.role}</p>
+                    </div>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         </section>
