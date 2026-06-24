@@ -103,22 +103,23 @@ async def process_whatsapp_message(sender_id: str, message: dict):
 
         # 3. Lookup user by WhatsApp number
         clean_number = "".join(filter(str.isdigit, sender_id))
+        
+        # Generate possible variations of the number
+        possible_numbers = [clean_number]
+        # If it looks like it has a country code (e.g. 11-13 digits)
+        if len(clean_number) > 10:
+            # Fallback to last 10 digits
+            possible_numbers.append(clean_number[-10:])
+        # If it is exactly 10 digits, maybe they stored it with 91 prefix
+        elif len(clean_number) == 10:
+            possible_numbers.append("91" + clean_number)
+            
         user_response = (
             supabase_admin.table("user_settings")
             .select("user_id")
-            .eq("whatsapp_number", clean_number)
+            .in_("whatsapp_number", possible_numbers)
             .execute()
         )
-
-        # Fallback: strip leading country code 91 and try bare 10-digit number
-        if not user_response.data and clean_number.startswith("91") and len(clean_number) == 12:
-            fallback_number = clean_number[2:]
-            user_response = (
-                supabase_admin.table("user_settings")
-                .select("user_id")
-                .eq("whatsapp_number", fallback_number)
-                .execute()
-            )
 
         if not user_response.data:
             unlinked_msg = (

@@ -36,7 +36,7 @@ async def extract_details(request: Request, file: UploadFile = File(...), user=D
     contents = await file.read(MAX_DOC_SIZE + 1)
     file_size = len(contents)
     
-    is_image = ext in {".png", ".jpg", ".jpeg"} or content_type.startswith("image/")
+    is_image = ext in {".png", ".jpg", ".jpeg", ".heic", ".heif"} or content_type.startswith("image/")
     is_pdf = ext == ".pdf" or content_type == "application/pdf"
     is_docx = ext == ".docx"
     is_text = ext == ".txt" or content_type.startswith("text/")
@@ -45,6 +45,9 @@ async def extract_details(request: Request, file: UploadFile = File(...), user=D
         raise HTTPException(status_code=413, detail="Image size exceeds the 5MB limit")
     if file_size > MAX_DOC_SIZE:
         raise HTTPException(status_code=413, detail="Document size exceeds the 10MB limit")
+            
+    # Protect against decompression bombs
+    Image.MAX_IMAGE_PIXELS = 100_000_000
             
     try:
         extracted_data = None

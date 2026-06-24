@@ -86,9 +86,11 @@ async def upload_proof(
     if campaign["status"] != "active":
         raise HTTPException(status_code=400, detail="Campaign is not active. Proof cannot be uploaded.")
 
-    # 2. File Size Validation
-    content = await file.read()
+    # 2. File Size Validation & OOM Prevention
+    content = await file.read(MAX_VIDEO_SIZE + 1)
     file_size = len(content)
+    if file_size > MAX_VIDEO_SIZE:
+        raise HTTPException(status_code=413, detail="File size exceeds the 50MB limit.")
 
     # 3. Magic Number Validation
     file_mime = magic.from_buffer(content, mime=True)

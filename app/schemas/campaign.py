@@ -68,10 +68,12 @@ class CampaignBase(BaseModel):
     @classmethod
     def sanitize_strings(cls, v):
         if isinstance(v, str):
-            # Basic HTML tag stripping to mitigate XSS
-            v = __import__('re').sub(r'<[^>]*>', '', v)
+            import html
+            import re
+            # Safely encode HTML entities to prevent XSS without destroying valid text like "1 < 2"
+            v = html.escape(v, quote=True)
             # Remove javascript:/data: protocol handlers
-            v = __import__('re').sub(r'(javascript:|data:)', '', v, flags=__import__('re').IGNORECASE)
+            v = re.sub(r'(javascript:|data:)', '', v, flags=re.IGNORECASE)
             return v.strip()
         return v
 

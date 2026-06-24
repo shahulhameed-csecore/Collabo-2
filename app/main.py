@@ -78,6 +78,9 @@ _executors = {"default": AsyncIOExecutor()}
 scheduler = AsyncIOScheduler(executors=_executors)
 
 
+# Store background tasks so they aren't garbage collected
+background_tasks = set()
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Start the background deadline checker on startup; stop on shutdown."""
@@ -114,9 +117,10 @@ async def lifespan(app: FastAPI):
     scheduler.start()
 
     # Fire immediately so the first check isn't delayed by a full hour after deploy.
-    # create_task() is correct here — we're inside an async context with a
-    # running event loop. ensure_future() also works but is slightly lower-level.
-    asyncio.create_task(check_deadlines_job())
+    # We must hold a reference to the task so the garbage collector doesn't cancel it mid-run.
+    task = asyncio.create_task(check_deadlines_job())
+    background_tasks.add(task)
+    task.add_done_callback(background_tasks.discard)
 
     job = scheduler.get_job("deadlines_job")
     logger.info(
@@ -267,11 +271,14 @@ async def trigger_reminders_now(request: Request):
         )
 
     provided = request.headers.get("X-Internal-Secret", "")
-    if provided != internal_secret:
+    import secrets
+    if not secrets.compare_digest(provided, internal_secret):
         raise HTTPException(status_code=403, detail="Invalid secret.")
 
     logger.info("reminders.manual_trigger", source="POST /internal/trigger-reminders")
-    asyncio.create_task(check_deadlines_job())
+    task = asyncio.create_task(check_deadlines_job())
+    background_tasks.add(task)
+    task.add_done_callback(background_tasks.discard)
     return {"message": "Reminder job triggered. Check Render logs for results."}
 
 
