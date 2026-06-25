@@ -4,30 +4,37 @@ import { useState, useEffect } from 'react';
 import DashboardLayout from '@/components/DashboardLayout';
 import { Campaign } from '@/lib/types';
 import api from '@/lib/api';
+import { getBillingUsage, BillingUsage } from '@/lib/api';
 import { toast } from 'sonner';
-import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Clock, CheckCircle2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Clock, CheckCircle2, Lock, Sparkles } from 'lucide-react';
+import Link from 'next/link';
 import EditCampaignModal from '@/components/EditCampaignModal';
 
 export default function CalendarPage() {
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
+  const [usage, setUsage] = useState<BillingUsage | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedCampaign, setSelectedCampaign] = useState<Campaign | null>(null);
 
-  const fetchCampaigns = async () => {
+  const fetchData = async () => {
     try {
       setIsLoading(true);
-      const res = await api.get<Campaign[]>('/campaigns/');
-      setCampaigns(res.data);
+      const [campRes, usageRes] = await Promise.all([
+        api.get<Campaign[]>('/campaigns/'),
+        getBillingUsage()
+      ]);
+      setCampaigns(campRes.data);
+      setUsage(usageRes);
     } catch (err) {
-      toast.error('Failed to fetch campaigns for calendar');
+      toast.error('Failed to load calendar data');
     } finally {
       setIsLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchCampaigns();
+    fetchData();
   }, []);
 
   const handlePrevMonth = () => {
@@ -55,6 +62,31 @@ export default function CalendarPage() {
     paid: 'bg-slate-100 text-slate-800 border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700',
     cancelled: 'bg-rose-100 text-rose-800 border-rose-200 dark:bg-rose-900/30 dark:text-rose-400 dark:border-rose-800',
   };
+  const isPro = usage?.current_plan === 'pro';
+
+  if (!isLoading && !isPro) {
+    return (
+      <DashboardLayout>
+        <div className="max-w-4xl mx-auto space-y-6 animate-fade-in py-10">
+          <div className="text-center">
+            <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-slate-900/50 border border-slate-800/60 shadow-xl mb-6">
+              <CalendarIcon className="w-8 h-8 text-emerald-500" />
+            </div>
+            <h1 className="text-3xl font-extrabold text-white mb-4">Unlock Content Calendar</h1>
+            <p className="text-slate-400 text-lg max-w-lg mx-auto mb-8">
+              Upgrade to the Pro tier to get a bird's-eye view of all your upcoming influencer deliverables and deadlines.
+            </p>
+            <Link
+              href="/pricing"
+              className="inline-flex items-center gap-2 bg-emerald-500 hover:bg-emerald-400 text-white px-6 py-3 rounded-xl font-bold shadow-lg shadow-emerald-500/25 transition-all hover:-translate-y-1"
+            >
+              <Sparkles className="w-5 h-5" /> Upgrade to Pro for ₹2,499/mo
+            </Link>
+          </div>
+        </div>
+      </DashboardLayout>
+    );
+  }
 
   return (
     <DashboardLayout>
