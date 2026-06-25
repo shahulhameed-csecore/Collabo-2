@@ -300,4 +300,50 @@ export function computeDashboardStats(campaigns: Campaign[]): DashboardStats {
   };
 }
 
+// ─── Phase 2: Bulk Actions, Influencers, Billing ──────────────────────────────
+
+export async function bulkUpdateStatus(campaign_ids: string[], status: CampaignStatus): Promise<void> {
+  await api.patch('/api/campaigns/bulk/status', { campaign_ids, status });
+}
+
+export async function bulkDeleteCampaigns(campaign_ids: string[]): Promise<void> {
+  await api.delete('/api/campaigns/bulk/delete', { data: { campaign_ids } });
+}
+
+export async function bulkRemindCampaigns(campaign_ids: string[]): Promise<void> {
+  await api.post('/api/campaigns/bulk/remind', { campaign_ids });
+}
+
+export interface InfluencerProfile {
+  handle: string;
+  name: string | null;
+  platform: string | null;
+  notes: string | null;
+  total_campaigns: number;
+  success_rate: number;
+  last_collaboration: string | null;
+}
+
+export async function getInfluencers(): Promise<InfluencerProfile[]> {
+  const res = await api.get<InfluencerProfile[]>('/api/influencers/');
+  return res.data;
+}
+
+export async function updateInfluencerProfile(handle: string, data: { name?: string, platform?: string, notes?: string }): Promise<InfluencerProfile> {
+  const res = await api.patch<InfluencerProfile>(`/api/influencers/${handle}`, data);
+  return res.data;
+}
+
+export interface BillingUsage {
+  current_plan: string;
+  trial_ends_at: string | null;
+  campaigns_this_month: number;
+  ai_extractions_used: number;
+}
+
+export async function getBillingUsage(): Promise<BillingUsage> {
+  const res = await api.get<BillingUsage>('/api/billing/usage');
+  return res.data;
+}
+
 export default api;

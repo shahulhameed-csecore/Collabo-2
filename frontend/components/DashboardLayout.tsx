@@ -7,7 +7,7 @@ import type { User } from '@supabase/supabase-js';
 import {
   Zap, LayoutDashboard, BarChart3, Settings,
   LogOut, Menu, X, ChevronRight, Bell, Plus,
-  Sparkles, TrendingUp, Sun, Moon, Clock
+  Sparkles, TrendingUp, Sun, Moon, Clock, Calendar, Users, CreditCard
 } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import Link from 'next/link';
@@ -26,8 +26,11 @@ interface DashboardLayoutProps {
 
 const navItems = [
   { href: '/dashboard', label: 'Campaigns', icon: LayoutDashboard },
+  { href: '/calendar', label: 'Calendar', icon: Calendar },
+  { href: '/influencers', label: 'Influencers', icon: Users },
   { href: '/dashboard/analytics', label: 'Analytics', icon: BarChart3, disabled: true, soon: true },
   { href: '/settings', label: 'Settings', icon: Settings },
+  { href: '/billing', label: 'Billing', icon: CreditCard },
 ];
 
 function NavLink({

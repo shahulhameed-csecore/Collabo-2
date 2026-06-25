@@ -2,12 +2,13 @@
 
 import { useState, useMemo } from 'react';
 import type { Campaign, CampaignStatus, FilterState } from '@/lib/types';
-import { updateCampaignStatus, deleteCampaign, getApiErrorMessage } from '@/lib/api';
+import { updateCampaignStatus, deleteCampaign, getApiErrorMessage, bulkUpdateStatus, bulkDeleteCampaigns, bulkRemindCampaigns } from '@/lib/api';
 import {
   ChevronUp, ChevronDown, Trash2,
   Calendar, DollarSign, AlertCircle, CheckCircle2,
   Clock, XCircle, Plus, Search, Filter,
-  Globe, X, Check, ExternalLink, Edit2, FileSpreadsheet, Database
+  Globe, X, Check, ExternalLink, Edit2, FileSpreadsheet, Database,
+  MessageCircle, Download, CheckSquare
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -88,6 +89,7 @@ function PlatformBadge({ platform }: { platform: string | null }) {
 function SkeletonRow() {
   return (
     <tr className="border-b border-slate-100 dark:border-slate-800/40">
+      <td className="px-4 py-4 w-10"><div className="skeleton w-4 h-4 rounded" /></td>
       {[75, 55, 65, 50, 55, 40].map((w, i) => (
         <td key={i} className="px-4 py-4">
           <div className="skeleton h-4 rounded-lg" style={{ width: `${w}%` }} />
@@ -152,6 +154,8 @@ export default function CampaignTable({ campaigns, isLoading, onRefresh, onCreat
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [showFilters, setShowFilters] = useState(false);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [isBulkActioning, setIsBulkActioning] = useState(false);
 
   const handleSort = (key: keyof Campaign) => {
     if (sortKey === key) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
@@ -182,6 +186,88 @@ export default function CampaignTable({ campaigns, isLoading, onRefresh, onCreat
   }, [campaigns, filters, sortKey, sortDir]);
 
   const hasFilters = filters.search !== '' || filters.status !== 'all' || filters.platform !== '';
+
+  const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.checked) setSelectedIds(filtered.map(c => c.id));
+    else setSelectedIds([]);
+  };
+
+  const handleSelectOne = (id: string) => {
+    setSelectedIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+  };
+
+  const handleBulkStatus = async (status: CampaignStatus) => {
+    if (!selectedIds.length) return;
+    setIsBulkActioning(true);
+    try {
+      await bulkUpdateStatus(selectedIds, status);
+      toast.success(`Marked ${selectedIds.length} campaigns as ${STATUS_CONFIG[status].label}`);
+      setSelectedIds([]);
+      onRefresh();
+    } catch (err) {
+      toast.error(getApiErrorMessage(err, 'Failed to update status'));
+    } finally {
+      setIsBulkActioning(false);
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (!selectedIds.length) return;
+    if (!window.confirm(`Delete ${selectedIds.length} campaigns? This cannot be undone.`)) return;
+    setIsBulkActioning(true);
+    try {
+      await bulkDeleteCampaigns(selectedIds);
+      toast.success(`Deleted ${selectedIds.length} campaigns`);
+      setSelectedIds([]);
+      onRefresh();
+    } catch (err) {
+      toast.error(getApiErrorMessage(err, 'Failed to delete campaigns'));
+    } finally {
+      setIsBulkActioning(false);
+    }
+  };
+
+  const handleBulkRemind = async () => {
+    if (!selectedIds.length) return;
+    setIsBulkActioning(true);
+    try {
+      await bulkRemindCampaigns(selectedIds);
+      toast.success(`Sent reminders for ${selectedIds.length} campaigns`);
+      setSelectedIds([]);
+    } catch (err) {
+      toast.error(getApiErrorMessage(err, 'Failed to send reminders'));
+    } finally {
+      setIsBulkActioning(false);
+    }
+  };
+
+  const handleBulkExport = () => {
+    if (!selectedIds.length) return;
+    const toExport = filtered.filter(c => selectedIds.includes(c.id));
+    const headers = ['Influencer Name', 'Handle', 'Platform', 'Deliverables', 'Deadline', 'Payment Amount', 'Status', 'Created At'];
+    const rows = toExport.map(c => [
+      `"${c.influencer_name || ''}"`,
+      `"${c.influencer_handle || ''}"`,
+      `"${c.platform || ''}"`,
+      `"${(c.deliverables || '').replace(/"/g, '""')}"`,
+      c.deadline || '',
+      c.payment_amount || 0,
+      c.status,
+      c.created_at
+    ]);
+
+    const csvContent = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `collabo_selected_${new Date().toISOString().split('T')[0]}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    toast.success('Selected campaigns exported successfully!');
+  };
 
   const handleStatusChange = async (id: string, status: CampaignStatus) => {
     setUpdatingId(id);
@@ -383,6 +469,50 @@ export default function CampaignTable({ campaigns, isLoading, onRefresh, onCreat
         </div>
       )}
 
+      {/* ── Bulk Actions Bar ── */}
+      {selectedIds.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2 mb-4 p-3 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded-xl shadow-sm animate-slide-down">
+          <span className="text-sm font-semibold text-emerald-800 dark:text-emerald-400 mr-2">
+            {selectedIds.length} selected
+          </span>
+          <button
+            onClick={() => handleBulkRemind()}
+            disabled={isBulkActioning}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-50 transition-colors disabled:opacity-50"
+          >
+            <MessageCircle className="w-3.5 h-3.5" /> Send Reminder
+          </button>
+          <button
+            onClick={() => handleBulkStatus('active')}
+            disabled={isBulkActioning}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-50 transition-colors disabled:opacity-50"
+          >
+            <CheckSquare className="w-3.5 h-3.5" /> Mark Active
+          </button>
+          <button
+            onClick={() => handleBulkStatus('paid')}
+            disabled={isBulkActioning}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-50 transition-colors disabled:opacity-50"
+          >
+            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" /> Mark Completed
+          </button>
+          <button
+            onClick={handleBulkExport}
+            disabled={isBulkActioning}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-50 transition-colors disabled:opacity-50"
+          >
+            <Download className="w-3.5 h-3.5" /> Export
+          </button>
+          <button
+            onClick={handleBulkDelete}
+            disabled={isBulkActioning}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-rose-50 dark:bg-rose-500/10 border border-rose-200 dark:border-rose-500/20 text-rose-700 dark:text-rose-400 hover:bg-rose-100 transition-colors disabled:opacity-50 ml-auto"
+          >
+            <Trash2 className="w-3.5 h-3.5" /> Delete
+          </button>
+        </div>
+      )}
+
       {/* ── Result count ── */}
       {!isLoading && campaigns.length > 0 && (
         <div className="flex items-center justify-between mb-3">
@@ -415,6 +545,14 @@ export default function CampaignTable({ campaigns, isLoading, onRefresh, onCreat
           <table className="w-full text-sm min-w-[680px]">
             <thead>
               <tr className="border-b border-slate-200 dark:border-slate-800/60 bg-slate-50 dark:bg-slate-900/60">
+                <th className="px-4 py-3 w-10 text-left">
+                  <input
+                    type="checkbox"
+                    checked={filtered.length > 0 && selectedIds.length === filtered.length}
+                    onChange={handleSelectAll}
+                    className="rounded border-slate-300 text-emerald-500 focus:ring-emerald-500/20 cursor-pointer"
+                  />
+                </th>
                 {([
                   { key: 'influencer_name', label: 'Influencer' },
                   { key: 'platform',        label: 'Platform' },
@@ -454,6 +592,16 @@ export default function CampaignTable({ campaigns, isLoading, onRefresh, onCreat
                           ${updatingId === c.id ? 'opacity-60' : ''}
                         `}
                       >
+                        {/* Checkbox */}
+                        <td className="px-4 py-3.5">
+                          <input
+                            type="checkbox"
+                            checked={selectedIds.includes(c.id)}
+                            onChange={() => handleSelectOne(c.id)}
+                            className="rounded border-slate-300 text-emerald-500 focus:ring-emerald-500/20 cursor-pointer"
+                          />
+                        </td>
+
                         {/* Influencer */}
                         <td className="px-4 py-3.5">
                           <div className="flex items-center gap-3">
