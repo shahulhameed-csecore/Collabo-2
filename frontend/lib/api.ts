@@ -11,7 +11,7 @@ import type {
 } from './types';
 
 // ─── Base URL Resolution ──────────────────────────────────────────────────────
-const PRODUCTION_API_URL = 'https://collabo-2.onrender.com';
+const PRODUCTION_API_URL = 'https://api.mycollabo.online';
 
 const baseURL =
   (process.env.NEXT_PUBLIC_API_URL ?? '').trim() || PRODUCTION_API_URL;
