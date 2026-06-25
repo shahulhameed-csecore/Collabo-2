@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { createClient } from '@/lib/supabase/client';
+import { createClient } from '@/lib/supabase';
 import {
   Mail, Lock, Eye, EyeOff, ArrowRight,
   Loader2, CheckCircle, XCircle, Check, X
