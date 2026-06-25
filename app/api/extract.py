@@ -10,7 +10,7 @@ import pathlib
 pillow_heif.register_heif_opener()
 from app.services.gemini import extract_campaign_details
 from app.schemas.campaign import ExtractionResult
-from app.api.dependencies import get_current_user
+from app.api.dependencies import get_current_user, get_user_supabase_client
 from app.core.limiter import limiter
 
 logger = logging.getLogger(__name__)
@@ -24,7 +24,7 @@ ALLOWED_EXTENSIONS = {".pdf", ".docx", ".txt", ".png", ".jpg", ".jpeg", ".heic",
 
 @router.post("/", response_model=ExtractionResult)
 @limiter.limit("10/minute")
-async def extract_details(request: Request, file: UploadFile = File(...), user=Depends(get_current_user)):
+async def extract_details(request: Request, file: UploadFile = File(...), user=Depends(get_current_user), client=Depends(get_user_supabase_client)):
     content_type = file.content_type or ""
     filename = file.filename or "unknown_file"
     ext = pathlib.Path(filename).suffix.lower()
@@ -108,6 +108,11 @@ async def extract_details(request: Request, file: UploadFile = File(...), user=D
         else:
             raise HTTPException(status_code=400, detail="Unsupported file format.")
             
+        if extracted_data:
+            try:
+                client.rpc("increment_ai_extractions", {"p_user_id": user.user.id}).execute()
+            except Exception as e:
+                logger.error("Failed to increment AI extractions", error=str(e))
         return extracted_data
 
     except ValueError as e:

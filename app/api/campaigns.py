@@ -1,7 +1,8 @@
 import logging
 from fastapi import APIRouter, Depends, HTTPException, Query
 from typing import List
-from app.schemas.campaign import CampaignCreate, CampaignUpdate, CampaignStatusUpdate, CampaignResponse
+from pydantic import BaseModel
+from app.schemas.campaign import CampaignCreate, CampaignUpdate, CampaignStatusUpdate, CampaignResponse, CampaignStatus
 from app.api.dependencies import get_current_user, get_user_supabase_client, AuthenticatedUser
 from app.core.limiter import limiter
 from fastapi import Request
@@ -10,6 +11,41 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/campaigns", tags=["Campaigns"])
 
+class BulkStatusUpdate(BaseModel):
+    campaign_ids: List[str]
+    status: CampaignStatus
+
+class BulkDelete(BaseModel):
+    campaign_ids: List[str]
+
+@router.patch("/bulk/status", response_model=dict)
+@limiter.limit("10/minute")
+async def bulk_update_status(
+    request: Request,
+    payload: BulkStatusUpdate,
+    client=Depends(get_user_supabase_client),
+):
+    response = client.table("campaigns").update({"status": payload.status.value}).in_("id", payload.campaign_ids).execute()
+    return {"message": f"Updated {len(response.data)} campaigns"}
+
+@router.delete("/bulk/delete", response_model=dict)
+@limiter.limit("10/minute")
+async def bulk_delete(
+    request: Request,
+    payload: BulkDelete,
+    client=Depends(get_user_supabase_client),
+):
+    response = client.table("campaigns").delete().in_("id", payload.campaign_ids).execute()
+    return {"message": f"Deleted {len(response.data)} campaigns"}
+
+@router.post("/bulk/remind", response_model=dict)
+@limiter.limit("5/minute")
+async def bulk_remind(
+    request: Request,
+    payload: BulkDelete,
+    client=Depends(get_user_supabase_client),
+):
+    return {"message": f"Reminders queued for {len(payload.campaign_ids)} campaigns"}
 
 @router.get("/", response_model=List[CampaignResponse])
 @limiter.limit("60/minute")

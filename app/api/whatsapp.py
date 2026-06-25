@@ -201,6 +201,11 @@ async def process_whatsapp_message(sender_id: str, message: dict):
         # 5. Process with Gemini AI
         await send_whatsapp_message(sender_id, "Collabo Assistant 🤖\n\nProcessing your campaign details... ✨")
         extracted_data = extract_campaign_details(content_for_gemini, filename="whatsapp_input")
+        if extracted_data:
+            try:
+                supabase_admin.rpc("increment_ai_extractions", {"p_user_id": user_id}).execute()
+            except Exception as e:
+                logger.error("Failed to increment AI count via whatsapp webhook", error=str(e))
 
         if extracted_data.get("requires_human_review"):
             await send_whatsapp_message(
