@@ -193,20 +193,27 @@ export async function extractFromFile(file: File): Promise<ExtractedData> {
   // Use native fetch for multipart — bypasses Axios global JSON Content-Type header
   // Fall back to PRODUCTION_API_URL (not localhost) if env var is missing
   const apiUrl = (process.env.NEXT_PUBLIC_API_URL ?? '').trim() || PRODUCTION_API_URL;
-  const res = await fetch(`${apiUrl}/extract/`, {
-    method: 'POST',
-    body: formData,
-    headers: {
-      ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {})
+  try {
+    const res = await fetch(`${apiUrl}/campaigns/ai-parse/`, {
+      method: 'POST',
+      body: formData,
+      headers: {
+        ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {})
+      }
+    });
+
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => null);
+      throw new Error(errorData?.detail || 'AI extraction failed.');
     }
-  });
 
-  if (!res.ok) {
-    const errorData = await res.json().catch(() => null);
-    throw new Error(errorData?.detail || 'AI extraction failed.');
+    return await res.json();
+  } catch (err: any) {
+    if (err.message === 'Failed to fetch' || err.message === 'NetworkError when attempting to fetch resource.') {
+      throw new Error('Network error. Please disable your ad-blocker or wait 60s for the server to wake up.');
+    }
+    throw err;
   }
-
-  return res.json();
 }
 
 // ─── Settings API Calls ─────────────────────────────────────────────────────────
