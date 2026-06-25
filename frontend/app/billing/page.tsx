@@ -33,9 +33,9 @@ export default function BillingPage() {
     return Math.max(0, Math.ceil(diff / (1000 * 3600 * 24)));
   };
 
-  const daysLeft = usage ? calculateDaysLeft(usage.trial_ends_at) : 0;
-  const isTrialActive = daysLeft > 0;
-  const isPro = usage?.current_plan === 'pro';
+  const daysLeft = 0;
+  const isTrialActive = false;
+  const isPro = true;
 
   return (
     <DashboardLayout>
@@ -48,11 +48,6 @@ export default function BillingPage() {
             </h1>
             <p className="text-slate-500 mt-1">Manage your plan, billing details, and current usage.</p>
           </div>
-          
-          <Link href="/pricing" className="inline-flex items-center gap-2 bg-slate-900 dark:bg-white text-white dark:text-slate-900 px-5 py-2.5 rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all hover:-translate-y-0.5">
-            <Sparkles className="w-4 h-4 text-emerald-400 dark:text-emerald-600" />
-            Upgrade to Pro
-          </Link>
         </div>
 
         {/* Current Usage Overview */}
@@ -64,41 +59,33 @@ export default function BillingPage() {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="bg-white dark:bg-slate-900/60 p-6 rounded-2xl border border-slate-200 dark:border-slate-800/60 shadow-sm relative overflow-hidden group">
+            <div className="bg-white dark:bg-slate-900/60 p-6 rounded-2xl border border-slate-200 dark:border-slate-800/60 shadow-sm relative overflow-hidden group md:col-span-1">
               <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/5 rounded-full blur-3xl group-hover:bg-emerald-500/10 transition-colors" />
               <div className="flex items-center justify-between mb-4">
-                <h3 className="font-semibold text-slate-700 dark:text-slate-300">Current Plan</h3>
-                {isPro || isTrialActive ? (
-                  <span className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 px-2.5 py-1 rounded-md text-xs font-bold uppercase tracking-wider">
-                    PRO
-                  </span>
-                ) : (
-                  <span className="bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-400 px-2.5 py-1 rounded-md text-xs font-bold uppercase tracking-wider">
-                    FREE
-                  </span>
-                )}
+                <h3 className="font-semibold text-slate-700 dark:text-slate-300">Account Status</h3>
+                <span className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 px-2.5 py-1 rounded-md text-xs font-bold uppercase tracking-wider">
+                  FULL ACCESS
+                </span>
               </div>
-              <p className="text-3xl font-bold text-slate-900 dark:text-white mb-2">
-                {isPro ? '₹2,499' : '₹0'}<span className="text-sm font-normal text-slate-500"> / month</span>
+              <p className="text-2xl font-bold text-slate-900 dark:text-white mb-2">
+                Test Mode
               </p>
-              {isTrialActive && (
-                <div className="flex items-center gap-1.5 text-sm font-medium text-amber-600 dark:text-amber-500">
-                  <AlertCircle className="w-4 h-4" />
-                  {daysLeft} days left in Trial
-                </div>
-              )}
+              <div className="flex items-center gap-1.5 text-sm font-medium text-emerald-600 dark:text-emerald-500">
+                <Check className="w-4 h-4" />
+                All features unlocked
+              </div>
             </div>
 
             <div className="bg-white dark:bg-slate-900/60 p-6 rounded-2xl border border-slate-200 dark:border-slate-800/60 shadow-sm">
-              <h3 className="font-semibold text-slate-700 dark:text-slate-300 mb-4">Campaigns This Month</h3>
+              <h3 className="font-semibold text-slate-700 dark:text-slate-300 mb-4">Campaigns Tracked</h3>
               <div className="flex items-end gap-3">
                 <p className="text-4xl font-bold text-slate-900 dark:text-white">{usage?.campaigns_this_month || 0}</p>
-                <p className="text-sm text-slate-500 mb-1">/ {isPro || isTrialActive ? 'Unlimited' : '5'}</p>
+                <p className="text-sm text-slate-500 mb-1">/ Unlimited</p>
               </div>
               <div className="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-2 mt-4 overflow-hidden">
                 <div 
-                  className={`h-full rounded-full transition-all duration-1000 ${(!isPro && !isTrialActive && (usage?.campaigns_this_month || 0) >= 5) ? 'bg-rose-500' : 'bg-emerald-500'}`}
-                  style={{ width: isPro || isTrialActive ? '15%' : `${Math.min(((usage?.campaigns_this_month || 0) / 5) * 100, 100)}%` }}
+                  className={`h-full rounded-full transition-all duration-1000 bg-emerald-500`}
+                  style={{ width: '15%' }}
                 />
               </div>
             </div>

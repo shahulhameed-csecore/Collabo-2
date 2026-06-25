@@ -13,31 +13,7 @@ export default function AnalyticsPage() {
     getBillingUsage().then(setUsage).catch(() => {});
   }, []);
 
-  const isPro = usage?.current_plan === 'pro';
-
-  if (!isPro) {
-    return (
-      <DashboardLayout>
-        <div className="max-w-4xl mx-auto space-y-6 animate-fade-in py-10">
-          <div className="text-center">
-            <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-slate-900/50 border border-slate-800/60 shadow-xl mb-6">
-              <Lock className="w-8 h-8 text-emerald-500" />
-            </div>
-            <h1 className="text-3xl font-extrabold text-white mb-4">Unlock Premium Analytics</h1>
-            <p className="text-slate-400 text-lg max-w-lg mx-auto mb-8">
-              Upgrade to the Pro tier to access deep insights, influencer ROI tracking, and custom reports.
-            </p>
-            <Link
-              href="/pricing"
-              className="inline-flex items-center gap-2 bg-emerald-500 hover:bg-emerald-400 text-white px-6 py-3 rounded-xl font-bold shadow-lg shadow-emerald-500/25 transition-all hover:-translate-y-1"
-            >
-              <Sparkles className="w-5 h-5" /> Upgrade to Pro for ₹2,499/mo
-            </Link>
-          </div>
-        </div>
-      </DashboardLayout>
-    );
-  }
+  const isPro = true;
 
   return (
     <DashboardLayout>

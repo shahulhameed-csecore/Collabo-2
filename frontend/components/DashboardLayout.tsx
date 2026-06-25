@@ -166,19 +166,10 @@ export default function DashboardLayout({ children, onNewCampaign }: DashboardLa
     return hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
   };
 
-  const getTrialDaysLeft = () => {
-    if (!subscription?.trial_ends_at) return null;
-    const endDate = new Date(subscription.trial_ends_at);
-    const now = new Date();
-    const diffTime = endDate.getTime() - now.getTime();
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    return diffDays > 0 ? diffDays : 0;
-  };
-
-  const trialDaysLeft = getTrialDaysLeft();
+  const trialDaysLeft = null;
   // Compute effective tier
-  const isPro = subscription?.tier === 'pro' || (trialDaysLeft !== null && trialDaysLeft > 0);
-  const displayTier = isPro ? 'PRO PLAN' : 'FREE PLAN';
+  const isPro = true;
+  const displayTier = 'FULL ACCESS';
 
   const SidebarContent = () => (
     <div className="flex flex-col h-full">
@@ -334,18 +325,6 @@ export default function DashboardLayout({ children, onNewCampaign }: DashboardLa
 
           {/* Right side actions */}
           <div className="flex items-center gap-2">
-            {trialDaysLeft !== null && trialDaysLeft > 0 && (
-              <Link href="/pricing" className="hidden sm:flex items-center gap-1.5 bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-400 hover:text-amber-500 text-xs font-semibold rounded-lg px-3 py-1.5 transition-all">
-                <Clock className="w-3.5 h-3.5" />
-                {trialDaysLeft} days left in trial
-              </Link>
-            )}
-            {subscription && trialDaysLeft === 0 && subscription.tier === 'free' && (
-               <Link href="/pricing" className="hidden sm:flex items-center gap-1.5 bg-rose-500/10 border border-rose-500/20 text-rose-600 dark:text-rose-400 hover:text-rose-500 text-xs font-semibold rounded-lg px-3 py-1.5 transition-all">
-                <Zap className="w-3.5 h-3.5" />
-                Upgrade to Pro
-               </Link>
-            )}
 
             {/* New Campaign quick access on desktop */}
             {onNewCampaign && (
