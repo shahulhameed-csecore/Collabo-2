@@ -12,10 +12,13 @@ router = APIRouter(prefix="/settings", tags=["Settings"])
 _PHONE_RE = re.compile(r"^\d{8,15}$")
 
 
+from typing import Optional
+
 class WhatsAppSettingsInput(BaseModel):
-    whatsapp_number: str
+    whatsapp_number: Optional[str] = None
     email_reminders_enabled: bool = True
     whatsapp_reminders_enabled: bool = True
+    username: Optional[str] = None
 
 
 @router.post("/whatsapp")
@@ -29,43 +32,54 @@ async def save_whatsapp_settings(
     """
     user_id = current_user.user.id
 
-    # Extract only digits
-    clean_number = "".join(filter(str.isdigit, input_data.whatsapp_number))
+    # Extract only digits for whatsapp_number if provided
+    clean_number = None
+    if input_data.whatsapp_number:
+        clean_number = "".join(filter(str.isdigit, input_data.whatsapp_number))
 
-    # Strip leading zero if 11 digits starting with 0 (common in India)
-    if len(clean_number) == 11 and clean_number.startswith("0"):
-        clean_number = clean_number[1:]
+        # Strip leading zero if 11 digits starting with 0 (common in India)
+        if len(clean_number) == 11 and clean_number.startswith("0"):
+            clean_number = clean_number[1:]
 
-    # Auto-prepend India country code if exactly 10 digits
-    if len(clean_number) == 10:
-        clean_number = "91" + clean_number
+        # Auto-prepend India country code if exactly 10 digits
+        if len(clean_number) == 10:
+            clean_number = "91" + clean_number
 
-    # Validate against E.164 range: 8–15 digits after cleanup
-    if not _PHONE_RE.match(clean_number):
-        raise HTTPException(
-            status_code=400,
-            detail="Invalid phone number. Please provide a valid number with country code (8–15 digits).",
-        )
+        # Validate against E.164 range: 8–15 digits after cleanup
+        if not _PHONE_RE.match(clean_number):
+            raise HTTPException(
+                status_code=400,
+                detail="Invalid phone number. Please provide a valid number with country code (8–15 digits).",
+            )
 
     try:
-        client.table("user_settings").upsert(
-            {
-                "user_id": user_id,
-                "whatsapp_number": clean_number,
-                "email_reminders_enabled": input_data.email_reminders_enabled,
-                "whatsapp_reminders_enabled": input_data.whatsapp_reminders_enabled,
-            }
-        ).execute()
+        payload = {
+            "user_id": user_id,
+            "email_reminders_enabled": input_data.email_reminders_enabled,
+            "whatsapp_reminders_enabled": input_data.whatsapp_reminders_enabled,
+        }
+        if clean_number is not None:
+            payload["whatsapp_number"] = clean_number
+        if input_data.username is not None:
+            payload["username"] = input_data.username
+
+        client.table("user_settings").upsert(payload).execute()
 
         return {
             "message": "Settings saved successfully",
             "whatsapp_number": clean_number,
             "email_reminders_enabled": input_data.email_reminders_enabled,
             "whatsapp_reminders_enabled": input_data.whatsapp_reminders_enabled,
+            "username": input_data.username,
         }
     except Exception as e:
         error_str = str(e).lower()
         if "unique constraint" in error_str or "duplicate key" in error_str:
+            if "username" in error_str:
+                raise HTTPException(
+                    status_code=400,
+                    detail="This username is already taken. Please choose another one.",
+                )
             raise HTTPException(
                 status_code=400,
                 detail="This WhatsApp number is already linked to another account.",
@@ -89,7 +103,7 @@ async def get_whatsapp_settings(
     try:
         response = (
             client.table("user_settings")
-            .select("whatsapp_number, email_reminders_enabled, whatsapp_reminders_enabled")
+            .select("whatsapp_number, email_reminders_enabled, whatsapp_reminders_enabled, username")
             .eq("user_id", user_id)
             .execute()
         )
@@ -99,6 +113,7 @@ async def get_whatsapp_settings(
             "whatsapp_number": None,
             "email_reminders_enabled": True,
             "whatsapp_reminders_enabled": True,
+            "username": None,
         }
     except Exception as e:
         logger.error("Failed to fetch user settings", user_id=user_id, error=type(e).__name__)
