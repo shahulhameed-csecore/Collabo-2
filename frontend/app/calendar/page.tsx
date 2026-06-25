@@ -18,19 +18,23 @@ export default function CalendarPage() {
   const [selectedCampaign, setSelectedCampaign] = useState<Campaign | null>(null);
 
   const fetchData = async () => {
+    setIsLoading(true);
+    
     try {
-      setIsLoading(true);
-      const [campRes, usageRes] = await Promise.all([
-        api.get<Campaign[]>('/campaigns/'),
-        getBillingUsage()
-      ]);
+      const campRes = await api.get<Campaign[]>('/campaigns/');
       setCampaigns(campRes.data);
+    } catch (err) {
+      toast.error('Failed to load campaigns');
+    }
+
+    try {
+      const usageRes = await getBillingUsage();
       setUsage(usageRes);
     } catch (err) {
-      toast.error('Failed to load calendar data');
-    } finally {
-      setIsLoading(false);
+      // Non-fatal error, silently ignore or log
     }
+
+    setIsLoading(false);
   };
 
   useEffect(() => {

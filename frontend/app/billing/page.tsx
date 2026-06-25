@@ -17,7 +17,7 @@ export default function BillingPage() {
         const data = await getBillingUsage();
         setUsage(data);
       } catch (err) {
-        toast.error('Failed to load billing usage');
+        // Silently handle backend failure by falling back to null state
       } finally {
         setIsLoading(false);
       }

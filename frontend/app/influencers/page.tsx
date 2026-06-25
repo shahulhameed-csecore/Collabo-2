@@ -92,12 +92,28 @@ export default function InfluencersPage() {
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800/40">
                 {isLoading ? (
-                  <tr>
-                    <td colSpan={5} className="px-6 py-8 text-center text-slate-500">Loading influencers...</td>
-                  </tr>
+                  [1, 2, 3].map(i => (
+                    <tr key={i}>
+                      <td className="px-6 py-4"><div className="h-10 w-48 bg-slate-100 dark:bg-slate-800/50 rounded-lg animate-pulse" /></td>
+                      <td className="px-6 py-4"><div className="h-6 w-24 bg-slate-100 dark:bg-slate-800/50 rounded-md animate-pulse" /></td>
+                      <td className="px-6 py-4"><div className="h-6 w-12 bg-slate-100 dark:bg-slate-800/50 rounded-md animate-pulse" /></td>
+                      <td className="px-6 py-4"><div className="h-6 w-16 bg-slate-100 dark:bg-slate-800/50 rounded-md animate-pulse" /></td>
+                      <td className="px-6 py-4"><div className="h-6 w-24 bg-slate-100 dark:bg-slate-800/50 rounded-md animate-pulse" /></td>
+                    </tr>
+                  ))
                 ) : filtered.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="px-6 py-8 text-center text-slate-500">No influencers found.</td>
+                    <td colSpan={5} className="px-6 py-16 text-center">
+                      <div className="flex flex-col items-center justify-center">
+                        <div className="w-16 h-16 bg-emerald-50 dark:bg-emerald-900/20 rounded-full flex items-center justify-center mb-4">
+                          <Users className="w-8 h-8 text-emerald-500" />
+                        </div>
+                        <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-1">No influencers found</h3>
+                        <p className="text-slate-500 max-w-sm">
+                          When you add campaigns, influencers will automatically appear here for you to track and manage.
+                        </p>
+                      </div>
+                    </td>
                   </tr>
                 ) : (
                   filtered.map(inf => (
