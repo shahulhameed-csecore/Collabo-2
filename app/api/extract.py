@@ -15,7 +15,7 @@ from app.core.limiter import limiter
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/extract", tags=["Extract"])
+router = APIRouter(prefix="/campaigns/ai-parse", tags=["Extract"])
 
 MAX_IMAGE_SIZE = 5 * 1024 * 1024   # 5 MB
 MAX_DOC_SIZE = 10 * 1024 * 1024    # 10 MB

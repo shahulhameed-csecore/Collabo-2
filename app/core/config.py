@@ -6,7 +6,7 @@ class Settings(BaseSettings):
     SUPABASE_URL: str
     SUPABASE_ANON_KEY: str
     GEMINI_API_KEY: str
-    ALLOWED_ORIGINS: str = "https://collabo-2.vercel.app,http://localhost:3000,http://127.0.0.1:3000,https://mycollabo.online,http://mycollabo.online"
+    ALLOWED_ORIGINS: str = "https://collabo-2.vercel.app,http://localhost:3000,http://127.0.0.1:3000,https://mycollabo.online,http://mycollabo.online,https://www.mycollabo.online,http://www.mycollabo.online"
     SENTRY_DSN: Optional[str] = None
     
     # WhatsApp (Meta Cloud API) Integration
