@@ -303,15 +303,15 @@ export function computeDashboardStats(campaigns: Campaign[]): DashboardStats {
 // ─── Phase 2: Bulk Actions, Influencers, Billing ──────────────────────────────
 
 export async function bulkUpdateStatus(campaign_ids: string[], status: CampaignStatus): Promise<void> {
-  await api.patch('/api/campaigns/bulk/status', { campaign_ids, status });
+  await api.patch('/campaigns/bulk/status', { campaign_ids, status });
 }
 
 export async function bulkDeleteCampaigns(campaign_ids: string[]): Promise<void> {
-  await api.delete('/api/campaigns/bulk/delete', { data: { campaign_ids } });
+  await api.delete('/campaigns/bulk/delete', { data: { campaign_ids } });
 }
 
 export async function bulkRemindCampaigns(campaign_ids: string[]): Promise<void> {
-  await api.post('/api/campaigns/bulk/remind', { campaign_ids });
+  await api.post('/campaigns/bulk/remind', { campaign_ids });
 }
 
 export interface InfluencerProfile {
@@ -325,12 +325,12 @@ export interface InfluencerProfile {
 }
 
 export async function getInfluencers(): Promise<InfluencerProfile[]> {
-  const res = await api.get<InfluencerProfile[]>('/api/influencers/');
+  const res = await api.get<InfluencerProfile[]>('/influencers/');
   return res.data;
 }
 
 export async function updateInfluencerProfile(handle: string, data: { name?: string, platform?: string, notes?: string }): Promise<InfluencerProfile> {
-  const res = await api.patch<InfluencerProfile>(`/api/influencers/${handle}`, data);
+  const res = await api.patch<InfluencerProfile>(`/influencers/${handle}`, data);
   return res.data;
 }
 
@@ -342,7 +342,7 @@ export interface BillingUsage {
 }
 
 export async function getBillingUsage(): Promise<BillingUsage> {
-  const res = await api.get<BillingUsage>('/api/billing/usage');
+  const res = await api.get<BillingUsage>('/billing/usage');
   return res.data;
 }
 

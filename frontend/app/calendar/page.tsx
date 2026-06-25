@@ -17,7 +17,7 @@ export default function CalendarPage() {
   const fetchCampaigns = async () => {
     try {
       setIsLoading(true);
-      const res = await api.get<Campaign[]>('/api/campaigns/');
+      const res = await api.get<Campaign[]>('/campaigns/');
       setCampaigns(res.data);
     } catch (err) {
       toast.error('Failed to fetch campaigns for calendar');
