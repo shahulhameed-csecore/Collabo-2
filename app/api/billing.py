@@ -19,8 +19,11 @@ async def get_billing_usage(
     user: AuthenticatedUser = Depends(get_current_user),
 ):
     # Get subscription details
-    sub_response = client.table("subscriptions").select("*").eq("user_id", user.user.id).execute()
-    sub_data = sub_response.data[0] if sub_response.data else {}
+    try:
+        sub_response = client.table("subscriptions").select("*").eq("user_id", user.user.id).execute()
+        sub_data = sub_response.data[0] if sub_response.data else {}
+    except Exception:
+        sub_data = {}
     
     current_plan = sub_data.get("tier", "free")
     trial_ends_at = sub_data.get("trial_ends_at")
@@ -31,8 +34,11 @@ async def get_billing_usage(
     start_of_month = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0).isoformat()
     
     # Supabase select with count
-    campaigns_response = client.table("campaigns").select("id", count="exact").eq("user_id", user.user.id).gte("created_at", start_of_month).execute()
-    campaigns_this_month = campaigns_response.count if campaigns_response.count is not None else 0
+    try:
+        campaigns_response = client.table("campaigns").select("id", count="exact").eq("user_id", user.user.id).gte("created_at", start_of_month).execute()
+        campaigns_this_month = campaigns_response.count if campaigns_response.count is not None else 0
+    except Exception:
+        campaigns_this_month = 0
     
     # Parse trial string to datetime
     if isinstance(trial_ends_at, str):
