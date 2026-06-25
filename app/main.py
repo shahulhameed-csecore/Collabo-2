@@ -136,6 +136,7 @@ async def lifespan(app: FastAPI):
     logger.info("scheduler_stopped")
 
 
+
 # ─── FastAPI app ───────────────────────────────────────────────────────────────
 app = FastAPI(
     title="Collabo API",

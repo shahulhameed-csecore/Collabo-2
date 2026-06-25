@@ -132,9 +132,14 @@ def extract_campaign_details(content: Image.Image | str | dict | list, filename:
 
         # Clean response text robustly
         text = raw_text.strip()
-        text = re.sub(r"^```(?:json)?\s*\n", "", text)
-        text = re.sub(r"\n```\s*$", "", text)
-        text = text.strip()
+        match = re.search(r"(\{.*\})", text, re.DOTALL)
+        if match:
+            text = match.group(1)
+        else:
+            # Fallback if no brackets are found (unlikely with Gemini Schema, but safe)
+            text = re.sub(r"^```(?:json)?\s*\n", "", text)
+            text = re.sub(r"\n```\s*$", "", text)
+            text = text.strip()
 
         data = json.loads(text)
 
