@@ -71,6 +71,7 @@ function NavLink({
 export default function DashboardLayout({ children, onNewCampaign }: DashboardLayoutProps) {
   const [user, setUser] = useState<User | null>(null);
   const [subscription, setSubscription] = useState<Subscription | null>(null);
+  const [customUsername, setCustomUsername] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [mounted, setMounted] = useState(false);
@@ -99,6 +100,17 @@ export default function DashboardLayout({ children, onNewCampaign }: DashboardLa
         
       if (subData) {
         setSubscription(subData);
+      }
+
+      // Fetch username
+      const { data: settingsData } = await supabase
+        .from('user_settings')
+        .select('username')
+        .eq('user_id', user.id)
+        .single();
+        
+      if (settingsData?.username) {
+        setCustomUsername(settingsData.username);
       }
 
       setLoading(false);
@@ -144,8 +156,10 @@ export default function DashboardLayout({ children, onNewCampaign }: DashboardLa
     );
   }
 
-  const userInitials = user?.email?.slice(0, 2).toUpperCase() ?? 'IT';
-  const userName = user?.email?.split('@')[0] ?? 'there';
+  const userName = customUsername || user?.email?.split('@')[0] || 'there';
+  const userInitials = customUsername 
+    ? customUsername.slice(0, 2).toUpperCase() 
+    : (user?.email?.slice(0, 2).toUpperCase() ?? 'IT');
   
   const getGreeting = () => {
     const hour = new Date().getHours();

@@ -215,12 +215,14 @@ export interface UserSettings {
   whatsapp_number: string | null;
   email_reminders_enabled: boolean;
   whatsapp_reminders_enabled: boolean;
+  username: string | null;
 }
 
 export async function saveWhatsAppNumber(payload: { 
   whatsapp_number: string, 
   email_reminders_enabled: boolean, 
-  whatsapp_reminders_enabled: boolean 
+  whatsapp_reminders_enabled: boolean,
+  username?: string 
 }): Promise<{ message: string } & UserSettings> {
   const res = await api.post('/settings/whatsapp', payload);
   return res.data;

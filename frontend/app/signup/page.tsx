@@ -27,6 +27,7 @@ function getStrength(passed: number): { label: string; color: string; barColor: 
 
 export default function SignupPage() {
   const [email, setEmail]               = useState('');
+  const [username, setUsername]         = useState('');
   const [password, setPassword]         = useState('');
   const [confirmPassword, setConfirm]   = useState('');
   const [showPassword, setShowPass]     = useState(false);
@@ -43,7 +44,7 @@ export default function SignupPage() {
   const strength = getStrength(passedCount);
   const allPassed = passedCount === RULES.length;
   const passwordsMatch = password === confirmPassword;
-  const isFormValid = allPassed && passwordsMatch && email.length > 0;
+  const isFormValid = allPassed && passwordsMatch && email.length > 0 && username.length >= 3;
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -54,7 +55,13 @@ export default function SignupPage() {
       return;
     }
     setLoading(true);
-    const { error } = await supabase.auth.signUp({ email, password });
+    const { error } = await supabase.auth.signUp({ 
+      email, 
+      password,
+      options: {
+        data: { username }
+      }
+    });
     setLoading(false);
     if (error) {
       toast.error(error.message || 'Signup failed. Please try again.');
@@ -129,6 +136,22 @@ export default function SignupPage() {
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="you@brand.com"
                   className="w-full bg-slate-800/60 border border-slate-700/50 text-white placeholder-slate-500 rounded-xl pl-10 pr-4 py-3 text-sm focus:outline-none focus:border-emerald-500/70 focus:ring-1 focus:ring-emerald-500/30 transition-all"
+                />
+              </div>
+            </div>
+
+            {/* Username */}
+            <div>
+              <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Username</label>
+              <div className="relative">
+                <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500 font-medium">@</span>
+                <input
+                  type="text"
+                  required
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ''))}
+                  placeholder="username"
+                  className="w-full bg-slate-800/60 border border-slate-700/50 text-white placeholder-slate-500 rounded-xl pl-9 pr-4 py-3 text-sm focus:outline-none focus:border-emerald-500/70 focus:ring-1 focus:ring-emerald-500/30 transition-all"
                 />
               </div>
             </div>
