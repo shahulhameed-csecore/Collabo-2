@@ -96,7 +96,7 @@ export default function SignupPage() {
             </div>
             <h2 className="text-2xl font-bold text-white mb-2">Account created!</h2>
             <p className="text-slate-400 text-sm mb-6">
-              You can now log in with your credentials.
+              We've sent a confirmation link to your email address. Please verify your email before logging in.
             </p>
             <button
               onClick={() => router.push('/login')}

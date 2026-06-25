@@ -9,7 +9,7 @@ import { toast } from 'sonner';
 import { Logo } from '@/components/Logo';
 
 export default function LoginPage() {
-  const [email, setEmail] = useState('');
+  const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -19,7 +19,24 @@ export default function LoginPage() {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    
+    let loginEmail = identifier.trim();
+    
+    // If identifier doesn't look like an email, assume it's a username and resolve it
+    if (!loginEmail.includes('@')) {
+      const { data: resolvedEmail, error: rpcError } = await supabase.rpc('get_email_by_username', {
+        p_username: loginEmail
+      });
+      
+      if (rpcError || !resolvedEmail) {
+        toast.error('Invalid username or password.');
+        setLoading(false);
+        return;
+      }
+      loginEmail = resolvedEmail;
+    }
+
+    const { error } = await supabase.auth.signInWithPassword({ email: loginEmail, password });
     setLoading(false);
 
     if (error) {
@@ -59,17 +76,17 @@ export default function LoginPage() {
           <p className="text-slate-400 text-sm mb-8">Sign in to manage your campaigns</p>
 
           <form onSubmit={handleLogin} className="space-y-5">
-            {/* Email */}
+            {/* Identifier (Email or Username) */}
             <div>
-              <label className="block text-sm font-medium text-slate-300 mb-2">Email address</label>
+              <label className="block text-sm font-medium text-slate-300 mb-2">Email address or Username</label>
               <div className="relative">
                 <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
                 <input
-                  type="email"
+                  type="text"
                   required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="you@brand.com"
+                  value={identifier}
+                  onChange={(e) => setIdentifier(e.target.value)}
+                  placeholder="you@brand.com or @username"
                   className="w-full bg-slate-800/60 border border-slate-700/50 text-white placeholder-slate-500 rounded-xl pl-10 pr-4 py-3 text-sm focus:outline-none focus:border-emerald-500/70 focus:ring-1 focus:ring-emerald-500/30 transition-all"
                 />
               </div>
@@ -77,7 +94,12 @@ export default function LoginPage() {
 
             {/* Password */}
             <div>
-              <label className="block text-sm font-medium text-slate-300 mb-2">Password</label>
+              <div className="flex items-center justify-between mb-2">
+                <label className="block text-sm font-medium text-slate-300">Password</label>
+                <Link href="/forgot-password" className="text-xs font-medium text-emerald-400 hover:text-emerald-300 transition-colors">
+                  Forgot password?
+                </Link>
+              </div>
               <div className="relative">
                 <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
                 <input
