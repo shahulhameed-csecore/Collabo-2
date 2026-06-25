@@ -190,11 +190,8 @@ export async function extractFromFile(file: File): Promise<ExtractedData> {
   const formData = new FormData();
   formData.append('file', file);
 
-  // Use native fetch for multipart — bypasses Axios global JSON Content-Type header
-  // Fall back to PRODUCTION_API_URL (not localhost) if env var is missing
-  const apiUrl = (process.env.NEXT_PUBLIC_API_URL ?? '').trim() || PRODUCTION_API_URL;
   try {
-    const res = await fetch(`${apiUrl}/campaigns/ai-parse/`, {
+    const res = await fetch('/api/extract', {
       method: 'POST',
       body: formData,
       headers: {
@@ -210,7 +207,7 @@ export async function extractFromFile(file: File): Promise<ExtractedData> {
     return await res.json();
   } catch (err: any) {
     if (err.message === 'Failed to fetch' || err.message === 'NetworkError when attempting to fetch resource.') {
-      throw new Error('Network error. Please disable your ad-blocker or wait 60s for the server to wake up.');
+      throw new Error('Network error. Please check your internet connection.');
     }
     throw err;
   }
