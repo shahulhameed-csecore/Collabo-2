@@ -133,13 +133,17 @@ async def extract_campaign_data(file_bytes: bytes, filename: str, mime_type: str
                     types.Part.from_bytes(data=img_bytes, mime_type="image/jpeg")
                 )
                 has_images = True
-        elif mime_type.startswith("image/"):
-            compressed = compress_image(file_bytes)
-            # Ensure it's treated as JPEG if we compressed to JPEG
-            final_mime = "image/jpeg" if compressed != file_bytes else mime_type
-            contents.append(
-                types.Part.from_bytes(data=compressed, mime_type=final_mime)
-            )
+        elif mime_type.startswith("image/") or mime_type.startswith("audio/"):
+            if mime_type.startswith("image/"):
+                compressed = compress_image(file_bytes)
+                final_mime = "image/jpeg" if compressed != file_bytes else mime_type
+                contents.append(
+                    types.Part.from_bytes(data=compressed, mime_type=final_mime)
+                )
+            else:
+                contents.append(
+                    types.Part.from_bytes(data=file_bytes, mime_type=mime_type)
+                )
             has_images = True
         elif mime_type.startswith("text/") or filename.endswith(".txt"):
             text_fallback = file_bytes.decode('utf-8', errors='ignore')

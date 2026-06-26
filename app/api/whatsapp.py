@@ -6,7 +6,7 @@ from fastapi import APIRouter, Request, HTTPException, Response, BackgroundTasks
 from app.core.config import settings
 from app.core.limiter import limiter
 from supabase import create_client
-from app.services.gemini import extract_campaign_details
+from app.services.gemini import extract_campaign_data
 from app.services.whatsapp import send_whatsapp_message, download_whatsapp_media
 
 logger = logging.getLogger(__name__)
@@ -200,7 +200,25 @@ async def process_whatsapp_message(sender_id: str, message: dict):
 
         # 5. Process with Gemini AI
         await send_whatsapp_message(sender_id, "Collabo Assistant 🤖\n\nProcessing your campaign details... ✨")
-        extracted_data = extract_campaign_details(content_for_gemini, filename="whatsapp_input")
+        
+        file_bytes = b""
+        mime_type = "text/plain"
+        
+        if isinstance(content_for_gemini, str):
+            file_bytes = content_for_gemini.encode('utf-8')
+            mime_type = "text/plain"
+        elif isinstance(content_for_gemini, dict):
+            if "audio_bytes" in content_for_gemini:
+                file_bytes = content_for_gemini["audio_bytes"]
+                mime_type = content_for_gemini["mime_type"]
+            elif "image_bytes" in content_for_gemini:
+                file_bytes = content_for_gemini["image_bytes"]
+                mime_type = content_for_gemini["mime_type"]
+                # We append the caption as text if it exists
+                if content_for_gemini.get("caption"):
+                    file_bytes += b"\n" + content_for_gemini["caption"].encode('utf-8')
+                    
+        extracted_data = await extract_campaign_data(file_bytes=file_bytes, filename="whatsapp_input", mime_type=mime_type)
         if extracted_data:
             try:
                 supabase_admin.rpc("increment_ai_extractions", {"p_user_id": user_id}).execute()
