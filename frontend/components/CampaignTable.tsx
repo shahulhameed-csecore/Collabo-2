@@ -275,8 +275,14 @@ export default function CampaignTable({ campaigns, isLoading, onRefresh, onCreat
     setUpdatingId(id);
     setOpenMenuId(null);
     try {
+      const campaign = campaigns.find(c => c.id === id);
       await updateCampaignStatus(id, { status });
-      toast.success(`Marked as ${STATUS_CONFIG[status].label}!`);
+      
+      if (campaign?.status === 'rejected' && (status === 'active' || status === 'content_received')) {
+        toast.success('Re-opening campaign for resubmission');
+      } else {
+        toast.success(`Marked as ${STATUS_CONFIG[status].label}!`);
+      }
       onRefresh();
     } catch (err) {
       toast.error(getApiErrorMessage(err, 'Failed to update status.'));
