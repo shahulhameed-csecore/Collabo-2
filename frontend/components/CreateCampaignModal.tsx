@@ -31,13 +31,13 @@ const EMPTY_FORM: CampaignFormState = {
   status: 'draft',
 };
 
-// -- Step definitions ----------------------------------------------------------
+// ── Step definitions ──────────────────────────────────────────────────────────
 const STEPS = [
   { id: 'upload', label: 'Upload', desc: 'Screenshot or manual' },
   { id: 'review', label: 'Review', desc: 'Confirm details' },
 ] as const;
 
-// -- Form Field ----------------------------------------------------------------
+// ── Form Field ────────────────────────────────────────────────────────────────
 function Field({
   label, icon: Icon, required, highlight, children,
 }: {
@@ -53,7 +53,7 @@ function Field({
         <Icon className="w-3.5 h-3.5" />
         {label}
         {required && <span className="text-rose-400 font-bold">*</span>}
-        {highlight && <span className="text-amber-400/60 font-normal ml-1">� please fill</span>}
+        {highlight && <span className="text-amber-400/60 font-normal ml-1">- please fill</span>}
       </label>
       {children}
     </div>
@@ -67,7 +67,7 @@ const inputCls = (highlight = false) =>
      ? 'border-amber-500/40 focus:border-amber-500/60 focus:ring-amber-500/15'
      : 'border-slate-700/50 focus:border-emerald-500/50 focus:ring-emerald-500/15'}`;
 
-// -- AI Thinking dots animation ------------------------------------------------
+// ── AI Thinking dots animation ────────────────────────────────────────────────
 function AiThinkingAnimation() {
   return (
     <div className="flex flex-col items-center justify-center py-16 gap-6 animate-fade-in">
@@ -95,7 +95,7 @@ function AiThinkingAnimation() {
   );
 }
 
-// -- Main Component ------------------------------------------------------------
+// ── Main Component ────────────────────────────────────────────────────────────
 export default function CreateCampaignModal({ isOpen, onClose, onSuccess }: CreateCampaignModalProps) {
   const [step, setStep] = useState<Step>('upload');
   const [file, setFile] = useState<File | null>(null);
@@ -189,9 +189,9 @@ export default function CreateCampaignModal({ isOpen, onClose, onSuccess }: Crea
       });
       setStep('review');
       if (data.requires_human_review) {
-        toast.warning('Extraction needs review.', { icon: '??' });
+        toast.warning('Extraction needs review.', { icon: '⚠️' });
       } else {
-        toast.success('AI extraction complete!', { icon: '?' });
+        toast.success('AI extraction complete!', { icon: '✨' });
       }
     } catch (err: unknown) {
       const msg = getApiErrorMessage(err, 'AI extraction failed. You can enter details manually.');
@@ -242,7 +242,7 @@ export default function CreateCampaignModal({ isOpen, onClose, onSuccess }: Crea
         special_notes:     form.special_notes     || null,
         status:            markActive ? 'active' : form.status,
       });
-      toast.success('?? Campaign created successfully!');
+      toast.success('🎉 Campaign created successfully!');
       onSuccess();
       handleClose();
     } catch (err) {
@@ -276,7 +276,7 @@ export default function CreateCampaignModal({ isOpen, onClose, onSuccess }: Crea
 
       <div className="relative w-full sm:max-w-2xl bg-slate-900 border border-slate-700/50 rounded-t-2xl sm:rounded-2xl shadow-2xl shadow-black/60 overflow-hidden flex flex-col max-h-[95vh] animate-scale-in">
 
-        {/* -- Header ------------------------------------------------ */}
+        {/* ── Header ──────────────────────────────────────────────── */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-slate-800/60 flex-shrink-0">
           <div className="flex items-center gap-3">
             <div className="p-2 bg-gradient-to-br from-emerald-500/15 to-teal-500/10 rounded-xl border border-emerald-500/20">
@@ -330,10 +330,10 @@ export default function CreateCampaignModal({ isOpen, onClose, onSuccess }: Crea
           </button>
         </div>
 
-        {/* -- Content ----------------------------------------------- */}
+        {/* ── Content ─────────────────────────────────────────────── */}
         <div className="flex-1 overflow-y-auto">
 
-          {/* -- STEP 1: UPLOAD ------------------------------------- */}
+          {/* ── STEP 1: UPLOAD ───────────────────────────────────── */}
           {step === 'upload' && (
             <div className="p-5 space-y-4">
               <div className="flex items-center gap-3 p-3.5 bg-gradient-to-r from-emerald-500/8 to-teal-500/5 border border-emerald-500/15 rounded-xl">
@@ -401,7 +401,7 @@ export default function CreateCampaignModal({ isOpen, onClose, onSuccess }: Crea
                         </div>
                         <p className="text-white font-bold text-base mb-1">Drop your file or screenshot here</p>
                         <p className="text-slate-500 text-sm mb-4">or click to browse files</p>
-                        <p className="text-xs text-slate-600">PDF, DOCX, TXT, PNG, JPG, HEIC � Max 10 MB</p>
+                        <p className="text-xs text-slate-600">PDF, DOCX, TXT, PNG, JPG, HEIC · Max 10 MB</p>
                       </div>
                     )}
                   </div>
@@ -442,7 +442,7 @@ export default function CreateCampaignModal({ isOpen, onClose, onSuccess }: Crea
             </div>
           )}
 
-          {/* -- STEP 2: REVIEW FORM -------------------------------- */}
+          {/* ── STEP 2: REVIEW FORM ──────────────────────────────── */}
           {(step === 'review' || step === 'submitting') && (
             <form id="campaign-form" onSubmit={handleSubmit} className="p-5 space-y-4">
               {needsReview && (
@@ -530,9 +530,9 @@ export default function CreateCampaignModal({ isOpen, onClose, onSuccess }: Crea
                   />
                 </Field>
 
-                <Field label="Payment (? INR)" icon={DollarSign}>
+                <Field label="Payment (₹ INR)" icon={DollarSign}>
                   <div className="relative">
-                    <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500 text-sm font-semibold">?</span>
+                    <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500 text-sm font-semibold">₹</span>
                     <input
                       type="number"
                       min="0"
@@ -544,7 +544,7 @@ export default function CreateCampaignModal({ isOpen, onClose, onSuccess }: Crea
                     />
                   </div>
                   {form.payment_amount === '0' && (
-                    <p className="text-xs text-emerald-400/70 mt-1 ml-1">?0 = Gifted Deal ??</p>
+                    <p className="text-xs text-emerald-400/70 mt-1 ml-1">₹0 = Gifted Deal 🎁</p>
                   )}
                 </Field>
 
@@ -586,7 +586,7 @@ export default function CreateCampaignModal({ isOpen, onClose, onSuccess }: Crea
           )}
         </div>
 
-        {/* -- Footer ------------------------------------------------ */}
+        {/* ── Footer ──────────────────────────────────────────────── */}
         {(step === 'review' || step === 'submitting') && (
           <div className="border-t border-slate-800/60 bg-slate-900/95 px-5 py-4 flex-shrink-0">
             <div className={`flex items-center justify-between mb-4 p-3.5 rounded-xl border transition-all duration-200 ${
