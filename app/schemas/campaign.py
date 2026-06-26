@@ -74,12 +74,21 @@ class CampaignBase(BaseModel):
             v = html.escape(v, quote=True)
             # Remove javascript:/data: protocol handlers
             v = re.sub(r'(javascript:|data:)', '', v, flags=re.IGNORECASE)
-            return v.strip()
+            stripped = v.strip()
+            return stripped if stripped else None
+        return v
+
+    @field_validator('deadline', mode='before')
+    @classmethod
+    def clean_deadline(cls, v):
+        if isinstance(v, str) and not v.strip():
+            return None
         return v
 
 
 class CampaignCreate(CampaignBase):
     influencer_handle: str = Field(
+        min_length=1,
         max_length=255,
         description="The influencer's handle is strictly required to create a new campaign record."
     )

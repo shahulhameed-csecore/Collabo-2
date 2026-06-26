@@ -1,4 +1,4 @@
-import logging
+import structlog
 from fastapi import APIRouter, Depends, HTTPException, Query
 from typing import List
 from pydantic import BaseModel
@@ -7,7 +7,7 @@ from app.api.dependencies import get_current_user, get_user_supabase_client, Aut
 from app.core.limiter import limiter
 from fastapi import Request
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 router = APIRouter(prefix="/campaigns", tags=["Campaigns"])
 
@@ -78,7 +78,11 @@ async def create_campaign(
         raise
     except Exception as e:
         logger.error("Campaign creation failed", error=type(e).__name__, detail=str(e), user_id=user.user.id)
-        raise HTTPException(status_code=500, detail=f"Failed to create campaign: {str(e)}")
+        # If it's a database constraint violation, it's typically a bad request (e.g., missing handle, bad enum)
+        error_msg = str(e)
+        if "violates" in error_msg.lower() or "not-null" in error_msg.lower() or "foreign key" in error_msg.lower():
+            raise HTTPException(status_code=400, detail=f"Invalid campaign data: {error_msg}")
+        raise HTTPException(status_code=500, detail="Failed to create campaign. Please check the provided details.")
 
 
 @router.put("/{id}", response_model=CampaignResponse)

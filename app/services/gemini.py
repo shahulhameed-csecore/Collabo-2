@@ -156,6 +156,11 @@ async def extract_campaign_data(file_bytes: bytes, filename: str, mime_type: str
         try:
             # Stage 1: Attempt extraction with all contents (images + text)
             result = await _call_gemini(client, contents)
+            
+            # Post-process to ensure requires_human_review is true if critical fields are missing
+            if not result.influencer_handle or not result.deadline or not result.deliverables:
+                result.requires_human_review = True
+                
             return result.model_dump()
         except Exception as e:
             logger.warning("gemini_stage1_failed", error=str(e))
