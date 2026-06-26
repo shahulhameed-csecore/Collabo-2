@@ -28,7 +28,7 @@ if (process.env.NODE_ENV === 'development') {
 // ─── Axios Instance ───────────────────────────────────────────────────────────
 const api = axios.create({
   baseURL,
-  timeout: 60_000, // 60 seconds — generous for AI extraction
+  timeout: 120_000, // 120 seconds
   headers: { 'Content-Type': 'application/json' },
   withCredentials: true,
 });
@@ -190,10 +190,14 @@ export async function extractFromFile(file: File): Promise<ExtractedData> {
   const formData = new FormData();
   formData.append('file', file);
 
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 150_000); // 150s timeout
+
   try {
     const res = await fetch('/api/extract', {
       method: 'POST',
       body: formData,
+      signal: controller.signal,
       headers: {
         ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {})
       }
@@ -206,10 +210,15 @@ export async function extractFromFile(file: File): Promise<ExtractedData> {
 
     return await res.json();
   } catch (err: any) {
+    if (err.name === 'AbortError') {
+      throw new Error('Request timed out. The file might be too large or the AI is taking too long.');
+    }
     if (err.message === 'Failed to fetch' || err.message === 'NetworkError when attempting to fetch resource.') {
       throw new Error('Network error. Please check your internet connection.');
     }
     throw err;
+  } finally {
+    clearTimeout(timeoutId);
   }
 }
 
