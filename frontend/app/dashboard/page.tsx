@@ -559,7 +559,7 @@ export default function DashboardPage() {
                     <span className="w-4 h-4 rounded-full bg-emerald-50 dark:bg-emerald-500/15 border border-emerald-100 dark:border-emerald-500/25 text-emerald-600 dark:text-emerald-400 text-[10px] font-bold flex items-center justify-center flex-shrink-0 mt-0.5">
                       {i + 1}
                     </span>
-                    <span className="text-xs text-slate-400 leading-relaxed">{tip}</span>
+                    <span className="text-xs text-slate-700 dark:text-slate-300 leading-relaxed font-medium">{tip}</span>
                   </li>
                 ))}
               </ul>

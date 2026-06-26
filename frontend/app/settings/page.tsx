@@ -7,7 +7,6 @@ import { toast } from 'sonner';
 import { saveWhatsAppNumber, getWhatsAppNumber, getApiErrorMessage } from '@/lib/api';
 
 export default function SettingsPage() {
-  const [username, setUsername] = useState('');
   const [whatsappNumber, setWhatsappNumber] = useState('');
   const [emailEnabled, setEmailEnabled] = useState(true);
   const [waEnabled, setWaEnabled] = useState(true);
@@ -31,9 +30,6 @@ export default function SettingsPage() {
         if (settings.whatsapp_number) {
           setWhatsappNumber(settings.whatsapp_number);
         }
-        if (settings.username) {
-          setUsername(settings.username);
-        }
         if (settings.email_reminders_enabled !== undefined) {
           setEmailEnabled(settings.email_reminders_enabled);
           setWaEnabled(settings.whatsapp_reminders_enabled);
@@ -54,11 +50,9 @@ export default function SettingsPage() {
       const response = await saveWhatsAppNumber({
         whatsapp_number: whatsappNumber,
         email_reminders_enabled: emailEnabled,
-        whatsapp_reminders_enabled: waEnabled,
-        username: username || undefined
+        whatsapp_reminders_enabled: waEnabled
       });
       setWhatsappNumber(response.whatsapp_number || '');
-      setUsername(response.username || '');
       setEmailEnabled(response.email_reminders_enabled);
       setWaEnabled(response.whatsapp_reminders_enabled);
       toast.success('Settings saved successfully!');
@@ -83,54 +77,6 @@ export default function SettingsPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         
-        {/* Profile Card */}
-        <div className="bg-slate-900/60 border border-slate-800/50 rounded-2xl overflow-hidden relative">
-          <div className="absolute top-0 right-0 w-32 h-32 bg-purple-500/10 rounded-full blur-3xl -translate-y-10 translate-x-10 pointer-events-none" />
-          <div className="p-6">
-            <div className="flex items-center gap-3 mb-5">
-              <div className="p-2.5 bg-purple-500/10 border border-purple-500/20 rounded-xl">
-                <Settings className="w-5 h-5 text-purple-400" />
-              </div>
-              <div>
-                <h2 className="text-base font-bold text-white">Profile Details</h2>
-                <p className="text-xs text-slate-400 mt-0.5">Customize how others see you</p>
-              </div>
-            </div>
-
-            <div className="space-y-4">
-              <div>
-                <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Username</label>
-                <div className="relative">
-                  <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500 font-medium">@</span>
-                  <input
-                    type="text"
-                    value={username}
-                    onChange={(e) => setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ''))}
-                    placeholder="username"
-                    className="w-full bg-slate-800/60 border border-slate-700/50 text-white placeholder-slate-500 rounded-xl pl-9 pr-4 py-3 text-sm focus:outline-none focus:border-purple-500/70 focus:ring-1 focus:ring-purple-500/30 transition-all"
-                  />
-                </div>
-                <p className="text-[11px] text-slate-500 mt-1.5">Letters, numbers, and underscores only. This will be displayed across the app.</p>
-              </div>
-            </div>
-            
-            <button
-                onClick={handleSave}
-                disabled={isSaving || isLoading}
-                className="w-full mt-6 flex items-center justify-center gap-2 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-xl px-4 py-2.5 text-sm transition-all border border-slate-700/50 active:scale-[0.98] disabled:opacity-70 disabled:pointer-events-none"
-              >
-                {isSaving ? (
-                  <div className="w-4 h-4 border-2 border-slate-400 border-t-white rounded-full animate-spin" />
-                ) : (
-                  <>
-                    <Save className="w-4 h-4" />
-                    Save Profile
-                  </>
-                )}
-            </button>
-          </div>
-        </div>
-
         {/* WhatsApp Integration Card */}
         <div className="bg-slate-900/60 border border-slate-800/50 rounded-2xl overflow-hidden relative">
           {/* Subtle glow */}

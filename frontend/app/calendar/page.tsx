@@ -54,7 +54,11 @@ export default function CalendarPage() {
   const monthName = currentDate.toLocaleString('default', { month: 'long', year: 'numeric' });
 
   const getEventsForDay = (day: number) => {
-    const targetDateStr = new Date(currentDate.getFullYear(), currentDate.getMonth(), day).toISOString().split('T')[0];
+    // Prevent timezone offset issues by assembling the YYYY-MM-DD string locally
+    const y = currentDate.getFullYear();
+    const m = String(currentDate.getMonth() + 1).padStart(2, '0');
+    const d = String(day).padStart(2, '0');
+    const targetDateStr = `${y}-${m}-${d}`;
     return campaigns.filter(c => c.deadline === targetDateStr);
   };
 
@@ -157,7 +161,7 @@ export default function CalendarPage() {
           campaign={selectedCampaign}
           isOpen={true}
           onClose={() => setSelectedCampaign(null)}
-          onUpdated={fetchCampaigns}
+          onUpdated={fetchData}
         />
       )}
     </DashboardLayout>
