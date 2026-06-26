@@ -161,7 +161,7 @@ export default function CalendarPage() {
           campaign={selectedCampaign}
           isOpen={true}
           onClose={() => setSelectedCampaign(null)}
-          onUpdated={fetchData}
+          onSuccess={fetchData}
         />
       )}
     </DashboardLayout>

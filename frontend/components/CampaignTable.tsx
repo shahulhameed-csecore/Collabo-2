@@ -32,6 +32,7 @@ const STATUS_CONFIG: Record<CampaignStatus, {
   approved:         { label: 'Approved',         dotClass: 'bg-blue-500 dark:bg-blue-400',    badgeClass: 'bg-blue-50 dark:bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-200 dark:border-blue-500/25',      icon: Check },
   paid:             { label: 'Paid',             dotClass: 'bg-slate-500 dark:bg-slate-400',   badgeClass: 'bg-slate-100 dark:bg-slate-700/60 text-slate-700 dark:text-slate-400 border-slate-200 dark:border-slate-600/30',   icon: DollarSign },
   cancelled:        { label: 'Cancelled',        dotClass: 'bg-rose-500 dark:bg-rose-400',    badgeClass: 'bg-rose-50 dark:bg-rose-500/10 text-rose-700 dark:text-rose-400 border-rose-200 dark:border-rose-500/25',      icon: XCircle },
+  rejected:         { label: 'Not Approved',     dotClass: 'bg-red-500 dark:bg-red-400',      badgeClass: 'bg-red-50 dark:bg-red-500/10 text-red-700 dark:text-red-400 border-red-200 dark:border-red-500/25',        icon: XCircle },
 };
 
 // ─── Platform config ──────────────────────────────────────────────────────────
@@ -52,6 +53,7 @@ const STATUS_FILTERS: { value: FilterState['status']; label: string }[] = [
   { value: 'content_received', label: 'In Review' },
   { value: 'approved',         label: 'Approved' },
   { value: 'paid',             label: 'Paid' },
+  { value: 'rejected',         label: 'Not Approved' },
   { value: 'cancelled',        label: 'Cancelled' },
 ];
 
@@ -734,6 +736,14 @@ export default function CampaignTable({ campaigns, isLoading, onRefresh, onCreat
                                   </a>
                                 )}
                                 <button
+                                  onClick={() => handleStatusChange(c.id, 'rejected')}
+                                  disabled={!!updatingId}
+                                  title="Not Approved (Reject Content)"
+                                  className="p-1.5 text-slate-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all opacity-100 sm:opacity-0 sm:group-hover:opacity-100 disabled:opacity-30"
+                                >
+                                  <XCircle className="w-3.5 h-3.5" />
+                                </button>
+                                <button
                                   onClick={() => handleStatusChange(c.id, 'approved')}
                                   disabled={!!updatingId}
                                   title="Approve Content"
@@ -768,6 +778,7 @@ export default function CampaignTable({ campaigns, isLoading, onRefresh, onCreat
                               <option value="content_received" disabled>In Review</option>
                               <option value="approved">Approved</option>
                               <option value="paid">Paid</option>
+                              <option value="rejected">Not Approved</option>
                               <option value="cancelled">Cancelled</option>
                             </select>
 

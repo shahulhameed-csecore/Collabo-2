@@ -205,7 +205,10 @@ export default function EditCampaignModal({ campaign, isOpen, onClose, onSuccess
                 >
                   <option value="draft">Draft</option>
                   <option value="active">Active</option>
-                  <option value="completed">Completed</option>
+                  <option value="content_received" disabled>In Review</option>
+                  <option value="approved">Approved</option>
+                  <option value="paid">Paid</option>
+                  <option value="rejected">Not Approved</option>
                   <option value="cancelled">Cancelled</option>
                 </select>
               </Field>
