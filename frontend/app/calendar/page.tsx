@@ -127,17 +127,23 @@ export default function CalendarPage() {
                       {day}
                     </span>
                   </div>
-                  <div className="space-y-1">
-                    {events.map(event => (
-                      <div
-                        key={event.id}
-                        onClick={() => setSelectedCampaign(event)}
-                        className={`text-[10px] px-2 py-1 rounded truncate border cursor-pointer hover:opacity-80 transition-opacity ${STATUS_COLORS[event.status] || STATUS_COLORS.draft}`}
-                        title={`${event.influencer_name || event.influencer_handle} - ${event.status}`}
-                      >
-                        {event.influencer_name || event.influencer_handle}
-                      </div>
-                    ))}
+                  <div className="space-y-1.5">
+                    {isLoading ? (
+                      Array.from({ length: 2 }).map((_, i) => (
+                        <div key={`skel-${i}`} className="h-6 bg-slate-100 dark:bg-slate-800/50 rounded animate-pulse w-full" />
+                      ))
+                    ) : (
+                      events.map(event => (
+                        <div
+                          key={event.id}
+                          onClick={() => setSelectedCampaign(event)}
+                          className={`text-[11px] font-semibold px-2 py-1.5 rounded-lg truncate border cursor-pointer shadow-sm hover:scale-[1.02] transition-transform ${STATUS_COLORS[event.status] || STATUS_COLORS.draft}`}
+                          title={`${event.influencer_name || event.influencer_handle} - ${event.status}`}
+                        >
+                          {event.influencer_name || event.influencer_handle}
+                        </div>
+                      ))
+                    )}
                   </div>
                 </div>
               );

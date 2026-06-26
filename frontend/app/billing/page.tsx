@@ -62,17 +62,17 @@ export default function BillingPage() {
             <div className="bg-white dark:bg-slate-900/60 p-6 rounded-2xl border border-slate-200 dark:border-slate-800/60 shadow-sm relative overflow-hidden group md:col-span-1">
               <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/5 rounded-full blur-3xl group-hover:bg-emerald-500/10 transition-colors" />
               <div className="flex items-center justify-between mb-4">
-                <h3 className="font-semibold text-slate-700 dark:text-slate-300">Account Status</h3>
-                <span className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 px-2.5 py-1 rounded-md text-xs font-bold uppercase tracking-wider">
-                  FULL ACCESS
+                <h3 className="font-semibold text-slate-700 dark:text-slate-300">Active Plan</h3>
+                <span className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400 px-3 py-1 rounded-md text-[10px] font-black uppercase tracking-widest border border-emerald-200 dark:border-emerald-500/30">
+                  PRO
                 </span>
               </div>
-              <p className="text-2xl font-bold text-slate-900 dark:text-white mb-2">
-                Test Mode
+              <p className="text-3xl font-black text-slate-900 dark:text-white mb-2 tracking-tight">
+                Collabo Pro
               </p>
-              <div className="flex items-center gap-1.5 text-sm font-medium text-emerald-600 dark:text-emerald-500">
-                <Check className="w-4 h-4" />
-                All features unlocked
+              <div className="flex items-center gap-1.5 text-sm font-medium text-slate-600 dark:text-slate-400">
+                <Check className="w-4 h-4 text-emerald-500" />
+                ₹499/month · Auto-renews
               </div>
             </div>
 

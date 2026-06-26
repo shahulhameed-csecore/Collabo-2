@@ -337,24 +337,27 @@ export default function DashboardPage() {
 
       {/* ── First-time welcome ── */}
       {isFirstTime && (
-        <div className="mb-6 p-5 bg-gradient-to-br from-emerald-500/8 via-teal-500/5 to-transparent border border-emerald-500/15 rounded-2xl animate-fade-in">
-          <div className="flex items-start gap-4">
-            <div className="p-3 bg-gradient-to-br from-emerald-500/20 to-teal-500/10 rounded-xl border border-emerald-500/25 flex-shrink-0 animate-float">
-              <Zap className="w-5 h-5 text-emerald-400" />
+        <div className="mb-6 p-8 bg-gradient-to-br from-emerald-500/10 via-teal-500/5 to-transparent border border-emerald-500/20 rounded-3xl animate-fade-in relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/3 pointer-events-none" />
+          <div className="relative flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
+            <div className="flex items-start gap-5">
+              <div className="p-4 bg-gradient-to-br from-emerald-500/20 to-teal-500/10 rounded-2xl border border-emerald-500/30 flex-shrink-0 animate-float shadow-inner shadow-emerald-500/20">
+                <Zap className="w-8 h-8 text-emerald-500" />
+              </div>
+              <div>
+                <h2 className="text-xl font-black text-slate-900 dark:text-white mb-2 tracking-tight">Welcome to Collabo! 👋</h2>
+                <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed max-w-xl">
+                  Track every influencer deal in one place. Upload DMs or enter campaign details to build your ultimate creator CRM. Let's make influencer marketing effortless.
+                </p>
+              </div>
             </div>
-            <div>
-              <h2 className="text-base font-extrabold text-white mb-1">Welcome to Collabo! 👋</h2>
-              <p className="text-sm text-slate-400 leading-relaxed mb-4">
-                Track every influencer deal in one place. Log the influencer details, deliverables, deadline, and payment to start tracking your campaigns effectively.
-              </p>
-              <button
-                onClick={() => setIsModalOpen(true)}
-                className="flex items-center gap-2 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-white font-bold rounded-xl px-4 py-2 text-sm transition-all shadow-lg shadow-emerald-500/25 active:scale-[0.98]"
-              >
-                <Plus className="w-4 h-4" />
-                Create your first campaign
-              </button>
-            </div>
+            <button
+              onClick={() => setIsModalOpen(true)}
+              className="flex items-center gap-2 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-white font-bold rounded-xl px-6 py-3.5 text-sm transition-all shadow-xl shadow-emerald-500/25 active:scale-[0.98] whitespace-nowrap"
+            >
+              <Plus className="w-4 h-4" />
+              Create First Campaign
+            </button>
           </div>
         </div>
       )}

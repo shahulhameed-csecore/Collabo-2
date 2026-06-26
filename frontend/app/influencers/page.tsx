@@ -103,14 +103,17 @@ export default function InfluencersPage() {
                   ))
                 ) : filtered.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="px-6 py-16 text-center">
-                      <div className="flex flex-col items-center justify-center">
-                        <div className="w-16 h-16 bg-emerald-50 dark:bg-emerald-900/20 rounded-full flex items-center justify-center mb-4">
-                          <Users className="w-8 h-8 text-emerald-500" />
+                    <td colSpan={5} className="px-6 py-24 text-center">
+                      <div className="flex flex-col items-center justify-center animate-fade-in">
+                        <div className="relative mb-6">
+                          <div className="absolute inset-0 bg-emerald-500/10 rounded-3xl blur-xl" />
+                          <div className="relative p-6 bg-white dark:bg-slate-800/60 rounded-2xl border border-slate-200 dark:border-slate-700/40 shadow-sm">
+                            <Users className="w-10 h-10 text-emerald-500 dark:text-emerald-400" />
+                          </div>
                         </div>
-                        <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-1">No influencers found</h3>
-                        <p className="text-slate-500 max-w-sm">
-                          When you add campaigns, influencers will automatically appear here for you to track and manage.
+                        <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">No influencers found</h3>
+                        <p className="text-slate-500 text-sm max-w-sm mb-6 leading-relaxed">
+                          Your creator relationships will automatically appear here once you start tracking campaigns. Build your ultimate CRM.
                         </p>
                       </div>
                     </td>
@@ -177,41 +180,74 @@ export default function InfluencersPage() {
                   <p className="text-2xl font-bold text-slate-900 dark:text-white">{selectedInfluencer.total_campaigns}</p>
                 </div>
                 <div className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-xl border border-slate-100 dark:border-slate-700/50">
-                  <p className="text-xs text-slate-500 font-medium uppercase mb-1">Success Rate</p>
-                  <p className="text-2xl font-bold text-slate-900 dark:text-white">{selectedInfluencer.success_rate}%</p>
+        {/* Premium CRM Modal / Drawer */}
+        {selectedInfluencer && (
+          <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in">
+            <div 
+              className="bg-white dark:bg-slate-900 rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden border border-slate-200 dark:border-slate-800 animate-slide-up"
+              onClick={e => e.stopPropagation()}
+            >
+              <div className="p-6 border-b border-slate-100 dark:border-slate-800/60 flex items-center justify-between bg-slate-50/50 dark:bg-slate-800/20">
+                <div className="flex items-center gap-4">
+                  <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-emerald-400/20 to-teal-500/20 border border-emerald-500/30 flex items-center justify-center font-bold text-emerald-600 dark:text-emerald-400 text-xl shadow-inner">
+                    {(selectedInfluencer.name || selectedInfluencer.handle).slice(0,2).toUpperCase()}
+                  </div>
+                  <div>
+                    <h2 className="text-xl font-bold text-slate-900 dark:text-white">{selectedInfluencer.name || selectedInfluencer.handle}</h2>
+                    <p className="text-emerald-600 dark:text-emerald-400 font-medium text-sm">{selectedInfluencer.handle}</p>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => setSelectedInfluencer(null)}
+                  className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              <div className="p-6">
+                <div className="grid grid-cols-2 gap-4 mb-6">
+                  <div className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-2xl border border-slate-100 dark:border-slate-700/50">
+                    <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Total Collabs</p>
+                    <p className="text-2xl font-black text-slate-900 dark:text-white">{selectedInfluencer.total_campaigns}</p>
+                  </div>
+                  <div className="bg-emerald-50 dark:bg-emerald-500/10 p-4 rounded-2xl border border-emerald-100 dark:border-emerald-500/20">
+                    <p className="text-xs font-bold text-emerald-700 dark:text-emerald-500 uppercase tracking-wider mb-1">Success Rate</p>
+                    <div className="flex items-center gap-1.5">
+                      <Star className="w-5 h-5 text-emerald-500 fill-emerald-500" />
+                      <p className="text-2xl font-black text-emerald-700 dark:text-emerald-400">{selectedInfluencer.success_rate}%</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  <label className="block text-sm font-semibold text-slate-900 dark:text-white">Relationship Notes & Details</label>
+                  <textarea
+                    value={notes}
+                    onChange={(e) => setNotes(e.target.value)}
+                    placeholder="Add address, rates, preferences, or past experiences..."
+                    className="w-full h-32 px-4 py-3 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:outline-none focus:border-emerald-500/50 focus:ring-2 focus:ring-emerald-500/20 resize-none transition-all placeholder:text-slate-400"
+                  />
                 </div>
               </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">Relationship Notes</label>
-                <textarea
-                  value={notes}
-                  onChange={e => setNotes(e.target.value)}
-                  placeholder="Add details about address, sizing, preferred rates, or communication style..."
-                  className="w-full h-32 p-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/20 resize-none text-slate-900 dark:text-white"
-                />
+              <div className="p-6 pt-0 flex justify-end gap-3">
+                <button
+                  onClick={() => setSelectedInfluencer(null)}
+                  className="px-5 py-2.5 text-sm font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleSaveNotes}
+                  disabled={isSaving}
+                  className="flex items-center gap-2 px-5 py-2.5 bg-emerald-500 hover:bg-emerald-400 active:scale-95 text-white text-sm font-semibold rounded-xl transition-all shadow-lg shadow-emerald-500/25 disabled:opacity-50"
+                >
+                  <Save className="w-4 h-4" />
+                  {isSaving ? 'Saving...' : 'Save Notes'}
+                </button>
               </div>
             </div>
-
-            <div className="p-5 border-t border-slate-100 dark:border-slate-800 flex justify-end gap-3 bg-slate-50 dark:bg-slate-900/50">
-              <button
-                onClick={() => setSelectedInfluencer(null)}
-                className="px-4 py-2 font-medium text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleSaveNotes}
-                disabled={isSaving}
-                className="flex items-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white px-5 py-2 rounded-xl font-medium transition-colors disabled:opacity-70 shadow-sm shadow-emerald-500/20"
-              >
-                <Save className="w-4 h-4" />
-                {isSaving ? 'Saving...' : 'Save Notes'}
-              </button>
-            </div>
           </div>
-        </div>
-      )}
+        )}
     </DashboardLayout>
   );
 }
