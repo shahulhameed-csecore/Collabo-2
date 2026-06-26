@@ -21,8 +21,10 @@ async def get_billing_usage(
     # Get subscription details
     try:
         sub_response = client.table("subscriptions").select("*").eq("user_id", user.user.id).execute()
-        sub_data = sub_response.data[0] if sub_response.data else {}
-    except Exception:
+        sub_data = sub_response.data[0] if sub_response and hasattr(sub_response, 'data') and len(sub_response.data) > 0 else {}
+    except Exception as e:
+        import structlog
+        structlog.get_logger(__name__).error("billing_subscription_fetch_failed", error=str(e))
         sub_data = {}
     
     current_plan = sub_data.get("tier", "free")
@@ -36,8 +38,10 @@ async def get_billing_usage(
     # Supabase select with count
     try:
         campaigns_response = client.table("campaigns").select("id", count="exact").eq("user_id", user.user.id).gte("created_at", start_of_month).execute()
-        campaigns_this_month = campaigns_response.count if campaigns_response.count is not None else 0
-    except Exception:
+        campaigns_this_month = campaigns_response.count if campaigns_response and hasattr(campaigns_response, 'count') and campaigns_response.count is not None else 0
+    except Exception as e:
+        import structlog
+        structlog.get_logger(__name__).error("billing_campaigns_fetch_failed", error=str(e))
         campaigns_this_month = 0
     
     # Parse trial string to datetime

@@ -12,11 +12,12 @@ async def get_influencers(
     client=Depends(get_user_supabase_client),
     user: AuthenticatedUser = Depends(get_current_user),
 ):
-    # Fetch all campaigns for user
     try:
         campaigns_response = client.table("campaigns").select("*").eq("user_id", user.user.id).execute()
-        campaigns = campaigns_response.data
-    except Exception:
+        campaigns = campaigns_response.data if campaigns_response and hasattr(campaigns_response, 'data') else []
+    except Exception as e:
+        import structlog
+        structlog.get_logger(__name__).error("influencers_campaigns_fetch_failed", error=str(e))
         campaigns = []
 
     # Group by handle
@@ -48,11 +49,12 @@ async def get_influencers(
             if not stats["last_collaboration"] or deadline > stats["last_collaboration"]:
                 stats["last_collaboration"] = deadline
 
-    # Fetch profiles/notes
     try:
         profiles_response = client.table("influencer_profiles").select("*").eq("user_id", user.user.id).execute()
-        profiles = profiles_response.data
-    except Exception:
+        profiles = profiles_response.data if profiles_response and hasattr(profiles_response, 'data') else []
+    except Exception as e:
+        import structlog
+        structlog.get_logger(__name__).warning("influencers_profiles_fetch_failed", error=str(e))
         profiles = []
     
     # Merge profiles into stats

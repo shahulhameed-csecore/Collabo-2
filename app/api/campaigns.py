@@ -55,8 +55,13 @@ async def get_campaigns(
     offset: int = Query(0, ge=0),
     client=Depends(get_user_supabase_client),
 ):
-    response = client.table("campaigns").select("*").range(offset, offset + limit - 1).execute()
-    return response.data
+    try:
+        response = client.table("campaigns").select("*").range(offset, offset + limit - 1).execute()
+        return response.data if response and hasattr(response, 'data') else []
+    except Exception as e:
+        import structlog
+        structlog.get_logger(__name__).error("campaigns_fetch_failed", error=str(e))
+        return []
 
 
 @router.post("/", response_model=CampaignResponse)

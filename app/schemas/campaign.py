@@ -44,7 +44,7 @@ class CampaignBase(BaseModel):
         description="The date by which the deliverables must be posted.",
         json_schema_extra={"examples": ["2026-07-15"]}
     )
-    payment_amount: float = Field(
+    payment_amount: Optional[float] = Field(
         default=0.0,
         description="Total compensation in INR. Barter campaigns should be 0.0.",
         json_schema_extra={"examples": [15000.0]}
@@ -77,6 +77,16 @@ class CampaignBase(BaseModel):
             stripped = v.strip()
             return stripped if stripped else None
         return v
+        
+    @field_validator('status', mode='before')
+    @classmethod
+    def validate_status(cls, v):
+        if not v:
+            return CampaignStatus.draft
+        try:
+            return CampaignStatus(v)
+        except ValueError:
+            return CampaignStatus.draft
 
     @field_validator('deadline', mode='before')
     @classmethod
