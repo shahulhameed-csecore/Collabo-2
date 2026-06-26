@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import DashboardLayout from '@/components/DashboardLayout';
-import { getInfluencers, InfluencerProfile, updateInfluencerProfile } from '@/lib/api';
+import { getInfluencers, InfluencerProfile, updateInfluencerProfile, getCampaigns } from '@/lib/api';
+import type { Campaign } from '@/lib/types';
 import { toast } from 'sonner';
 import { Users, Search, Save, X, Star } from 'lucide-react';
 
@@ -13,21 +14,26 @@ export default function InfluencersPage() {
   const [selectedInfluencer, setSelectedInfluencer] = useState<InfluencerProfile | null>(null);
   const [notes, setNotes] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+  const [allCampaigns, setAllCampaigns] = useState<Campaign[]>([]);
 
-  const fetchInfluencers = async () => {
+  const fetchData = async () => {
     try {
       setIsLoading(true);
-      const data = await getInfluencers();
-      setInfluencers(data);
+      const [infData, campData] = await Promise.all([
+        getInfluencers(),
+        getCampaigns()
+      ]);
+      setInfluencers(infData);
+      setAllCampaigns(campData);
     } catch (err) {
-      toast.error('Failed to load influencers');
+      toast.error('Failed to load CRM data');
     } finally {
       setIsLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchInfluencers();
+    fetchData();
   }, []);
 
   const handleRowClick = (inf: InfluencerProfile) => {
@@ -192,6 +198,33 @@ export default function InfluencersPage() {
                     <Star className="w-5 h-5 text-emerald-500 fill-emerald-500" />
                     <p className="text-2xl font-black text-emerald-700 dark:text-emerald-400">{selectedInfluencer.success_rate}%</p>
                   </div>
+                </div>
+              </div>
+
+              {/* Campaign History List */}
+              <div className="mb-6">
+                <label className="block text-sm font-semibold text-slate-900 dark:text-white mb-3">Recent Campaigns</label>
+                <div className="space-y-2 max-h-40 overflow-y-auto pr-2 custom-scrollbar">
+                  {allCampaigns
+                    .filter(c => c.influencer_handle === selectedInfluencer.handle)
+                    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+                    .map(camp => (
+                      <div key={camp.id} className="flex items-center justify-between p-3 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-xl hover:border-slate-200 dark:hover:border-slate-700 transition-colors shadow-sm">
+                        <div>
+                          <p className="text-sm font-bold text-slate-900 dark:text-white truncate max-w-[200px]">{camp.deliverables || 'Unnamed Campaign'}</p>
+                          <p className="text-xs text-slate-500">{new Date(camp.created_at).toLocaleDateString()}</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-sm font-bold text-emerald-600 dark:text-emerald-400">
+                            {(camp.payment_amount || 0) > 0 ? `₹${camp.payment_amount?.toLocaleString()}` : 'Gifted'}
+                          </p>
+                          <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">{camp.status}</p>
+                        </div>
+                      </div>
+                    ))}
+                  {allCampaigns.filter(c => c.influencer_handle === selectedInfluencer.handle).length === 0 && (
+                    <p className="text-xs text-slate-500 text-center py-4 bg-slate-50 dark:bg-slate-800/50 rounded-xl">No campaigns found for this creator.</p>
+                  )}
                 </div>
               </div>
 

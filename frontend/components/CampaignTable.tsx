@@ -158,6 +158,7 @@ export default function CampaignTable({ campaigns, isLoading, onRefresh, onCreat
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [isBulkActioning, setIsBulkActioning] = useState(false);
+  const [trackingModalCampaign, setTrackingModalCampaign] = useState<Campaign | null>(null);
 
   const handleSort = (key: keyof Campaign) => {
     if (sortKey === key) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
@@ -676,9 +677,17 @@ export default function CampaignTable({ campaigns, isLoading, onRefresh, onCreat
                         <td className="px-4 py-3.5">
                           {c.short_code ? (
                             <div className="flex flex-col items-start gap-1">
-                              <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-500/10 px-1.5 py-0.5 rounded-md border border-emerald-200 dark:border-emerald-500/20">
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setTrackingModalCampaign(c);
+                                }}
+                                className="text-xs font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-500/10 dark:hover:bg-emerald-500/20 px-2 py-1 rounded-md border border-emerald-200 dark:border-emerald-500/20 transition-colors flex items-center gap-1 cursor-pointer shadow-sm shadow-emerald-500/5"
+                                title="View detailed click analytics"
+                              >
+                                <TrendingUp className="w-3 h-3" />
                                 {c.clicks} clicks
-                              </span>
+                              </button>
                               <button
                                 onClick={(e) => {
                                   e.stopPropagation();
@@ -686,7 +695,7 @@ export default function CampaignTable({ campaigns, isLoading, onRefresh, onCreat
                                   navigator.clipboard.writeText(`${baseUrl}/t/${c.short_code}`);
                                   toast.success('Tracking link copied!');
                                 }}
-                                className="text-[10px] text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 transition-colors flex items-center gap-1"
+                                className="text-[10px] text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 transition-colors flex items-center gap-1 mt-0.5"
                                 title={c.destination_url || ''}
                               >
                                 <LinkIcon className="w-3 h-3" /> Copy Link
@@ -844,6 +853,73 @@ export default function CampaignTable({ campaigns, isLoading, onRefresh, onCreat
                   })}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {/* Link Analytics Modal */}
+      {trackingModalCampaign && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-fade-in">
+          <div 
+            className="w-full max-w-md bg-white dark:bg-slate-900 rounded-3xl shadow-2xl overflow-hidden border border-slate-200 dark:border-slate-800 animate-slide-up"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="p-6 border-b border-slate-100 dark:border-slate-800/60 flex items-center justify-between bg-slate-50/50 dark:bg-slate-800/20 relative overflow-hidden">
+              <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/10 rounded-full blur-3xl" />
+              <div className="relative">
+                <h2 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                  <TrendingUp className="w-5 h-5 text-emerald-500" />
+                  Link Analytics
+                </h2>
+                <p className="text-sm text-slate-500 mt-0.5">{trackingModalCampaign.influencer_name}</p>
+              </div>
+              <button 
+                onClick={() => setTrackingModalCampaign(null)}
+                className="relative p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            
+            <div className="p-6">
+              <div className="bg-emerald-50 dark:bg-emerald-500/5 border border-emerald-100 dark:border-emerald-500/10 rounded-2xl p-6 text-center mb-6">
+                <p className="text-sm font-semibold text-emerald-700 dark:text-emerald-500 uppercase tracking-widest mb-2">Total Clicks</p>
+                <p className="text-6xl font-black text-slate-900 dark:text-white tracking-tighter">
+                  {trackingModalCampaign.clicks}
+                </p>
+              </div>
+
+              <div className="space-y-4">
+                <div className="flex justify-between items-center p-3 bg-slate-50 dark:bg-slate-800/30 rounded-xl border border-slate-100 dark:border-slate-700/30">
+                  <span className="text-sm font-medium text-slate-600 dark:text-slate-400">Cost Per Click (CPC)</span>
+                  <span className="text-sm font-bold text-slate-900 dark:text-white">
+                    {trackingModalCampaign.clicks > 0 
+                      ? `₹${((trackingModalCampaign.payment_amount || 0) / trackingModalCampaign.clicks).toFixed(2)}` 
+                      : '—'}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center p-3 bg-slate-50 dark:bg-slate-800/30 rounded-xl border border-slate-100 dark:border-slate-700/30">
+                  <span className="text-sm font-medium text-slate-600 dark:text-slate-400">Destination</span>
+                  <a 
+                    href={trackingModalCampaign.destination_url || '#'} 
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sm font-bold text-blue-500 hover:underline max-w-[200px] truncate"
+                  >
+                    {trackingModalCampaign.destination_url || 'None'}
+                  </a>
+                </div>
+              </div>
+            </div>
+            
+            <div className="p-6 pt-0">
+              <button
+                onClick={() => setTrackingModalCampaign(null)}
+                className="w-full flex items-center justify-center gap-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold rounded-xl px-5 py-3 transition-colors"
+              >
+                Close Analytics
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
