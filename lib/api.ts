@@ -11,7 +11,7 @@ import type {
 } from './types';
 
 // ─── Base URL Resolution ──────────────────────────────────────────────────────
-const PRODUCTION_API_URL = 'https://collabo-2.onrender.com';
+const PRODUCTION_API_URL = 'https://api.mycollabo.online';
 
 const baseURL =
   (process.env.NEXT_PUBLIC_API_URL ?? '').trim() || PRODUCTION_API_URL;
@@ -182,7 +182,7 @@ export async function deleteCampaign(id: string): Promise<void> {
 // ─── AI Extraction API Call ───────────────────────────────────────────────────
 
 /**
- * Upload a file (image, pdf, docx) to the AI extraction endpoint.
+ * Upload a file (image, pdf, text) to the AI extraction endpoint.
  * Returns extracted campaign data. May include requires_human_review=true.
  */
 export async function extractFromFile(file: File): Promise<ExtractedData> {
@@ -190,23 +190,27 @@ export async function extractFromFile(file: File): Promise<ExtractedData> {
   const formData = new FormData();
   formData.append('file', file);
 
-  // Use native fetch for multipart — bypasses Axios global JSON Content-Type header
-  // Fall back to PRODUCTION_API_URL (not localhost) if env var is missing
-  const apiUrl = (process.env.NEXT_PUBLIC_API_URL ?? '').trim() || PRODUCTION_API_URL;
-  const res = await fetch(`${apiUrl}/extract/`, {
-    method: 'POST',
-    body: formData,
-    headers: {
-      ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {})
+  try {
+    const res = await fetch('/api/extract', {
+      method: 'POST',
+      body: formData,
+      headers: {
+        ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {})
+      }
+    });
+
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => null);
+      throw new Error(errorData?.detail || 'AI extraction failed.');
     }
-  });
 
-  if (!res.ok) {
-    const errorData = await res.json().catch(() => null);
-    throw new Error(errorData?.detail || 'AI extraction failed.');
+    return await res.json();
+  } catch (err: any) {
+    if (err.message === 'Failed to fetch' || err.message === 'NetworkError when attempting to fetch resource.') {
+      throw new Error('Network error. Please check your internet connection.');
+    }
+    throw err;
   }
-
-  return res.json();
 }
 
 // ─── Settings API Calls ─────────────────────────────────────────────────────────
@@ -215,12 +219,14 @@ export interface UserSettings {
   whatsapp_number: string | null;
   email_reminders_enabled: boolean;
   whatsapp_reminders_enabled: boolean;
+  username: string | null;
 }
 
 export async function saveWhatsAppNumber(payload: { 
   whatsapp_number: string, 
   email_reminders_enabled: boolean, 
-  whatsapp_reminders_enabled: boolean 
+  whatsapp_reminders_enabled: boolean,
+  username?: string 
 }): Promise<{ message: string } & UserSettings> {
   const res = await api.post('/settings/whatsapp', payload);
   return res.data;
@@ -298,6 +304,52 @@ export function computeDashboardStats(campaigns: Campaign[]): DashboardStats {
     avgPayment,
     upcomingDeadlines,
   };
+}
+
+// ─── Phase 2: Bulk Actions, Influencers, Billing ──────────────────────────────
+
+export async function bulkUpdateStatus(campaign_ids: string[], status: CampaignStatus): Promise<void> {
+  await api.patch('/campaigns/bulk/status', { campaign_ids, status });
+}
+
+export async function bulkDeleteCampaigns(campaign_ids: string[]): Promise<void> {
+  await api.delete('/campaigns/bulk/delete', { data: { campaign_ids } });
+}
+
+export async function bulkRemindCampaigns(campaign_ids: string[]): Promise<void> {
+  await api.post('/campaigns/bulk/remind', { campaign_ids });
+}
+
+export interface InfluencerProfile {
+  handle: string;
+  name: string | null;
+  platform: string | null;
+  notes: string | null;
+  total_campaigns: number;
+  success_rate: number;
+  last_collaboration: string | null;
+}
+
+export async function getInfluencers(): Promise<InfluencerProfile[]> {
+  const res = await api.get<InfluencerProfile[]>('/influencers/');
+  return res.data;
+}
+
+export async function updateInfluencerProfile(handle: string, data: { name?: string, platform?: string, notes?: string }): Promise<InfluencerProfile> {
+  const res = await api.patch<InfluencerProfile>(`/influencers/${handle}`, data);
+  return res.data;
+}
+
+export interface BillingUsage {
+  current_plan: string;
+  trial_ends_at: string | null;
+  campaigns_this_month: number;
+  ai_extractions_used: number;
+}
+
+export async function getBillingUsage(): Promise<BillingUsage> {
+  const res = await api.get<BillingUsage>('/billing/usage');
+  return res.data;
 }
 
 export default api;

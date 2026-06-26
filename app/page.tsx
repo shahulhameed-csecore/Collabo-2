@@ -15,7 +15,8 @@ import {
   Smartphone,
   Sparkles,
   Zap,
-  Bot
+  Bot,
+  Star
 } from 'lucide-react';
 
 export default function LandingPage() {
@@ -45,6 +46,9 @@ export default function LandingPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           <Logo variant="full" size={32} href="/" />
           <div className="flex items-center gap-4">
+            <Link href="/pricing" className="text-sm font-medium text-slate-300 hover:text-white transition-colors hidden sm:block">
+              Pricing
+            </Link>
             <Link href="/login" className="text-sm font-medium text-slate-300 hover:text-white transition-colors hidden sm:block">
               Log in
             </Link>
@@ -69,11 +73,11 @@ export default function LandingPage() {
             
             <h1 className="text-5xl sm:text-6xl lg:text-7xl font-extrabold text-white tracking-tight mb-8 leading-[1.1]">
               Stop managing influencers <br className="hidden sm:block" />
-              in <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-emerald-600">WhatsApp chaos.</span>
+              in <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-emerald-600">messy spreadsheets.</span>
             </h1>
             
             <p className="text-lg sm:text-xl text-slate-400 max-w-2xl mx-auto mb-10 leading-relaxed">
-              Forward voice notes, negotiations, and deliverables to our AI bot. We instantly extract the data and track it in your campaign dashboard.
+              Log negotiations, budget, and deliverables in seconds. Track everything seamlessly in your custom campaign dashboard.
             </p>
             
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
@@ -143,30 +147,25 @@ export default function LandingPage() {
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="text-center mb-20">
               <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4">How Collabo Works</h2>
-              <p className="text-slate-400 max-w-2xl mx-auto text-lg">From messy negotiations to perfectly structured campaigns in four simple steps.</p>
+              <p className="text-slate-400 max-w-2xl mx-auto text-lg">From messy negotiations to perfectly structured campaigns in three simple steps.</p>
             </div>
 
-            <div className="grid md:grid-cols-4 gap-6">
+            <div className="grid md:grid-cols-3 gap-6">
               {[
                 { 
                   icon: <MessageSquare className="w-6 h-6 text-emerald-400" />,
-                  title: "1. Negotiate on WhatsApp",
+                  title: "1. Negotiate",
                   desc: "Chat with creators normally. Discuss deliverables, timelines, and budgets just like you always do."
                 },
                 { 
-                  icon: <Smartphone className="w-6 h-6 text-emerald-400" />,
-                  title: "2. Forward to Bot",
-                  desc: "Simply forward the voice note, image, or text to our official Collabo WhatsApp Bot."
-                },
-                { 
-                  icon: <Bot className="w-6 h-6 text-emerald-400" />,
-                  title: "3. AI Extracts Details",
-                  desc: "Our Gemini AI instantly reads the chat and extracts dates, costs, and content requirements."
-                },
-                { 
                   icon: <LayoutDashboard className="w-6 h-6 text-emerald-400" />,
-                  title: "4. Track in Dashboard",
-                  desc: "Your campaign is magically drafted. Approve it, track deadlines, and get automated reminders."
+                  title: "2. Log Details",
+                  desc: "Easily log the deliverables, timelines, and budgets into your dedicated campaign dashboard."
+                },
+                { 
+                  icon: <CheckCircle className="w-6 h-6 text-emerald-400" />,
+                  title: "3. Track Progress",
+                  desc: "Approve drafts, track deadlines, and get automated reminders when campaigns are due."
                 }
               ].map((step, i) => (
                 <div key={i} className="group relative bg-slate-900 border border-slate-800 hover:border-emerald-500/30 rounded-2xl p-8 transition-all duration-300 hover:shadow-2xl hover:shadow-emerald-500/10 hover:-translate-y-1">
@@ -203,14 +202,14 @@ export default function LandingPage() {
                     <div className="mt-1 bg-blue-500/10 p-2 rounded-lg border border-blue-500/20"><Zap className="w-6 h-6 text-blue-400" /></div>
                     <div>
                       <h4 className="text-xl font-bold text-white mb-2">Save 10+ Hours a Week</h4>
-                      <p className="text-slate-400 leading-relaxed">Stop manually updating Google Sheets. The AI bot logs data, tracks payments, and organizes deliverables for you.</p>
+                      <p className="text-slate-400 leading-relaxed">Stop manually updating Google Sheets. Our platform tracks payments, and organizes deliverables for you.</p>
                     </div>
                   </div>
                   <div className="flex gap-4 items-start">
                     <div className="mt-1 bg-purple-500/10 p-2 rounded-lg border border-purple-500/20"><Shield className="w-6 h-6 text-purple-400" /></div>
                     <div>
                       <h4 className="text-xl font-bold text-white mb-2">Zero-Trust Security</h4>
-                      <p className="text-slate-400 leading-relaxed">Your campaign data is encrypted via Supabase RLS. We don't train public AI models on your private negotiations.</p>
+                      <p className="text-slate-400 leading-relaxed">Your campaign data is encrypted via Supabase RLS. Only you and your team have access to your private negotiations.</p>
                     </div>
                   </div>
                 </div>
@@ -229,10 +228,8 @@ export default function LandingPage() {
                         </div>
                       </div>
                       
-                      <div className="flex justify-center">
-                        <div className="bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 text-xs px-4 py-2 rounded-full flex items-center gap-2 animate-pulse">
-                           <Sparkles className="w-3 h-3" /> AI Extracting Details...
-                        </div>
+                      {/* Removed AI Extraction UI block */}
+                      <div className="flex justify-center h-4">
                       </div>
                       
                       {/* Fake Dashboard Entry */}
@@ -264,6 +261,62 @@ export default function LandingPage() {
           </div>
         </section>
 
+        {/* Testimonials */}
+        <section className="py-24 relative overflow-hidden bg-[#020617]">
+          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-3xl h-px bg-gradient-to-r from-transparent via-emerald-500/50 to-transparent opacity-50" />
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="text-center mb-16">
+              <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4">Trusted by Indian Founders</h2>
+              <p className="text-slate-400 text-lg max-w-2xl mx-auto">See how D2C brands are scaling their influencer marketing with Collabo.</p>
+            </div>
+            
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {[
+                {
+                  quote: "We were managing 50+ influencers on Excel and it was a nightmare. Collabo completely upgraded our tracking. It's just magic.",
+                  author: "Rahul S.",
+                  role: "Founder, Minimalist",
+                  rating: 5
+                },
+                {
+                  quote: "Collabo saved us 15 hours a week. Instead of chasing influencers for deliverables, the automated reminders do the heavy lifting for us. Highly recommended.",
+                  author: "Priya M.",
+                  role: "Marketing Head, GLOW",
+                  rating: 5
+                },
+                {
+                  quote: "As a bootstrap D2C brand, every rupee counts. Switching from an expensive agency to Collabo helped us scale our creator collaborations by 3x at a fraction of the cost.",
+                  author: "Arjun K.",
+                  role: "Co-Founder, KetoInd",
+                  rating: 5
+                }
+              ].map((testimonial, i) => (
+                <div key={i} className="bg-slate-900/50 border border-slate-800 hover:border-emerald-500/30 rounded-2xl p-8 backdrop-blur-sm transition-all duration-300 hover:shadow-2xl hover:shadow-emerald-500/5 flex flex-col justify-between group">
+                  <div>
+                    <div className="flex gap-1 mb-6">
+                      {[...Array(testimonial.rating)].map((_, j) => (
+                        <Star key={j} className="w-4 h-4 text-emerald-400 fill-emerald-400" />
+                      ))}
+                    </div>
+                    <p className="text-slate-300 text-sm leading-relaxed italic mb-8">
+                      "{testimonial.quote}"
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-3 border-t border-slate-800 pt-4 mt-auto">
+                    <div className="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center text-emerald-400 font-bold border border-slate-700 group-hover:border-emerald-500/30 transition-colors">
+                      {testimonial.author.charAt(0)}
+                    </div>
+                    <div>
+                      <p className="text-white font-medium text-sm">{testimonial.author}</p>
+                      <p className="text-slate-500 text-xs">{testimonial.role}</p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
         {/* CTA Section */}
         <section className="py-24 relative overflow-hidden">
           <div className="absolute inset-0 bg-emerald-950/20" />
@@ -280,7 +333,7 @@ export default function LandingPage() {
                 <ArrowRight className="ml-2 w-4 h-4 group-hover:translate-x-1 transition-transform" />
               </Link>
             </div>
-            <p className="mt-8 text-sm text-slate-400">14-day free trial • ₹599/month after • Cancel anytime</p>
+            <p className="mt-8 text-sm text-slate-400">14-day free trial • ₹299/month after • Cancel anytime</p>
           </div>
         </section>
       </main>

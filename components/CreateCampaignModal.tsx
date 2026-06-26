@@ -8,7 +8,7 @@ import {
   X, Sparkles, Loader2, AlertTriangle, CheckCircle2,
   CloudUpload, ArrowRight, ArrowLeft, ImageIcon, Calendar,
   DollarSign, AtSign, User, Tag, FileText, Info, Zap,
-  Rocket, ToggleLeft, ToggleRight, File as FileIcon,
+  Rocket, File as FileIcon,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -53,7 +53,7 @@ function Field({
         <Icon className="w-3.5 h-3.5" />
         {label}
         {required && <span className="text-rose-400 font-bold">*</span>}
-        {highlight && <span className="text-amber-400/60 font-normal ml-1">— please fill</span>}
+        {highlight && <span className="text-amber-400/60 font-normal ml-1">- please fill</span>}
       </label>
       {children}
     </div>
@@ -72,7 +72,6 @@ function AiThinkingAnimation() {
   return (
     <div className="flex flex-col items-center justify-center py-16 gap-6 animate-fade-in">
       <div className="relative">
-        {/* Spinning rings */}
         <div className="absolute inset-0 rounded-full border-2 border-emerald-500/20 animate-ping" style={{ animationDuration: '1.5s' }} />
         <div className="absolute inset-0 rounded-full border border-emerald-400/30 animate-spin" style={{ animationDuration: '3s' }} />
         <div className="relative p-5 bg-gradient-to-br from-emerald-500/15 to-teal-500/10 rounded-full border border-emerald-500/25">
@@ -110,14 +109,14 @@ export default function CreateCampaignModal({ isOpen, onClose, onSuccess }: Crea
 
   useEffect(() => {
     return () => {
-      if (filePreview) URL.revokeObjectURL(filePreview);
+      if (filePreview && filePreview !== 'doc') URL.revokeObjectURL(filePreview);
     };
   }, [filePreview]);
 
   const reset = () => {
     setStep('upload');
     setFile(null);
-    if (filePreview) URL.revokeObjectURL(filePreview);
+    if (filePreview && filePreview !== 'doc') URL.revokeObjectURL(filePreview);
     setFilePreview(null);
     setExtracting(false);
     setExtractedData(null);
@@ -129,7 +128,7 @@ export default function CreateCampaignModal({ isOpen, onClose, onSuccess }: Crea
   const handleClose = () => { reset(); onClose(); };
 
   const pickFile = (f: File) => {
-    const isImage = f.type.startsWith('image/');
+    const isImage = f.type.startsWith('image/') || f.name.toLowerCase().endsWith('.heic');
     const isDoc = f.type === 'application/pdf' || f.type.includes('wordprocessingml') || f.type === 'application/msword' || f.type.startsWith('text/') || f.name.endsWith('.pdf') || f.name.endsWith('.docx') || f.name.endsWith('.txt');
     
     if (!isImage && !isDoc) {
@@ -138,24 +137,24 @@ export default function CreateCampaignModal({ isOpen, onClose, onSuccess }: Crea
     }
     
     const maxDocSize = 10 * 1024 * 1024;
-    const maxImageSize = 5 * 1024 * 1024;
+    const maxImageSize = 10 * 1024 * 1024;
     
     if (isImage && f.size > maxImageSize) {
-      toast.error('Image too large. Maximum size is 5 MB.');
+      toast.error('Image too large. Maximum size is 10 MB.');
       return;
     }
-    if (!isImage && f.size > maxDocSize) {
+    if (!isDoc && !isImage && f.size > maxDocSize) {
       toast.error('Document too large. Maximum size is 10 MB.');
       return;
     }
     
-    if (filePreview) URL.revokeObjectURL(filePreview);
+    if (filePreview && filePreview !== 'doc') URL.revokeObjectURL(filePreview);
     setFile(f);
     
     if (isImage) {
       setFilePreview(URL.createObjectURL(f));
     } else {
-      setFilePreview('doc'); // Signal it's a document
+      setFilePreview('doc'); 
     }
   };
 
@@ -169,7 +168,7 @@ export default function CreateCampaignModal({ isOpen, onClose, onSuccess }: Crea
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0];
     if (f) pickFile(f);
-    e.target.value = ''; // Reset to allow picking the same file again
+    e.target.value = '';
   };
 
   const handleExtract = async () => {
@@ -183,20 +182,24 @@ export default function CreateCampaignModal({ isOpen, onClose, onSuccess }: Crea
         influencer_handle: data.influencer_handle ?? '',
         platform:          data.platform          ?? '',
         deliverables:      data.deliverables      ?? '',
-        deadline:          data.deadline          ?? '',
+        deadline:          (data.deadline && /^\d{4}-\d{2}-\d{2}$/.test(data.deadline)) ? data.deadline : '',
         payment_amount:    String(data.payment_amount ?? 0),
         special_notes:     data.special_notes     ?? '',
         status:            'draft',
       });
       setStep('review');
-      toast.success('AI extraction complete!', { icon: '✨' });
+      if (data.requires_human_review) {
+        toast.warning('Extraction needs review.', { icon: '⚠️' });
+      } else {
+        toast.success('AI extraction complete!', { icon: '✨' });
+      }
     } catch (err: unknown) {
       const msg = getApiErrorMessage(err, 'AI extraction failed. You can enter details manually.');
       toast.error(msg);
       setExtractedData({
         influencer_name: null, influencer_handle: null, platform: null,
         deliverables: null, deadline: null, payment_amount: 0,
-        special_notes: null, status: 'draft', requires_human_review: true,
+        special_notes: msg, status: 'draft', requires_human_review: true,
       });
       setStep('review');
     } finally {
@@ -205,11 +208,7 @@ export default function CreateCampaignModal({ isOpen, onClose, onSuccess }: Crea
   };
 
   const handleSkipToManual = () => {
-    setExtractedData({
-      influencer_name: null, influencer_handle: null, platform: null,
-      deliverables: null, deadline: null, payment_amount: 0,
-      special_notes: null, status: 'draft', requires_human_review: true,
-    });
+    setExtractedData(null);
     setStep('review');
   };
 
@@ -217,6 +216,18 @@ export default function CreateCampaignModal({ isOpen, onClose, onSuccess }: Crea
     e.preventDefault();
     if (!form.influencer_handle.trim()) {
       toast.error('Influencer handle (@username) is required.');
+      return;
+    }
+    if (!form.platform) {
+      toast.error('Please select a platform.');
+      return;
+    }
+    if (!form.deadline) {
+      toast.error('Please select a deadline.');
+      return;
+    }
+    if (!form.deliverables.trim()) {
+      toast.error('Please enter the deliverables.');
       return;
     }
     setStep('submitting');
@@ -258,13 +269,11 @@ export default function CreateCampaignModal({ isOpen, onClose, onSuccess }: Crea
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 animate-fade-in">
-      {/* Backdrop */}
       <div
         className="absolute inset-0 bg-black/80 backdrop-blur-md"
         onClick={step === 'submitting' ? undefined : handleClose}
       />
 
-      {/* Modal */}
       <div className="relative w-full sm:max-w-2xl bg-slate-900 border border-slate-700/50 rounded-t-2xl sm:rounded-2xl shadow-2xl shadow-black/60 overflow-hidden flex flex-col max-h-[95vh] animate-scale-in">
 
         {/* ── Header ──────────────────────────────────────────────── */}
@@ -287,7 +296,6 @@ export default function CreateCampaignModal({ isOpen, onClose, onSuccess }: Crea
             </div>
           </div>
 
-          {/* Step indicator */}
           <div className="flex items-center gap-2 mr-8">
             {STEPS.map((s, i) => {
               const isDone = currentStepIdx > i;
@@ -328,7 +336,6 @@ export default function CreateCampaignModal({ isOpen, onClose, onSuccess }: Crea
           {/* ── STEP 1: UPLOAD ───────────────────────────────────── */}
           {step === 'upload' && (
             <div className="p-5 space-y-4">
-              {/* AI benefit callout */}
               <div className="flex items-center gap-3 p-3.5 bg-gradient-to-r from-emerald-500/8 to-teal-500/5 border border-emerald-500/15 rounded-xl">
                 <div className="p-2 bg-emerald-500/12 rounded-lg flex-shrink-0 border border-emerald-500/20">
                   <Zap className="w-4 h-4 text-emerald-400" />
@@ -336,18 +343,16 @@ export default function CreateCampaignModal({ isOpen, onClose, onSuccess }: Crea
                 <div>
                   <p className="text-sm font-semibold text-white mb-0.5">AI-powered extraction</p>
                   <p className="text-xs text-slate-400 leading-relaxed">
-                    Upload a file or screenshot and AI will auto-fill{' '}
-                    <span className="text-emerald-400 font-medium">influencer name, handle, platform, deliverables, deadline & payment</span>.
+                    Upload an Image, PDF, or Text file and AI will auto-fill{' '}
+                    <span className="text-emerald-400 font-medium">influencer details, deliverables, deadline & payment</span>.
                   </p>
                 </div>
               </div>
 
-              {/* AI thinking animation while extracting */}
               {extracting ? (
                 <AiThinkingAnimation />
               ) : (
                 <>
-                  {/* Drop Zone */}
                   <div
                     onDragOver={e => { e.preventDefault(); setIsDragOver(true); }}
                     onDragLeave={() => setIsDragOver(false)}
@@ -373,7 +378,7 @@ export default function CreateCampaignModal({ isOpen, onClose, onSuccess }: Crea
                         ) : (
                           <img
                             src={filePreview!}
-                            alt="Uploaded screenshot"
+                            alt="Uploaded preview"
                             className="w-full max-h-60 object-contain rounded-xl p-3"
                           />
                         )}
@@ -396,11 +401,11 @@ export default function CreateCampaignModal({ isOpen, onClose, onSuccess }: Crea
                         </div>
                         <p className="text-white font-bold text-base mb-1">Drop your file or screenshot here</p>
                         <p className="text-slate-500 text-sm mb-4">or click to browse files</p>
-                        <p className="text-xs text-slate-600">PDF, DOCX, TXT, PNG, JPG · Max 10 MB</p>
+                        <p className="text-xs text-slate-600">PDF, DOCX, TXT, PNG, JPG, HEIC · Max 10 MB</p>
                       </div>
                     )}
                   </div>
-                  <input ref={fileRef} type="file" accept=".pdf,.doc,.docx,.txt,image/*" className="hidden" onChange={handleFileChange} />
+                  <input ref={fileRef} type="file" accept=".pdf,.doc,.docx,.txt,image/*,.heic" className="hidden" onChange={handleFileChange} />
 
                   {file && (
                     <div className="flex items-center gap-2 p-3 bg-slate-800/40 rounded-xl border border-slate-700/40">
@@ -408,7 +413,7 @@ export default function CreateCampaignModal({ isOpen, onClose, onSuccess }: Crea
                       <span className="text-sm text-slate-300 truncate flex-1">{file.name}</span>
                       <span className="text-xs text-slate-500 flex-shrink-0">{(file.size / 1024).toFixed(0)} KB</span>
                       <button
-                        onClick={() => { setFile(null); if (filePreview) URL.revokeObjectURL(filePreview); setFilePreview(null); }}
+                        onClick={() => { setFile(null); if (filePreview && filePreview !== 'doc') URL.revokeObjectURL(filePreview); setFilePreview(null); }}
                         className="text-slate-600 hover:text-rose-400 transition-colors p-0.5"
                       >
                         <X className="w-3.5 h-3.5" />
@@ -416,10 +421,8 @@ export default function CreateCampaignModal({ isOpen, onClose, onSuccess }: Crea
                     </div>
                   )}
 
-                  {/* Actions */}
                   <div className="flex flex-col sm:flex-row gap-3">
                     <button
-                      id="extract-ai-btn"
                       onClick={handleExtract}
                       disabled={!file}
                       className="flex-1 flex items-center justify-center gap-2 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold rounded-xl py-3 text-sm transition-all shadow-lg shadow-emerald-500/25 active:scale-[0.98]"
@@ -428,7 +431,6 @@ export default function CreateCampaignModal({ isOpen, onClose, onSuccess }: Crea
                       Extract with AI
                     </button>
                     <button
-                      id="manual-entry-btn"
                       onClick={handleSkipToManual}
                       className="sm:w-auto flex items-center justify-center gap-2 bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold rounded-xl px-5 py-3 text-sm transition-all border border-slate-700/50 hover:border-slate-600"
                     >
@@ -443,22 +445,22 @@ export default function CreateCampaignModal({ isOpen, onClose, onSuccess }: Crea
           {/* ── STEP 2: REVIEW FORM ──────────────────────────────── */}
           {(step === 'review' || step === 'submitting') && (
             <form id="campaign-form" onSubmit={handleSubmit} className="p-5 space-y-4">
-              {/* Human review warning */}
               {needsReview && (
                 <div className="flex gap-3 p-4 bg-amber-500/8 border border-amber-500/20 rounded-xl">
                   <AlertTriangle className="w-4 h-4 text-amber-400 flex-shrink-0 mt-0.5" />
                   <div>
                     <p className="text-sm font-bold text-amber-400 mb-0.5">Please review carefully</p>
                     <p className="text-xs text-amber-400/70 leading-relaxed">
-                      {missingFields.length > 0
+                      {extractedData?.special_notes && extractedData.special_notes.includes("Extract") 
+                        ? extractedData.special_notes 
+                        : missingFields.length > 0
                         ? `Couldn't extract: ${missingFields.join(', ')}. Please fill these in.`
-                        : 'AI filled all fields — please verify accuracy before saving.'}
+                        : 'Please verify the details below.'}
                     </p>
                   </div>
                 </div>
               )}
 
-              {/* AI success banner */}
               {extractedData && !needsReview && (
                 <div className="flex gap-3 p-4 bg-emerald-500/8 border border-emerald-500/20 rounded-xl">
                   <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0 mt-0.5" />
@@ -469,7 +471,6 @@ export default function CreateCampaignModal({ isOpen, onClose, onSuccess }: Crea
                 </div>
               )}
 
-              {/* Manual mode banner */}
               {!extractedData && (
                 <div className="flex gap-3 p-4 bg-slate-800/40 border border-slate-700/40 rounded-xl">
                   <Info className="w-4 h-4 text-slate-400 flex-shrink-0 mt-0.5" />
@@ -477,7 +478,6 @@ export default function CreateCampaignModal({ isOpen, onClose, onSuccess }: Crea
                 </div>
               )}
 
-              {/* ── Form Grid ── */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <Field
                   label="Influencer Name"
@@ -589,7 +589,6 @@ export default function CreateCampaignModal({ isOpen, onClose, onSuccess }: Crea
         {/* ── Footer ──────────────────────────────────────────────── */}
         {(step === 'review' || step === 'submitting') && (
           <div className="border-t border-slate-800/60 bg-slate-900/95 px-5 py-4 flex-shrink-0">
-            {/* Mark as Active toggle */}
             <div className={`flex items-center justify-between mb-4 p-3.5 rounded-xl border transition-all duration-200 ${
               markActive
                 ? 'bg-emerald-500/8 border-emerald-500/20'
@@ -605,7 +604,6 @@ export default function CreateCampaignModal({ isOpen, onClose, onSuccess }: Crea
                 </div>
               </div>
               <button
-                id="launch-toggle-btn"
                 type="button"
                 onClick={() => setMarkActive(v => !v)}
                 className={`relative flex-shrink-0 w-11 h-6 rounded-full border transition-all duration-300 ${
@@ -614,7 +612,6 @@ export default function CreateCampaignModal({ isOpen, onClose, onSuccess }: Crea
                     : 'bg-slate-700 border-slate-600'
                 }`}
                 aria-label="Toggle launch immediately"
-                aria-pressed={markActive}
               >
                 <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow-md transition-transform duration-300 ${markActive ? 'translate-x-5' : 'translate-x-0'}`} />
               </button>
@@ -631,7 +628,6 @@ export default function CreateCampaignModal({ isOpen, onClose, onSuccess }: Crea
                 Back
               </button>
               <button
-                id="save-campaign-btn"
                 type="submit"
                 form="campaign-form"
                 disabled={step === 'submitting'}
