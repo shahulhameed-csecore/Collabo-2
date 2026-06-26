@@ -27,7 +27,7 @@ class Settings(BaseSettings):
     # Set any random string here; leave empty to disable the endpoint.
     INTERNAL_SECRET: Optional[str] = None
 
-    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
+    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
     @property
     def cors_origins_list(self) -> List[str]:
