@@ -29,6 +29,7 @@ export default function AnalyticsPage() {
   // Calculations
   const totalSpend = campaigns.reduce((sum, c) => sum + (c.payment_amount || 0), 0);
   const avgSpend = campaigns.length > 0 ? Math.round(totalSpend / campaigns.length) : 0;
+  const totalClicks = campaigns.reduce((sum, c) => sum + (c.clicks || 0), 0);
   
   // Find top platform
   const platforms = campaigns.map(c => c.platform).filter(Boolean);
@@ -77,7 +78,7 @@ export default function AnalyticsPage() {
           </div>
         ) : (
           <>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6">
               <div className="bg-white dark:bg-slate-900/60 p-6 rounded-2xl border border-slate-200 dark:border-slate-800/60 shadow-sm">
                 <h3 className="text-sm font-semibold text-slate-500 dark:text-slate-400 mb-2 flex items-center gap-2">
                   <Target className="w-4 h-4 text-emerald-500" /> Total Spend
@@ -99,12 +100,22 @@ export default function AnalyticsPage() {
                 <p className="text-4xl font-black text-slate-900 dark:text-amber-400">₹{avgSpend.toLocaleString('en-IN')}</p>
                 <p className="text-xs text-slate-500 mt-2">Per influencer</p>
               </div>
+              <div className="bg-white dark:bg-slate-900/60 p-6 rounded-2xl border border-slate-200 dark:border-slate-800/60 shadow-sm">
+                <h3 className="text-sm font-semibold text-slate-500 dark:text-slate-400 mb-2 flex items-center gap-2">
+                  <TrendingUp className="w-4 h-4 text-purple-500" /> Total Clicks
+                </h3>
+                <p className="text-4xl font-black text-slate-900 dark:text-purple-400">{totalClicks.toLocaleString('en-IN')}</p>
+                <p className="text-xs text-slate-500 mt-2">From Tracking Links</p>
+              </div>
             </div>
 
             <div className="h-96 w-full bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-800/50 rounded-2xl flex flex-col items-center justify-center text-center p-6 shadow-sm">
-              <TrendingUp className="w-12 h-12 text-slate-300 dark:text-slate-700 mb-4" />
-              <h2 className="text-xl font-bold text-slate-700 dark:text-slate-400">Performance Over Time</h2>
-              <p className="text-slate-500 dark:text-slate-600 mt-2">Connect your tracking links to populate real-time charts.</p>
+              <TrendingUp className="w-12 h-12 text-emerald-500 mb-4" />
+              <h2 className="text-xl font-bold text-slate-700 dark:text-emerald-400">Tracking Links are Live!</h2>
+              <p className="text-slate-500 dark:text-slate-400 mt-2 max-w-md">
+                You have recorded <strong>{totalClicks.toLocaleString('en-IN')}</strong> clicks so far.<br/>
+                Real-time charting over time is coming in the next update.
+              </p>
             </div>
           </>
         )}

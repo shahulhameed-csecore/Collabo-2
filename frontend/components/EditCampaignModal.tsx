@@ -5,7 +5,7 @@ import { updateCampaign, getApiErrorMessage } from '@/lib/api';
 import type { Campaign, CampaignFormState } from '@/lib/types';
 import { PLATFORMS } from '@/lib/types';
 import {
-  X, CheckCircle2, DollarSign, AtSign, User, Tag, FileText, Info, Calendar, Loader2
+  X, CheckCircle2, DollarSign, AtSign, User, Tag, FileText, Info, Calendar, Loader2, Rocket
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -51,6 +51,7 @@ export default function EditCampaignModal({ campaign, isOpen, onClose, onSuccess
     deadline: '',
     payment_amount: '0',
     special_notes: '',
+    destination_url: '',
     status: 'draft',
   });
 
@@ -65,6 +66,7 @@ export default function EditCampaignModal({ campaign, isOpen, onClose, onSuccess
         deadline: campaign.deadline || '',
         payment_amount: String(campaign.payment_amount || 0),
         special_notes: campaign.special_notes || '',
+        destination_url: campaign.destination_url || '',
         status: campaign.status,
       });
     }
@@ -89,6 +91,7 @@ export default function EditCampaignModal({ campaign, isOpen, onClose, onSuccess
         deadline: form.deadline || null,
         payment_amount: parseFloat(form.payment_amount) || 0,
         special_notes: form.special_notes || null,
+        destination_url: form.destination_url || null,
         status: form.status,
       });
       toast.success('Campaign updated successfully!');
@@ -224,6 +227,16 @@ export default function EditCampaignModal({ campaign, isOpen, onClose, onSuccess
                 value={form.special_notes}
                 onChange={e => fieldChange('special_notes', e.target.value)}
                 placeholder="Moodboard link, brand colours, dos & don'ts..."
+                className={inputCls()}
+              />
+            </Field>
+
+            <Field label="Destination URL (for Tracking Link)" icon={Rocket}>
+              <input
+                type="url"
+                value={form.destination_url}
+                onChange={e => fieldChange('destination_url', e.target.value)}
+                placeholder="https://mybrand.com/summer-sale"
                 className={inputCls()}
               />
             </Field>

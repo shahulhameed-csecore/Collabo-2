@@ -28,6 +28,7 @@ const EMPTY_FORM: CampaignFormState = {
   deadline: '',
   payment_amount: '0',
   special_notes: '',
+  destination_url: '',
   status: 'draft',
 };
 
@@ -185,6 +186,7 @@ export default function CreateCampaignModal({ isOpen, onClose, onSuccess }: Crea
         deadline:          (data.deadline && /^\d{4}-\d{2}-\d{2}$/.test(data.deadline)) ? data.deadline : '',
         payment_amount:    String(data.payment_amount ?? 0),
         special_notes:     data.special_notes     ?? '',
+        destination_url:   '',
         status:            'draft',
       });
       setStep('review');
@@ -199,7 +201,7 @@ export default function CreateCampaignModal({ isOpen, onClose, onSuccess }: Crea
       setExtractedData({
         influencer_name: null, influencer_handle: null, platform: null,
         deliverables: null, deadline: null, payment_amount: 0,
-        special_notes: msg, status: 'draft', requires_human_review: true,
+        special_notes: msg, destination_url: '', status: 'draft', requires_human_review: true,
       });
       setStep('review');
     } finally {
@@ -240,6 +242,7 @@ export default function CreateCampaignModal({ isOpen, onClose, onSuccess }: Crea
         deadline:          form.deadline          || null,
         payment_amount:    parseFloat(form.payment_amount) || 0,
         special_notes:     form.special_notes     || null,
+        destination_url:   form.destination_url   || null,
         status:            markActive ? 'active' : form.status,
       });
       toast.success('🎉 Campaign created successfully!');
@@ -579,6 +582,16 @@ export default function CreateCampaignModal({ isOpen, onClose, onSuccess }: Crea
                   value={form.special_notes}
                   onChange={e => fieldChange('special_notes', e.target.value)}
                   placeholder="Moodboard link, brand colours, dos & don'ts..."
+                  className={inputCls()}
+                />
+              </Field>
+
+              <Field label="Destination URL (for Tracking Link)" icon={Rocket}>
+                <input
+                  type="url"
+                  value={form.destination_url}
+                  onChange={e => fieldChange('destination_url', e.target.value)}
+                  placeholder="https://mybrand.com/summer-sale"
                   className={inputCls()}
                 />
               </Field>

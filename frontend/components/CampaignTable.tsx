@@ -8,7 +8,7 @@ import {
   Calendar, DollarSign, AlertCircle, CheckCircle2,
   Clock, XCircle, Plus, Search, Filter,
   Globe, X, Check, ExternalLink, Edit2, FileSpreadsheet, Database,
-  MessageCircle, Download, CheckSquare
+  MessageCircle, Download, CheckSquare, Link as LinkIcon
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -559,6 +559,7 @@ export default function CampaignTable({ campaigns, isLoading, onRefresh, onCreat
                   { key: 'deadline',        label: 'Deadline' },
                   { key: 'payment_amount',  label: 'Payment' },
                   { key: 'status',          label: 'Status' },
+                  { key: 'clicks',          label: 'Tracking' },
                 ] as const).map(({ key, label }) => (
                   <th
                     key={key}
@@ -661,6 +662,31 @@ export default function CampaignTable({ campaigns, isLoading, onRefresh, onCreat
                         {/* Status */}
                         <td className="px-4 py-3.5">
                           <StatusBadge status={c.status} />
+                        </td>
+
+                        {/* Tracking */}
+                        <td className="px-4 py-3.5">
+                          {c.short_code ? (
+                            <div className="flex flex-col items-start gap-1">
+                              <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-500/10 px-1.5 py-0.5 rounded-md border border-emerald-200 dark:border-emerald-500/20">
+                                {c.clicks} clicks
+                              </span>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  const baseUrl = process.env.NEXT_PUBLIC_API_URL?.replace('/api/v1', '') || 'https://collabo-2.onrender.com';
+                                  navigator.clipboard.writeText(`${baseUrl}/t/${c.short_code}`);
+                                  toast.success('Tracking link copied!');
+                                }}
+                                className="text-[10px] text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 transition-colors flex items-center gap-1"
+                                title={c.destination_url || ''}
+                              >
+                                <LinkIcon className="w-3 h-3" /> Copy Link
+                              </button>
+                            </div>
+                          ) : (
+                            <span className="text-slate-600 text-xs">—</span>
+                          )}
                         </td>
 
                         {/* Actions */}

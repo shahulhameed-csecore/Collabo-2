@@ -29,6 +29,9 @@ export interface Campaign {
   status: CampaignStatus;
   proof_url: string | null;
   magic_link_token: string | null;
+  destination_url: string | null;
+  short_code: string | null;
+  clicks: number;
   created_at: string;             // ISO datetime string
   updated_at: string;             // ISO datetime string
 }
@@ -42,6 +45,7 @@ export interface CreateCampaignPayload {
   deadline?: string | null;
   payment_amount?: number;
   special_notes?: string | null;
+  destination_url?: string | null;
   status?: CampaignStatus;
 }
 
@@ -88,6 +92,7 @@ export interface CampaignFormState {
   deadline: string;
   payment_amount: string;   // string for controlled input, convert to number on submit
   special_notes: string;
+  destination_url: string;
   status: CampaignStatus;
 }
 
