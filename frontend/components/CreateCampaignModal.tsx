@@ -219,6 +219,18 @@ export default function CreateCampaignModal({ isOpen, onClose, onSuccess }: Crea
       toast.error('Influencer handle (@username) is required.');
       return;
     }
+    if (!form.platform) {
+      toast.error('Please select a platform.');
+      return;
+    }
+    if (!form.deadline) {
+      toast.error('Please select a deadline.');
+      return;
+    }
+    if (!form.deliverables.trim()) {
+      toast.error('Please enter the deliverables.');
+      return;
+    }
     setStep('submitting');
     try {
       await createCampaign({
