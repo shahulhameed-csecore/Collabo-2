@@ -146,7 +146,7 @@ async def update_campaign_status(
         "content_received": ["approved", "rejected", "cancelled"],
         "approved": ["paid", "cancelled"],
         "paid": ["cancelled"],
-        "rejected": ["active", "cancelled"], # allow restoring to active
+        "rejected": ["active", "cancelled", "approved", "content_received"], # allow restoring to active, or direct approval
         "cancelled": ["draft", "active"] # allow restoring from cancelled
     }
 
