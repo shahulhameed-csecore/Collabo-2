@@ -77,8 +77,8 @@ async def create_campaign(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error("Campaign creation failed", error=type(e).__name__, user_id=user.user.id)
-        raise HTTPException(status_code=500, detail="Failed to create campaign. Please try again.")
+        logger.error("Campaign creation failed", error=type(e).__name__, detail=str(e), user_id=user.user.id)
+        raise HTTPException(status_code=500, detail=f"Failed to create campaign: {str(e)}")
 
 
 @router.put("/{id}", response_model=CampaignResponse)

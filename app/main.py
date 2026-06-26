@@ -187,8 +187,18 @@ async def add_security_headers(request: Request, call_next):
     return response
 
 
+from fastapi import HTTPException
+
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
+    if isinstance(exc, HTTPException):
+        # Let FastAPI's default HTTPException handler deal with it
+        return JSONResponse(
+            status_code=exc.status_code,
+            content={"detail": exc.detail},
+            headers=getattr(exc, "headers", None)
+        )
+
     logger.exception(
         "unhandled_exception",
         method=request.method,
