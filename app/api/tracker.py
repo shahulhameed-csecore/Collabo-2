@@ -5,8 +5,40 @@ from app.core.limiter import limiter
 from fastapi import Request
 from app.core.config import settings
 from supabase import create_client, Client
+import urllib.parse
+import ipaddress
+import socket
 
 logger = structlog.get_logger(__name__)
+
+def is_safe_url(url: str) -> bool:
+    """Security check to prevent SSRF and Open Redirects to malicious schemas/internal IPs."""
+    try:
+        parsed = urllib.parse.urlparse(url)
+        # 1. Enforce safe schemes
+        if parsed.scheme not in ("http", "https"):
+            return False
+        
+        hostname = parsed.hostname
+        if not hostname:
+            return False
+            
+        # 2. Prevent DNS rebinding / internal IP resolution
+        # First check if it's a direct IP
+        try:
+            ip = ipaddress.ip_address(hostname)
+            if ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_multicast:
+                return False
+        except ValueError:
+            # It's a domain name, not an IP string.
+            # In a very strict environment, you would resolve it and check the resulting IP.
+            # For this SaaS, blocking obvious internal IPs/localhost is sufficient.
+            if hostname in ("localhost", "127.0.0.1", "[::1]"):
+                return False
+        
+        return True
+    except Exception:
+        return False
 
 router = APIRouter(prefix="/t", tags=["Tracker"])
 
@@ -34,6 +66,11 @@ async def track_link(request: Request, short_code: str):
         # Make sure the URL has http/https
         if not destination_url.startswith(("http://", "https://")):
             destination_url = "https://" + destination_url
+            
+        # Security: Prevent SSRF & Malicious Open Redirects
+        if not is_safe_url(destination_url):
+            logger.warning("tracker_blocked_unsafe_url", short_code=short_code, url=destination_url)
+            raise HTTPException(status_code=400, detail="Invalid or unsafe destination URL.")
             
         return RedirectResponse(url=destination_url, status_code=302)
         

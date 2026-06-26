@@ -27,10 +27,20 @@ import sentry_sdk
 # This MUST happen before any module-level structlog.get_logger() call.
 # Previously this was on line 73, after reminders.py was imported on line 17.
 logging.basicConfig(level=logging.INFO)
+
+def redact_secrets(logger, log_method, event_dict):
+    """Redacts sensitive information from logs."""
+    sensitive_keys = {"token", "secret", "password", "key", "authorization", "auth"}
+    for k, v in event_dict.items():
+        if any(sec in k.lower() for sec in sensitive_keys):
+            event_dict[k] = "***REDACTED***"
+    return event_dict
+
 structlog.configure(
     processors=[
         structlog.stdlib.add_log_level,
         structlog.stdlib.add_logger_name,
+        redact_secrets,
         structlog.processors.TimeStamper(fmt="iso"),
         structlog.processors.dict_tracebacks,
         structlog.processors.JSONRenderer(),
@@ -173,15 +183,18 @@ app.add_middleware(
 @app.middleware("http")
 async def add_security_headers(request: Request, call_next):
     response = await call_next(request)
-    response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+    response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains; preload"
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["X-Frame-Options"] = "DENY"
     response.headers["X-XSS-Protection"] = "1; mode=block"
+    # Tightened CSP: Restrict connect-src and frame-ancestors. unsafe-inline is kept for Swagger UI.
     response.headers["Content-Security-Policy"] = (
         "default-src 'self'; "
         "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
         "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net; "
-        "img-src 'self' data: https://collabo-2.vercel.app;"
+        "img-src 'self' data: https://collabo-2.vercel.app; "
+        "connect-src 'self' https://*.supabase.co; "
+        "frame-ancestors 'none';"
     )
     return response
 

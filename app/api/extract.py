@@ -1,5 +1,5 @@
 import structlog
-from fastapi import APIRouter, Depends, UploadFile, File, Request
+from fastapi import APIRouter, Depends, UploadFile, File, Request, HTTPException
 from app.api.dependencies import get_current_user, AuthenticatedUser
 from app.core.limiter import limiter
 from app.services.gemini import extract_campaign_data
@@ -17,7 +17,15 @@ async def extract_data(
 ):
     try:
         logger.info("extract_endpoint_called", user_id=user.user.id, filename=file.filename, content_type=file.content_type)
-        file_bytes = await file.read()
+        
+        # Security: Prevent OOM by enforcing a strict 5MB limit before loading into memory.
+        # We read chunk+1 bytes. If the length is > 5MB, we reject immediately.
+        MAX_SIZE = 5 * 1024 * 1024
+        file_bytes = await file.read(MAX_SIZE + 1)
+        if len(file_bytes) > MAX_SIZE:
+            logger.warning("extract_endpoint_rejected_file_too_large", user_id=user.user.id, size=len(file_bytes))
+            raise HTTPException(status_code=413, detail="File too large. Maximum size allowed is 5MB.")
+            
         
         # Delegate to the robust gemini service
         extracted_data = await extract_campaign_data(
