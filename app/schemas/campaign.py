@@ -1,6 +1,6 @@
 from pydantic import BaseModel, Field, field_validator
 from pydantic import ConfigDict
-from typing import Optional
+from typing import Optional, List, Dict, Any
 from datetime import date, datetime
 from enum import Enum
 
@@ -63,6 +63,10 @@ class CampaignBase(BaseModel):
     proof_url: Optional[str] = Field(
         default=None,
         description="URL to the uploaded proof of posting file."
+    )
+    proof_history: Optional[List[Dict[str, Any]]] = Field(
+        default=[],
+        description="List of previous proof submissions."
     )
     destination_url: Optional[str] = Field(
         default=None,

@@ -78,7 +78,7 @@ async def upload_proof(
     service_client = get_service_client()
 
     # 1. Validate Token and Campaign State
-    campaign_resp = service_client.table("campaigns").select("id", "status", "user_id", "influencer_name").eq("magic_link_token", token).execute()
+    campaign_resp = service_client.table("campaigns").select("id", "status", "user_id", "influencer_name", "proof_url", "proof_history", "updated_at").eq("magic_link_token", token).execute()
     if not campaign_resp.data:
         raise HTTPException(status_code=404, detail="Invalid token.")
     
@@ -120,9 +120,21 @@ async def upload_proof(
         public_url = service_client.storage.from_(bucket_name).get_public_url(secure_filename)
         
         # 6. Update Campaign Status to 'content_received'
+        from datetime import datetime
+        current_proof = campaign.get("proof_url")
+        current_history = campaign.get("proof_history") or []
+        
+        # If there's an existing proof, push it to history before replacing
+        if current_proof:
+            current_history.append({
+                "url": current_proof,
+                "uploaded_at": campaign.get("updated_at") or datetime.utcnow().isoformat(),
+            })
+
         update_data = {
             "status": "content_received",
-            "proof_url": public_url
+            "proof_url": public_url,
+            "proof_history": current_history
         }
         service_client.table("campaigns").update(update_data).eq("id", campaign["id"]).execute()
 
