@@ -17,7 +17,7 @@ logger = structlog.get_logger(__name__)
 clean_api_key = settings.GEMINI_API_KEY.strip(' "\'')
 client = genai.Client(
     api_key=clean_api_key,
-    http_options={'timeout': 30.0} # Added explicit timeout for production reliability
+    http_options={'timeout': 60.0}
 )
 
 
@@ -70,7 +70,7 @@ DO NOT include any commentary. Output raw JSON only.
 @retry(
     wait=wait_exponential(min=1, max=10),
     stop=stop_after_attempt(3),
-    retry=retry_if_exception_type((APIError, ValueError)),
+    retry=retry_if_exception_type(Exception),
     reraise=True
 )
 def _generate_with_retry(gemini_content: list) -> str:
