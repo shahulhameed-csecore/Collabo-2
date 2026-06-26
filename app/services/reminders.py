@@ -84,47 +84,54 @@ def _get_supabase_admin():
 
 
 # ---------------------------------------------------------------------------
-# Email sending
+# Email sending via Webhook
 # ---------------------------------------------------------------------------
 
-import smtplib
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
+import httpx
 
 async def _send_email(to_email: str, subject: str, html: str) -> bool:
     """
-    Send a transactional email using native SMTP via Gmail.
-    Runs synchronously but wrapped in asyncio.to_thread so it doesn't block.
+    Send a transactional email using a Webhook (e.g., Google Apps Script).
+    Runs asynchronously using httpx to prevent blocking.
     Returns True on confirmed delivery, False on any failure.
     """
-    if not settings.SMTP_EMAIL or not settings.SMTP_PASSWORD:
+    if not settings.GMAIL_WEBHOOK_URL:
         logger.warning(
             "reminders.email_skipped",
-            reason="SMTP_EMAIL or SMTP_PASSWORD not configured in environment",
+            reason="GMAIL_WEBHOOK_URL not configured in environment",
             to=to_email,
         )
         return False
 
-    def _sync_send():
-        msg = MIMEMultipart("alternative")
-        msg["Subject"] = subject
-        msg["From"] = f"Collabo <{settings.SMTP_EMAIL}>"
-        msg["To"] = to_email
-        msg.attach(MIMEText(html, "html"))
-
-        with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
-            server.login(settings.SMTP_EMAIL, settings.SMTP_PASSWORD)
-            server.sendmail(settings.SMTP_EMAIL, to_email, msg.as_string())
+    payload = {
+        "to": to_email,
+        "subject": subject,
+        "html": html,
+        "secret": settings.GMAIL_WEBHOOK_SECRET
+    }
 
     try:
-        await asyncio.to_thread(_sync_send)
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            resp = await client.post(settings.GMAIL_WEBHOOK_URL, json=payload)
+            resp.raise_for_status()
+            
         logger.info(
             "reminders.email_sent",
             to=to_email,
             subject=subject,
-            method="SMTP",
+            method="WEBHOOK",
+            status_code=resp.status_code,
         )
         return True
+    except httpx.HTTPStatusError as exc:
+        logger.error(
+            "reminders.email_failed",
+            to=to_email,
+            subject=subject,
+            status_code=exc.response.status_code,
+            error=str(exc),
+        )
+        return False
     except Exception as exc:
         logger.error(
             "reminders.email_failed",
@@ -506,7 +513,7 @@ async def _fetch_campaigns_with_settings(supabase_admin, log) -> list[dict]:
 # Main job
 # ---------------------------------------------------------------------------
 
-async def check_deadlines_job() -> None:
+async def check_deadlines_job() -> dict:
     """
     Scheduled job: check every active campaign for approaching/overdue deadlines.
 
@@ -529,7 +536,7 @@ async def check_deadlines_job() -> None:
         "reminders.job_started",
         now_utc=now_utc.isoformat(),
         now_ist=now_utc.astimezone(_IST).isoformat(),
-        smtp_configured=bool(settings.SMTP_EMAIL and settings.SMTP_PASSWORD),
+        webhook_configured=bool(settings.GMAIL_WEBHOOK_URL),
         service_role_configured=bool(settings.SUPABASE_SERVICE_ROLE_KEY),
         wa_configured=bool(settings.WHATSAPP_TOKEN and settings.WHATSAPP_PHONE_NUMBER_ID),
     )
@@ -539,14 +546,14 @@ async def check_deadlines_job() -> None:
         supabase = _get_supabase_admin()
     except RuntimeError as exc:
         log.error("reminders.job_aborted", reason=str(exc))
-        return
+        return {"error": str(exc)}
 
     # ── Fetch campaigns + user settings (two-step, no PostgREST join) ─────
     campaigns = await _fetch_campaigns_with_settings(supabase, log)
 
     if not campaigns:
         log.info("reminders.job_completed", processed=0, reminded=0, overdue=0, errors=0, skipped=0)
-        return
+        return {"processed": 0, "reminded": 0, "overdue": 0, "errors": 0, "skipped": 0}
 
     processed = reminded = overdue_count = error_count = skipped = 0
 
@@ -745,3 +752,12 @@ async def check_deadlines_job() -> None:
         errors=error_count,
         duration_seconds=round((datetime.now(timezone.utc) - now_utc).total_seconds(), 2),
     )
+
+    return {
+        "processed": processed,
+        "reminded": reminded,
+        "overdue": overdue_count,
+        "skipped": skipped,
+        "errors": error_count,
+        "duration_seconds": round((datetime.now(timezone.utc) - now_utc).total_seconds(), 2)
+    }

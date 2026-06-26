@@ -286,10 +286,11 @@ async def trigger_reminders_now(request: Request):
         raise HTTPException(status_code=403, detail="Invalid secret.")
 
     logger.info("reminders.manual_trigger", source="POST /internal/trigger-reminders")
-    task = asyncio.create_task(check_deadlines_job())
-    background_tasks.add(task)
-    task.add_done_callback(background_tasks.discard)
-    return {"message": "Reminder job triggered. Check Render logs for results."}
+    results = await check_deadlines_job()
+    return {
+        "message": "Reminder job completed synchronously.",
+        "results": results
+    }
 
 
 @app.get(

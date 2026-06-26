@@ -139,6 +139,8 @@ class CampaignResponse(CampaignBase):
     magic_link_token: Optional[str] = Field(description="The token for unauthenticated influencers to upload proof.")
     created_at: str = Field(description="ISO-8601 timestamp of creation.")
     updated_at: str = Field(description="ISO-8601 timestamp of the last update.")
+    reminder_48h_sent: bool = Field(default=False, description="Flag indicating if the 48h reminder was sent.")
+    overdue_alert_sent: bool = Field(default=False, description="Flag indicating if the overdue alert was sent.")
 
 
 class ExtractionResult(CampaignBase):
