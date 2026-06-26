@@ -1,0 +1,78 @@
+# InfluencerTrack Backend: Final Engineering Report
+
+This document serves as the complete, end-to-end record of everything designed, built, and secured for the **InfluencerTrack Backend API**.
+
+---
+
+## 1. Core Architecture & Tech Stack
+We built a modern, highly performant micro-SaaS backend utilizing the following stack:
+* **Framework:** FastAPI (Python 3.10+) for blazing-fast asynchronous execution.
+* **Database & Auth:** Supabase (PostgreSQL) leveraging Row-Level Security (RLS) and JWT validation.
+* **AI Engine:** Google Gemini 3.5 Flash (via `google-genai` SDK) for instantaneous image extraction.
+* **Hosting Configuration:** Optimized infrastructure-as-code (`render.yaml`) for Render.com's environment.
+
+---
+
+## 2. API Endpoints Developed
+
+### 🧠 The AI Extraction Engine (`/extract/`)
+* **Endpoint:** `POST /extract/`
+* **Purpose:** Takes a raw image upload (screenshot of WhatsApp, Instagram, or email) and automatically parses it into a structured JSON campaign payload.
+* **Features:**
+  * **Image Compression:** Uses `Pillow` to automatically resize images down to 1024x1024 (Lanczos algorithm) and 85% JPEG quality *before* sending to Google, massively reducing Gemini API latency and bandwidth costs.
+  * **Payload Restrictions:** Enforces a strict 5MB upload limit to prevent memory exhaustion attacks.
+  * **AI Fallbacks:** If the AI hallucinates, fails to read the image, or crashes, the backend gracefully catches the error and returns a partial JSON object with `requires_human_review=True` instead of throwing a 500 server crash.
+
+### 🗄️ Campaign Management (`/campaigns/`)
+* **Endpoints:**
+  * `POST /campaigns/` (Create a new campaign)
+  * `GET /campaigns/` (Fetch all campaigns)
+  * `PUT /campaigns/{id}` (Update an entire campaign)
+  * `PATCH /campaigns/{id}/status` (Update only the lifecycle status)
+  * `DELETE /campaigns/{id}` (Remove a campaign)
+* **Features:**
+  * **Pagination:** The `GET` endpoint implements `limit` and `offset` logic so the database doesn't crash when querying 10,000 campaigns.
+  * **State Machine:** Campaigns strictly adhere to a lifecycle enum (`draft`, `active`, `completed`, `cancelled`).
+
+### 🩺 Health & Observability (`/health`)
+* **Endpoint:** `GET /`
+* **Purpose:** Returns a simple JSON heartbeat (`{"status": "healthy"}`) to ensure the cloud provider knows the server is alive.
+
+---
+
+## 3. Security & Resilience (Production Hardening)
+
+To ensure the backend survives real-world malicious traffic, we implemented a zero-trust security model:
+
+1. **Supabase Row-Level Security (RLS):**
+   * *The Problem:* Without RLS, any user could potentially fetch or delete another brand's campaigns.
+   * *The Fix:* We dynamically instantiate the Supabase client using the *caller's* JWT token for every single request. The Postgres database evaluates the JWT and enforces that users can only interact with rows where `user_id == auth.uid()`.
+
+2. **DDoS & Bot Protection (`slowapi`):**
+   * Placed a strict rate limit of **10 requests per minute** on the `/extract/` endpoint. This guarantees that a malicious bot cannot rack up a massive Google Gemini API bill.
+
+3. **String-Bomb Prevention (Pydantic):**
+   * Added `max_length` constraints to all database fields (e.g., `influencer_handle: max_length=255`). This prevents attackers from sending 10-Megabyte strings to bloat database storage.
+
+4. **Structured JSON Logging (`structlog`):**
+   * Replaced standard text logging with `structlog`. All errors, timeouts, and system events are output as machine-readable JSON, making debugging in cloud environments incredibly fast.
+
+5. **Sentry Error Tracking:**
+   * Integrated `sentry-sdk` (configured as an optional environment variable) to automatically catch and trace unhandled exceptions.
+
+---
+
+## 4. Documentation & Developer Experience
+
+* **Interactive Swagger UI:** The `/docs` route was completely overhauled. Every endpoint features deep Pydantic documentation with pre-filled `examples` and field descriptions, turning the backend into an interactive playground for frontend developers.
+* **Safe Git Practices:** We generated a massive `.gitignore` file to ensure `.env` secrets, `venv` folders, and `__pycache__` artifacts never accidentally leak onto GitHub.
+
+---
+
+## 5. Deployment Readiness
+
+* **Render IaC:** We created `render.yaml` to fully automate the cloud deployment.
+* **Dependency Locking:** Pinned all critical dependencies in `requirements.txt` to ensure cloud builds never unexpectedly break due to upstream package updates.
+* **Dynamic Port Binding:** Engineered `main.py` to gracefully accept dynamic `$PORT` assignments from cloud hosting providers.
+
+***Final Status:** The API is live, secure, heavily optimized, and fully prepared to serve data to the frontend dashboard.*
