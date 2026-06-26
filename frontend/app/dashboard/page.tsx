@@ -345,8 +345,7 @@ export default function DashboardPage() {
             <div>
               <h2 className="text-base font-extrabold text-white mb-1">Welcome to Collabo! 👋</h2>
               <p className="text-sm text-slate-400 leading-relaxed mb-4">
-                Track every influencer deal in one place. Upload a DM screenshot and our AI will auto-extract
-                the influencer details, deliverables, deadline, and payment — saving you hours every week.
+                Track every influencer deal in one place. Log the influencer details, deliverables, deadline, and payment to start tracking your campaigns effectively.
               </p>
               <button
                 onClick={() => setIsModalOpen(true)}
@@ -549,7 +548,6 @@ export default function DashboardPage() {
               <h3 className="text-sm font-bold text-slate-900 dark:text-white mb-3">💡 Quick Tips</h3>
               <ul className="space-y-2.5">
                 {[
-                  'Upload a WhatsApp DM screenshot to auto-extract campaign details',
                   'Set deadlines to track overdue campaigns instantly',
                   'Use the status dropdown to track campaign progress',
                   'Toggle "Launch immediately" to skip Draft and go Active',

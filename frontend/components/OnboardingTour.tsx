@@ -36,7 +36,7 @@ export default function OnboardingTour() {
     },
     {
       target: '#new-campaign-header-btn',
-      content: 'Click here to create a new campaign. You can upload WhatsApp screenshots and our AI will extract all the details for you!',
+      content: 'Click here to create a new campaign. Log the details to start tracking!',
       placement: 'bottom',
     },
     {
@@ -45,13 +45,8 @@ export default function OnboardingTour() {
       placement: 'bottom',
     },
     {
-      target: '#tour-ai-insight',
-      content: 'Collabo uses Gemini AI to auto-fill deliverables, deadlines, and payments from screenshots or voice notes.',
-      placement: 'right',
-    },
-    {
       target: '#tour-nav-settings',
-      content: 'Make sure to visit Settings to link your WhatsApp number so the Collabo Assistant can receive your forwarded DMs.',
+      content: 'Make sure to visit Settings to configure your reminder preferences.',
       placement: 'right',
     }
   ];

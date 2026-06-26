@@ -47,7 +47,6 @@ export interface CreateCampaignPayload {
 
 // ─── Payload for updating a campaign status (PATCH /campaigns/{id}/status) ───
 export interface StatusUpdatePayload {
-  status: CampaignStatus;
 }
 
 // ─── AI Extraction result (POST /extract/) ───────────────────────────────────
