@@ -143,9 +143,10 @@ async def update_campaign_status(
     valid_transitions = {
         "draft": ["active", "cancelled"],
         "active": ["cancelled"], # 'content_received' happens via file upload only
-        "content_received": ["approved", "cancelled"],
+        "content_received": ["approved", "rejected", "cancelled"],
         "approved": ["paid", "cancelled"],
         "paid": ["cancelled"],
+        "rejected": ["active", "cancelled"], # allow restoring to active
         "cancelled": ["draft", "active"] # allow restoring from cancelled
     }
 

@@ -83,8 +83,8 @@ async def upload_proof(
         raise HTTPException(status_code=404, detail="Invalid token.")
     
     campaign = campaign_resp.data[0]
-    if campaign["status"] != "active":
-        raise HTTPException(status_code=400, detail="Campaign is not active. Proof cannot be uploaded.")
+    if campaign["status"] not in ["active", "rejected"]:
+        raise HTTPException(status_code=400, detail="Campaign is not active or rejected. Proof cannot be uploaded.")
 
     # 2. File Size Validation & OOM Prevention
     content = await file.read(MAX_VIDEO_SIZE + 1)

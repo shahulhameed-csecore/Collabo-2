@@ -12,6 +12,7 @@ class CampaignStatus(str, Enum):
     approved = 'approved'
     paid = 'paid'
     cancelled = 'cancelled'
+    rejected = 'rejected'
 
 
 class CampaignBase(BaseModel):
