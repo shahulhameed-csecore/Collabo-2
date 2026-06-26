@@ -176,7 +176,7 @@ def extract_campaign_details(content: Image.Image | str | dict | list, filename:
             "platform": None,
             "deliverables": None,
             "deadline": None,
-            "payment_amount": None, # Changed from 0.0 to None to indicate missing data
+            "payment_amount": 0.0,
             "special_notes": friendly_error,
             "requires_human_review": True,
             "status": "draft"

@@ -121,4 +121,4 @@ async def extract_details(request: Request, file: UploadFile = File(...), user=D
         raise
     except Exception as e:
         logger.error("File extraction error", filename=filename, error=type(e).__name__, exc_info=True)
-        raise HTTPException(status_code=500, detail="Internal server error during extraction. Please try again.")
+        raise HTTPException(status_code=500, detail=f"Internal server error during extraction: {str(e)}")
