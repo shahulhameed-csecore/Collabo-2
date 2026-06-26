@@ -1,183 +1,182 @@
-import json
-import re
-from datetime import datetime
+import io
+import os
 import structlog
+from pydantic import BaseModel, Field
+from tenacity import retry, wait_exponential, stop_after_attempt
+import asyncio
+from pypdf import PdfReader
+from PIL import Image
+from pillow_heif import register_heif_opener
 from google import genai
 from google.genai import types
-from google.genai.errors import APIError
-from PIL import Image, ImageOps
-from pydantic import BaseModel, Field
-from tenacity import retry, wait_exponential, stop_after_attempt, retry_if_exception_type
 
-from app.core.config import settings
+# Register HEIF opener for Pillow
+register_heif_opener()
 
 logger = structlog.get_logger(__name__)
 
-# STRIP whitespace and hidden quotes! Extremely common issue when pasting into Render Dashboard
-clean_api_key = settings.GEMINI_API_KEY.strip(' "\'')
-client = genai.Client(
-    api_key=clean_api_key,
-    http_options={'timeout': 60.0}
-)
+class ExtractionResult(BaseModel):
+    influencer_name: str | None = Field(description="Name of the influencer")
+    influencer_handle: str | None = Field(description="Social media handle (e.g. @username)")
+    platform: str | None = Field(description="Platform like Instagram, YouTube, etc.")
+    deliverables: str | None = Field(description="What needs to be delivered (e.g. 1 Reel, 2 Stories)")
+    deadline: str | None = Field(description="Deadline in YYYY-MM-DD format if present")
+    payment_amount: float = Field(default=0.0, description="Payment amount in INR")
+    special_notes: str | None = Field(description="Any other important details or requirements")
+    status: str = Field(default="draft", description="Current status")
+    requires_human_review: bool = Field(default=False, description="True if extraction is uncertain or partial")
 
+SYSTEM_PROMPT = """You are an AI specialized in extracting micro-influencer campaign details from negotiations (chats, emails, voice notes text, contracts).
+Extract the following details accurately:
+- influencer_name
+- influencer_handle
+- platform
+- deliverables
+- deadline (YYYY-MM-DD format if absolute date is given, otherwise null. E.g. 'next Friday' can be null if exact date is unknown)
+- payment_amount (float, convert words to numbers. e.g. 15k -> 15000.0)
+- special_notes
 
-class GeminiExtractionSchema(BaseModel):
-    influencer_name: str | None = Field(description="Full name of the influencer or contact person")
-    influencer_handle: str | None = Field(description="Social handle like @riya_creates")
-    platform: str | None = Field(description="Instagram, TikTok, YouTube, or Others")
-    deliverables: str | None = Field(description="What they agreed to do (e.g. '2 Reels + 3 Stories')")
-    deadline: str | None = Field(description="Deadline in YYYY-MM-DD format")
-    payment_amount: float | None = Field(description="Payment in INR. 0.0 if gifted or barter")
-    special_notes: str | None = Field(description="Any additional context or instructions")
-
-
-def get_extraction_prompt(today_str: str, filename: str = "image.png") -> str:
-    return f"""
-You are an elite, highly intelligent micro-influencer campaign extraction engine.
-Your sole purpose is to analyze unstructured real-world messy data (WhatsApp/Instagram DMs, formal emails, contracts, PDF acceptance documents, briefs) and extract precise campaign details for Indian D2C brands.
-
-Today's date for relative calculations is: {today_str}
-Context File: {filename}
-
-CRITICAL DIRECTIVES:
-1. FORMAL DOCUMENTS & EMAILS: If this is a PDF contract, proposal, or formal email, carefully extract the exact deliverables, compensation, and deadlines. Look for terms like "Compensation:", "Deliverables:", "Timeline:", "Go-live date".
-2. PAYMENT vs GIFTED: If the text clearly mentions "barter", "collab", "gifted", "sending a sample", "PR package", "gift", "unpaid", or similar non-monetary compensation, it is Barter. Set payment_amount to EXACTLY 0.0. ONLY set a payment_amount if a specific monetary value (e.g., INR, Rs, ₹) is explicitly negotiated and agreed upon. If payment details are missing entirely, leave it as null.
-3. DATES & DEADLINES: Convert ALL relative and colloquial dates ("next Friday", "by EOD", "kal", "in 3 days", "agley hafte", "end of month") into strict YYYY-MM-DD format based on {today_str}. Understand that "kal" means tomorrow, "parso" means day after tomorrow. If no deadline is mentioned or it's highly vague, set it to null. Do NOT hallucinate dates.
-4. HINGLISH & MESSY TEXT (EXTREMELY IMPORTANT): You are a native speaker of Hindi written in English (Hinglish) and Indian chat shorthand (e.g., "bhai", "ok done", "paise kab milenge", "reel aur ek story done hai"). Infer intent and agreed terms accurately even with heavy typos, poor grammar, or screenshot cutoff.
-5. DELIVERABLES: Be concise but comprehensive. Extract exactly what was agreed (e.g., "1 IG Reel + 2 Stories", "1 Dedicated YouTube Integration"). If Hinglish terms are used (like "do reel daal dena"), convert it to formal English deliverables ("2 Reels").
-6. MISSING DATA: It is very common for documents to miss certain fields (e.g. handle, platform). If a field is not explicitly present or highly obvious, return null. Do not guess handles or names.
-7. NEVER FAIL: Even if the document is totally empty or irrelevant, DO NOT crash. Simply return null for all fields. Always output valid JSON matching the exact schema below.
-8. WHATSAPP FORWARDS: If this is a forwarded WhatsApp chat log, parse the conversation flow carefully. Pay close attention to the final agreed terms (the last messages) rather than initial offers.
-9. HYBRID CONTEXT: You may receive a combination of text extracted from a PDF and screenshots of key pages. Correlate the text and images to form a complete understanding.
-10. UNCERTAINTY: If you are unsure about any extracted data or if the context is highly ambiguous, prepend a small note to the `special_notes` field (e.g., "[Low Confidence] ", "[Note: Deadline was vague, inferred from context] ").
-
-Return ONLY valid JSON matching this exact structure:
-
-{{
-  "influencer_name": string (Full name if found, else handle, else null),
-  "influencer_handle": string (e.g., "@username" or null),
-  "platform": "Instagram" | "TikTok" | "YouTube" | "Others" | null,
-  "deliverables": string (The core ask) | null,
-  "deadline": "YYYY-MM-DD" or null,
-  "payment_amount": number (float, use 0.0 for barter/gifted) | null,
-  "special_notes": string (Brief summary of any specific requests, tracking links, or brand mandates) | null
-}}
-
-DO NOT include markdown formatting like ```json.
-DO NOT include any commentary. Output raw JSON only.
+If you are uncertain about any field, leave it as null. If multiple critical fields are missing, set requires_human_review to true.
 """
 
-@retry(
-    wait=wait_exponential(min=1, max=10),
-    stop=stop_after_attempt(3),
-    retry=retry_if_exception_type(Exception),
-    reraise=True
-)
-def _generate_with_retry(gemini_content: list) -> str:
-    response = client.models.generate_content(
-        model="gemini-2.5-flash",
-        contents=gemini_content,
-        config=types.GenerateContentConfig(
-            response_mime_type="application/json",
-            response_schema=GeminiExtractionSchema,
-            temperature=0.1,  # Low temperature to prevent hallucination
-        )
-    )
-    if not response.text:
-        raise ValueError("Gemini returned an empty response. It may have been blocked by safety filters.")
-    return response.text
-
-
-def extract_campaign_details(content: Image.Image | str | dict | list, filename: str = "image.png") -> dict:
+def compress_image(image_bytes: bytes, max_size_kb: int = 250) -> bytes:
+    """Compresses an image to be under max_size_kb and max 512x512."""
     try:
-        today_str = datetime.now().strftime("%Y-%m-%d (%A)")
-        gemini_content = [get_extraction_prompt(today_str, filename)]
+        img = Image.open(io.BytesIO(image_bytes))
+        # Convert to RGB if needed (e.g. RGBA or HEIC)
+        if img.mode != "RGB":
+            img = img.convert("RGB")
+        
+        # Resize to max 512x512 while maintaining aspect ratio
+        img.thumbnail((512, 512), Image.Resampling.LANCZOS)
+        
+        quality = 85
+        out_io = io.BytesIO()
+        img.save(out_io, format="JPEG", quality=quality, optimize=True)
+        
+        # Aggressive compression if still too large
+        while len(out_io.getvalue()) > max_size_kb * 1024 and quality > 10:
+            quality -= 10
+            out_io = io.BytesIO()
+            img.save(out_io, format="JPEG", quality=quality, optimize=True)
+            
+        return out_io.getvalue()
+    except Exception as e:
+        logger.error("image_compression_failed", error=str(e))
+        return image_bytes # Fallback to original if compression fails
 
-        # Helper to process individual content parts
-        def process_part(part):
-            if isinstance(part, Image.Image):
-                if part.mode != "RGB":
-                    part = part.convert("RGB")
-                part.thumbnail((1024, 1024), Image.Resampling.LANCZOS)
-                part = ImageOps.exif_transpose(part)
-                gemini_content.append(part)
-            elif isinstance(part, dict) and "audio_bytes" in part:
-                audio_part = types.Part.from_bytes(
-                    data=part["audio_bytes"],
-                    mime_type=part.get("mime_type", "audio/ogg")
+def parse_pdf(file_bytes: bytes) -> tuple[str, list[bytes]]:
+    """Extracts text from first 4 pages, and up to 2 images."""
+    try:
+        reader = PdfReader(io.BytesIO(file_bytes))
+        text_content = []
+        extracted_images = []
+        
+        num_pages = min(len(reader.pages), 4)
+        for i in range(num_pages):
+            page = reader.pages[i]
+            text_content.append(page.extract_text())
+            
+            # Extract images (max 2 total)
+            if len(extracted_images) < 2:
+                for img_obj in page.images:
+                    if len(extracted_images) < 2:
+                        extracted_images.append(compress_image(img_obj.data))
+                    else:
+                        break
+                        
+        return "\n".join(text_content), extracted_images
+    except Exception as e:
+        logger.error("pdf_parsing_failed", error=str(e))
+        return "", []
+
+@retry(wait=wait_exponential(multiplier=1, min=2, max=10), stop=stop_after_attempt(4))
+async def _call_gemini(client: genai.Client, contents: list) -> ExtractionResult:
+    """Makes the actual API call with retries and timeout."""
+    # Using asyncio.wait_for to enforce 120s timeout per attempt
+    response = await asyncio.wait_for(
+        client.aio.models.generate_content(
+            model='gemini-2.5-flash',
+            contents=contents,
+            config=types.GenerateContentConfig(
+                system_instruction=SYSTEM_PROMPT,
+                response_mime_type="application/json",
+                response_schema=ExtractionResult,
+                temperature=0.1
+            )
+        ),
+        timeout=120.0
+    )
+    return ExtractionResult.model_validate_json(response.text)
+
+async def extract_campaign_data(file_bytes: bytes, filename: str, mime_type: str) -> dict:
+    """Main extraction pipeline with two-stage fallback."""
+    try:
+        api_key = os.getenv("GEMINI_API_KEY")
+        if not api_key:
+            logger.error("gemini_api_key_missing")
+            # We don't raise here, we want to return the fallback response
+            raise ValueError("GEMINI_API_KEY is not configured on the server")
+            
+        client = genai.Client(api_key=api_key)
+        contents = []
+        text_fallback = ""
+        has_images = False
+        
+        if mime_type == "application/pdf":
+            text, images = parse_pdf(file_bytes)
+            if text.strip():
+                contents.append(text)
+                text_fallback = text
+            for img_bytes in images:
+                contents.append(
+                    types.Part.from_bytes(data=img_bytes, mime_type="image/jpeg")
                 )
-                gemini_content.append(audio_part)
-                gemini_content.append("Please transcribe and analyze this voice note to extract the campaign details.")
-            elif isinstance(part, dict) and "image_bytes" in part:
-                image_part = types.Part.from_bytes(
-                    data=part["image_bytes"],
-                    mime_type=part.get("mime_type", "image/jpeg")
-                )
-                gemini_content.append(image_part)
-                caption = part.get("caption", "")
-                if caption:
-                    gemini_content.append(f"Image Caption/Context: {caption}")
-                gemini_content.append("Please analyze this image and caption to extract the campaign details.")
-            elif isinstance(part, str):
-                gemini_content.append(f"--- START OF CONTENT ---\n{part}\n--- END OF CONTENT ---")
-                
-        if isinstance(content, list):
-            for item in content:
-                process_part(item)
+                has_images = True
+        elif mime_type.startswith("image/"):
+            compressed = compress_image(file_bytes)
+            # Ensure it's treated as JPEG if we compressed to JPEG
+            final_mime = "image/jpeg" if compressed != file_bytes else mime_type
+            contents.append(
+                types.Part.from_bytes(data=compressed, mime_type=final_mime)
+            )
+            has_images = True
+        elif mime_type.startswith("text/") or filename.endswith(".txt"):
+            text_fallback = file_bytes.decode('utf-8', errors='ignore')
+            contents.append(text_fallback)
         else:
-            process_part(content)
+            # Try parsing as generic text if unknown
+            text_fallback = file_bytes.decode('utf-8', errors='ignore')
+            contents.append(text_fallback)
 
-        # Call with exponential backoff retry
-        raw_text = _generate_with_retry(gemini_content)
-
-        # Clean response text robustly
-        text = raw_text.strip()
-        match = re.search(r"(\{.*\})", text, re.DOTALL)
-        if match:
-            text = match.group(1)
-        else:
-            # Fallback if no brackets are found (unlikely with Gemini Schema, but safe)
-            text = re.sub(r"^```(?:json)?\s*\n", "", text)
-            text = re.sub(r"\n```\s*$", "", text)
-            text = text.strip()
-
-        data = json.loads(text)
-
-        # Smart defaults & Human-in-the-Loop Validation
-        data['requires_human_review'] = not bool(data.get('influencer_name') and data.get('deliverables'))
-        data['status'] = 'draft'
-
-        # If payment is explicitly set to 0.0 (barter), leave it. Otherwise None if missing.
-        # Actually, the schema already sets it to None if missing.
-        # Removing the aggressive zeroing so we don't mask missing data.
-        # if data.get('payment_amount') is None:
-        #     data['payment_amount'] = None
-
-        # Protect against strict Pydantic date crashes
-        deadline_str = data.get('deadline')
-        if deadline_str:
-            try:
-                datetime.strptime(deadline_str, "%Y-%m-%d")
-            except ValueError:
-                data['deadline'] = None
-
-        return data
+        try:
+            # Stage 1: Attempt extraction with all contents (images + text)
+            result = await _call_gemini(client, contents)
+            return result.model_dump()
+        except Exception as e:
+            logger.warning("gemini_stage1_failed", error=str(e))
+            # Stage 2 Fallback: If it had images, try text-only
+            if has_images and text_fallback.strip():
+                logger.info("gemini_stage2_fallback_triggered")
+                fallback_result = await _call_gemini(client, [text_fallback])
+                fallback_dict = fallback_result.model_dump()
+                fallback_dict["requires_human_review"] = True
+                fallback_dict["special_notes"] = (fallback_dict.get("special_notes") or "") + "\n(Note: Image extraction failed. Partial data extracted from text.)"
+                return fallback_dict
+            else:
+                raise e
 
     except Exception as e:
-        error_msg = str(e)
-        logger.error("gemini_extraction_failed", error=error_msg, exc_info=True)
-        
-        # We append a snippet of the ACTUAL error here so it's instantly visible in the frontend!
-        friendly_error = f"AI Extraction Failed ({error_msg[:120]}). Please enter details manually."
-        
-        return {
-            "influencer_name": None,
-            "influencer_handle": None,
-            "platform": None,
-            "deliverables": None,
-            "deadline": None,
-            "payment_amount": 0.0,
-            "special_notes": friendly_error,
-            "requires_human_review": True,
-            "status": "draft"
-        }
+        logger.error("gemini_extraction_failed_completely", error=str(e))
+        # Complete fallback: Never crash, always return usable JSON
+        return ExtractionResult(
+            influencer_name=None,
+            influencer_handle=None,
+            platform=None,
+            deliverables=None,
+            deadline=None,
+            payment_amount=0.0,
+            special_notes=f"AI Extraction failed ({str(e)}). Please enter details manually.",
+            status="draft",
+            requires_human_review=True
+        ).model_dump()

@@ -146,7 +146,6 @@ app = FastAPI(
     Powers the Collabo micro-influencer campaign management SaaS.
 
     ### Key Features:
-    * **AI Extraction:** Parses WhatsApp screenshots/voice notes using Gemini AI.
     * **Zero-Trust Security:** Every request validated through Supabase RLS.
     * **Automated Reminders:** Hourly deadline checker with email + WhatsApp alerts.
     """,
@@ -181,7 +180,7 @@ async def add_security_headers(request: Request, call_next):
     response.headers["Content-Security-Policy"] = (
         "default-src 'self'; "
         "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
-        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
+        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net; "
         "img-src 'self' data: https://collabo-2.vercel.app;"
     )
     return response
@@ -211,7 +210,6 @@ async def global_exception_handler(request: Request, exc: Exception):
     )
 
 
-# ─── Routers ───────────────────────────────────────────────────────────────────
 app.include_router(extract.router)
 app.include_router(campaigns.router)
 app.include_router(auth.router)

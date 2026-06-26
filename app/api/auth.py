@@ -1,10 +1,10 @@
-import logging
+import structlog
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.security import OAuth2PasswordRequestForm
 from app.services.supabase import supabase
 from app.core.limiter import limiter
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
 

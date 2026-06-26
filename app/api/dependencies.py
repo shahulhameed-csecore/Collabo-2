@@ -1,27 +1,26 @@
 import logging
 from fastapi import Depends, HTTPException, status
-from fastapi.security import OAuth2PasswordBearer
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from supabase import create_client, ClientOptions
 from app.services.supabase import supabase
 from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/token")
-
+security = HTTPBearer()
 
 class AuthenticatedUser:
     def __init__(self, user, jwt_token):
         self.user = user
         self.jwt_token = jwt_token
 
-
-async def get_current_user(token: str = Depends(oauth2_scheme)) -> AuthenticatedUser:
+async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)) -> AuthenticatedUser:
     """
     Validates the JWT token against Supabase Auth (server-side verification).
     Raises 401 if the token is missing, expired, or invalid.
     Error details are intentionally generic to prevent information leakage.
     """
+    token = credentials.credentials
     try:
         user_response = supabase.auth.get_user(token)
         if user_response and user_response.user:
