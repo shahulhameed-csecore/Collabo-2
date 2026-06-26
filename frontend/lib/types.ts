@@ -28,6 +28,7 @@ export interface Campaign {
   special_notes: string | null;
   status: CampaignStatus;
   proof_url: string | null;
+  proof_history: { url: string; uploaded_at: string }[] | null;
   magic_link_token: string | null;
   destination_url: string | null;
   short_code: string | null;
