@@ -87,43 +87,42 @@ def _get_supabase_admin():
 # Email sending
 # ---------------------------------------------------------------------------
 
-import httpx
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 
 async def _send_email(to_email: str, subject: str, html: str) -> bool:
     """
-    Send a transactional email via a Google Apps Script Webhook.
+    Send a transactional email using native SMTP via Gmail.
+    Runs synchronously but wrapped in asyncio.to_thread so it doesn't block.
     Returns True on confirmed delivery, False on any failure.
     """
-    if not settings.GMAIL_WEBHOOK_URL:
+    if not settings.SMTP_EMAIL or not settings.SMTP_PASSWORD:
         logger.warning(
             "reminders.email_skipped",
-            reason="GMAIL_WEBHOOK_URL not configured in environment",
+            reason="SMTP_EMAIL or SMTP_PASSWORD not configured in environment",
             to=to_email,
         )
         return False
 
-    payload = {
-        "secret": settings.GMAIL_WEBHOOK_SECRET,
-        "to": to_email,
-        "subject": subject,
-        "html": html
-    }
+    def _sync_send():
+        msg = MIMEMultipart("alternative")
+        msg["Subject"] = subject
+        msg["From"] = f"Collabo <{settings.SMTP_EMAIL}>"
+        msg["To"] = to_email
+        msg.attach(MIMEText(html, "html"))
+
+        with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
+            server.login(settings.SMTP_EMAIL, settings.SMTP_PASSWORD)
+            server.sendmail(settings.SMTP_EMAIL, to_email, msg.as_string())
 
     try:
-        async with httpx.AsyncClient(follow_redirects=True) as client:
-            resp = await client.post(settings.GMAIL_WEBHOOK_URL, json=payload, timeout=15.0)
-            resp.raise_for_status()
-            response_text = resp.text
-            
-            # Apps Script might return a 200 OK but with an error message in JSON or HTML
-            if "error" in response_text.lower() or "exception" in response_text.lower() or "html" in response_text.lower():
-                logger.error("reminders.webhook_returned_error", response=response_text)
-                return False
+        await asyncio.to_thread(_sync_send)
         logger.info(
             "reminders.email_sent",
             to=to_email,
             subject=subject,
-            method="GMAIL_WEBHOOK",
+            method="SMTP",
         )
         return True
     except Exception as exc:
@@ -530,7 +529,7 @@ async def check_deadlines_job() -> None:
         "reminders.job_started",
         now_utc=now_utc.isoformat(),
         now_ist=now_utc.astimezone(_IST).isoformat(),
-        webhook_configured=bool(settings.GMAIL_WEBHOOK_URL),
+        smtp_configured=bool(settings.SMTP_EMAIL and settings.SMTP_PASSWORD),
         service_role_configured=bool(settings.SUPABASE_SERVICE_ROLE_KEY),
         wa_configured=bool(settings.WHATSAPP_TOKEN and settings.WHATSAPP_PHONE_NUMBER_ID),
     )
