@@ -63,6 +63,10 @@ class CampaignBase(BaseModel):
         default=None,
         description="URL to the uploaded proof of posting file."
     )
+    destination_url: Optional[str] = Field(
+        default=None,
+        description="Optional tracking link destination."
+    )
 
     @field_validator('influencer_name', 'influencer_handle', 'platform', 'deliverables', 'special_notes', mode='before')
     @classmethod
@@ -141,6 +145,8 @@ class CampaignResponse(CampaignBase):
     updated_at: str = Field(description="ISO-8601 timestamp of the last update.")
     reminder_48h_sent: bool = Field(default=False, description="Flag indicating if the 48h reminder was sent.")
     overdue_alert_sent: bool = Field(default=False, description="Flag indicating if the overdue alert was sent.")
+    short_code: Optional[str] = Field(default=None, description="Unique short code for the tracking link.")
+    clicks: int = Field(default=0, description="Number of times the tracking link was clicked.")
 
 
 class ExtractionResult(CampaignBase):

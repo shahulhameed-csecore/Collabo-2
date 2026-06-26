@@ -74,6 +74,12 @@ async def create_campaign(
 ):
     data = campaign.model_dump(mode="json", exclude_unset=True)
     data["user_id"] = user.user.id
+    
+    if data.get("destination_url"):
+        import secrets
+        import string
+        data["short_code"] = ''.join(secrets.choice(string.ascii_letters + string.digits) for _ in range(8))
+
     try:
         response = client.table("campaigns").insert(data).execute()
         if not response.data:
@@ -99,6 +105,14 @@ async def update_campaign(
     client=Depends(get_user_supabase_client),
 ):
     data = campaign.model_dump(mode="json", exclude_unset=True)
+    
+    if "destination_url" in data and data["destination_url"]:
+        current = client.table("campaigns").select("short_code").eq("id", id).execute()
+        if current.data and not current.data[0].get("short_code"):
+            import secrets
+            import string
+            data["short_code"] = ''.join(secrets.choice(string.ascii_letters + string.digits) for _ in range(8))
+
     response = client.table("campaigns").update(data).eq("id", id).execute()
     if not response.data:
         raise HTTPException(status_code=404, detail="Campaign not found or access denied")
