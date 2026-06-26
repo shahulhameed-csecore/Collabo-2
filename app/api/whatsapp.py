@@ -160,12 +160,9 @@ async def process_whatsapp_message(sender_id: str, message: dict):
             await send_whatsapp_message(sender_id, "Collabo Assistant 🤖\n\nDownloading your voice note... 🎧")
             audio_bytes = await download_whatsapp_media(audio_id, max_bytes=_MAX_MEDIA_BYTES)
             if not audio_bytes:
-                await send_whatsapp_message(
-                    sender_id,
-                    "Collabo Assistant 🤖\n\n❌ Failed to download the voice note. Please try again or send a text message.",
-                )
-                return
-            content_for_gemini = {"audio_bytes": audio_bytes, "mime_type": "audio/ogg"}
+                content_for_gemini = "WhatsApp audio download failed or exceeded size limits."
+            else:
+                content_for_gemini = {"audio_bytes": audio_bytes, "mime_type": "audio/ogg"}
 
         elif msg_type == "image":
             image_id = message.get("image", {}).get("id")
@@ -178,16 +175,13 @@ async def process_whatsapp_message(sender_id: str, message: dict):
             await send_whatsapp_message(sender_id, "Collabo Assistant 🤖\n\nAnalyzing your image... 🖼️")
             image_bytes = await download_whatsapp_media(image_id, max_bytes=_MAX_MEDIA_BYTES)
             if not image_bytes:
-                await send_whatsapp_message(
-                    sender_id,
-                    "Collabo Assistant 🤖\n\n❌ Failed to download the image. Please try again.",
-                )
-                return
-            content_for_gemini = {
-                "image_bytes": image_bytes,
-                "mime_type": message.get("image", {}).get("mime_type", "image/jpeg"),
-                "caption": caption,
-            }
+                content_for_gemini = f"{caption}\n(WhatsApp image download failed or exceeded size limits.)".strip()
+            else:
+                content_for_gemini = {
+                    "image_bytes": image_bytes,
+                    "mime_type": message.get("image", {}).get("mime_type", "image/jpeg"),
+                    "caption": caption,
+                }
 
         else:
             # Sanitize msg_type before echoing — do not reflect attacker-controlled strings
