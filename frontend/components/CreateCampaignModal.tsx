@@ -182,7 +182,7 @@ export default function CreateCampaignModal({ isOpen, onClose, onSuccess }: Crea
         influencer_handle: data.influencer_handle ?? '',
         platform:          data.platform          ?? '',
         deliverables:      data.deliverables      ?? '',
-        deadline:          data.deadline          ?? '',
+        deadline:          (data.deadline && /^\d{4}-\d{2}-\d{2}$/.test(data.deadline)) ? data.deadline : '',
         payment_amount:    String(data.payment_amount ?? 0),
         special_notes:     data.special_notes     ?? '',
         status:            'draft',
