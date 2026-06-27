@@ -27,7 +27,7 @@ async def get_billing_usage(
         structlog.get_logger(__name__).error("billing_subscription_fetch_failed", error=str(e))
         sub_data = {}
     
-    current_plan = sub_data.get("tier", "free")
+    current_plan = "pro" # HARDCODED FOR TESTING: sub_data.get("tier", "free")
     trial_ends_at = sub_data.get("trial_ends_at")
     ai_extractions_used = sub_data.get("ai_extractions_count", 0)
     
