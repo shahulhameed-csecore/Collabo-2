@@ -14,6 +14,7 @@ import Link from 'next/link';
 import { toast } from 'sonner';
 import { Logo } from '@/components/Logo';
 import { NotificationDropdown } from '@/components/NotificationDropdown';
+import { ProfileDropdown } from '@/components/ProfileDropdown';
 
 interface Subscription {
   tier: string;
@@ -169,8 +170,8 @@ export default function DashboardLayout({ children, onNewCampaign }: DashboardLa
   const userInitials = customUsername
     ? customUsername.slice(0, 2).toUpperCase()
     : (user?.email?.slice(0, 2).toUpperCase() ?? 'IT');
-  const isPro        = true;
-  const displayTier  = 'FULL ACCESS';
+  const isPro        = subscription?.tier === 'pro' || subscription?.tier === 'Pro';
+  const displayTier  = isPro ? 'PRO' : 'FREE';
 
   const getGreeting = () => {
     const h = new Date().getHours();
@@ -367,10 +368,15 @@ export default function DashboardLayout({ children, onNewCampaign }: DashboardLa
             {/* Notifications */}
             <NotificationDropdown />
 
-            {/* Avatar */}
-            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center flex-shrink-0 ring-2 ring-emerald-500/20 cursor-pointer hover:scale-105 transition-transform">
-              <span className="text-xs font-bold text-white">{userInitials}</span>
-            </div>
+            {/* Profile Dropdown */}
+            <ProfileDropdown
+              userName={userName}
+              userEmail={user?.email}
+              userInitials={userInitials}
+              isPro={isPro}
+              tier={displayTier}
+              onSignOut={handleSignOut}
+            />
           </div>
         </header>
 

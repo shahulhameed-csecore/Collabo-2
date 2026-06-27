@@ -122,6 +122,11 @@ input[type="number"] { -moz-appearance: textfield; }
   to   { transform: translateY(0);     opacity: 1; }
 }
 
+@keyframes slideUpSheet {
+  from { transform: translateY(100%); }
+  to   { transform: translateY(0); }
+}
+
 @keyframes slideInLeft {
   from { transform: translateX(-20px); opacity: 0; }
   to   { transform: translateX(0);     opacity: 1; }
@@ -209,7 +214,8 @@ input[type="number"] { -moz-appearance: textfield; }
 .animate-fade-in      { animation: fadeIn      0.25s ease-out both; }
 .animate-fade-in-up   { animation: fadeInUp    0.35s ease-out both; }
 .animate-slide-up     { animation: slideUp     0.3s  ease-out both; }
-.animate-slide-down   { animation: slideDown   0.25s ease-out both; }
+.animate-slide-down   { animation: slideDown   0.2s  cubic-bezier(0.16, 1, 0.3, 1) both; }
+.animate-slide-up-sheet { animation: slideUpSheet 0.32s cubic-bezier(0.16, 1, 0.3, 1) both; }
 .animate-slide-in-left  { animation: slideInLeft  0.3s ease-out both; }
 .animate-slide-in-right { animation: slideInRight 0.3s ease-out both; }
 .animate-scale-in     { animation: scaleIn     0.25s cubic-bezier(0.16, 1, 0.3, 1) both; }
