@@ -55,3 +55,16 @@ def get_user_supabase_client(user: AuthenticatedUser = Depends(get_current_user)
         options=ClientOptions(headers={"Authorization": f"Bearer {user.jwt_token}"})
     )
     return client
+
+def get_service_client():
+    """
+    Returns a Supabase client authenticated with the SERVICE ROLE KEY.
+    Use ONLY for internal/background tasks that need to bypass RLS.
+    """
+    if not settings.SUPABASE_SERVICE_ROLE_KEY:
+        raise HTTPException(
+            status_code=500, 
+            detail="Supabase service role key not configured."
+        )
+    return create_client(settings.SUPABASE_URL, settings.SUPABASE_SERVICE_ROLE_KEY)
+
