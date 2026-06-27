@@ -128,7 +128,7 @@ async def update_campaign_status(
     client=Depends(get_user_supabase_client),
 ):
     # Fetch current campaign
-    current_campaign = client.table("campaigns").select("status").eq("id", id).execute()
+    current_campaign = client.table("campaigns").select("status, user_id, influencer_handle, influencer_name").eq("id", id).execute()
     if not current_campaign.data:
         raise HTTPException(status_code=404, detail="Campaign not found or access denied")
     
@@ -157,6 +157,29 @@ async def update_campaign_status(
     response = client.table("campaigns").update(data).eq("id", id).execute()
     if not response.data:
         raise HTTPException(status_code=404, detail="Campaign not found or access denied")
+        
+    if new_status != current_status:
+        try:
+            from app.api.dependencies import get_service_client
+            from app.services.notifications import create_notification
+            service_client = get_service_client()
+            user_id = current_campaign.data[0].get("user_id")
+            inf_name = current_campaign.data[0].get("influencer_handle") or current_campaign.data[0].get("influencer_name") or "Creator"
+            
+            # Format status for display
+            display_status = new_status.replace("_", " ").title()
+            
+            await create_notification(
+                service_client=service_client,
+                user_id=user_id,
+                title=f"Campaign {display_status}",
+                message=f"The campaign for {inf_name} was moved to {display_status}.",
+                type="info",
+                link_url="/dashboard"
+            )
+        except Exception as e:
+            logger.error(f"Failed to create status notification: {e}")
+            
     return response.data[0]
 
 

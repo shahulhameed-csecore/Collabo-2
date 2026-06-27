@@ -53,6 +53,10 @@ async def save_whatsapp_settings(
             )
 
     try:
+        # Check current settings to detect if WhatsApp number changed
+        current_settings = client.table("user_settings").select("whatsapp_number").eq("user_id", user_id).execute()
+        old_number = current_settings.data[0].get("whatsapp_number") if current_settings.data else None
+        
         payload = {
             "user_id": user_id,
             "email_reminders_enabled": input_data.email_reminders_enabled,
@@ -64,6 +68,23 @@ async def save_whatsapp_settings(
             payload["username"] = input_data.username
 
         client.table("user_settings").upsert(payload).execute()
+        
+        # Trigger notification if WhatsApp number was newly linked or updated
+        if clean_number and clean_number != old_number:
+            try:
+                from app.api.dependencies import get_service_client
+                from app.services.notifications import create_notification
+                service_client = get_service_client()
+                await create_notification(
+                    service_client=service_client,
+                    user_id=user_id,
+                    title="WhatsApp Linked 🎉",
+                    message=f"Your number ending in {clean_number[-4:]} is now connected to the Collabo Bot.",
+                    type="success",
+                    link_url="/settings"
+                )
+            except Exception as e:
+                logger.error(f"Failed to create whatsapp link notification: {e}")
 
         return {
             "message": "Settings saved successfully",

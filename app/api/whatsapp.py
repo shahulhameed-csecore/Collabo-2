@@ -248,6 +248,26 @@ async def process_whatsapp_message(sender_id: str, message: dict):
             await send_whatsapp_message(
                 sender_id, f"✅ Campaign created for *{influencer}*!\n\nCheck your dashboard."
             )
+            
+            from app.services.notifications import create_notification
+            if extracted_data.get("requires_human_review"):
+                await create_notification(
+                    service_client=supabase_admin,
+                    user_id=user_id,
+                    title="AI Extraction Needs Review",
+                    message=f"Created a draft campaign for {influencer} from WhatsApp, but some details were unclear.",
+                    type="warning",
+                    link_url="/dashboard"
+                )
+            else:
+                await create_notification(
+                    service_client=supabase_admin,
+                    user_id=user_id,
+                    title="AI Campaign Created",
+                    message=f"Successfully extracted and created a campaign for {influencer} from WhatsApp.",
+                    type="success",
+                    link_url="/dashboard"
+                )
         else:
             await send_whatsapp_message(
                 sender_id, "❌ Failed to save the campaign. Please try again."

@@ -50,18 +50,35 @@ supabase_admin: Client = create_client(settings.SUPABASE_URL, settings.SUPABASE_
 async def track_link(request: Request, short_code: str):
     try:
         # Fetch campaign by short_code
-        response = supabase_admin.table("campaigns").select("destination_url").eq("short_code", short_code).execute()
+        response = supabase_admin.table("campaigns").select("id, user_id, influencer_handle, influencer_name, destination_url, clicks_count").eq("short_code", short_code).execute()
         
         if not response.data:
             raise HTTPException(status_code=404, detail="Tracking link not found")
             
-        destination_url = response.data[0].get("destination_url")
+        campaign_data = response.data[0]
+        destination_url = campaign_data.get("destination_url")
+        clicks_count = campaign_data.get("clicks_count", 0)
         
         if not destination_url:
             raise HTTPException(status_code=404, detail="Destination URL not found")
             
         # Call the RPC function to atomically increment clicks
         supabase_admin.rpc("increment_campaign_clicks", {"p_short_code": short_code}).execute()
+
+        # If this is the very first click, notify the owner
+        if clicks_count == 0:
+            user_id = campaign_data.get("user_id")
+            inf_name = campaign_data.get("influencer_handle") or campaign_data.get("influencer_name") or "Creator"
+            if user_id:
+                from app.services.notifications import create_notification
+                await create_notification(
+                    service_client=supabase_admin,
+                    user_id=user_id,
+                    title="First Click Recorded! 🎉",
+                    message=f"The tracking link for {inf_name} just got its first click.",
+                    type="success",
+                    link_url="/dashboard/analytics"
+                )
         
         # Make sure the URL has http/https
         if not destination_url.startswith(("http://", "https://")):
