@@ -8,7 +8,7 @@ import {
   Calendar, DollarSign, AlertCircle, CheckCircle2,
   Clock, XCircle, Plus, Search, Filter,
   Globe, X, Check, ExternalLink, Edit2, FileSpreadsheet, Database,
-  MessageCircle, Download, CheckSquare, Link as LinkIcon
+  MessageCircle, Download, CheckSquare, Link as LinkIcon, TrendingUp
 } from 'lucide-react';
 import { toast } from 'sonner';
 
