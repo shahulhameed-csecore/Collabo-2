@@ -40,6 +40,17 @@ async def notify_owner_of_proof(user_id: str, inf_name: str):
     email_enabled = user_settings.get("email_reminders_enabled", True)
 
     from app.services.whatsapp import send_whatsapp_message
+    from app.services.notifications import create_notification
+    
+    # Send in-app notification
+    await create_notification(
+        service_client=service_client,
+        user_id=user_id,
+        title="Proof Received",
+        message=f"{inf_name} just uploaded their proof of posting.",
+        type="success",
+        link_url="/dashboard"
+    )
     
     if wa_enabled and wa_num:
         body = (

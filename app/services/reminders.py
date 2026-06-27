@@ -678,6 +678,17 @@ async def check_deadlines_job() -> dict:
                 _mark_flag(supabase, campaign_id, "reminder_48h_sent", clog)
                 reminded += 1
 
+                from app.services.notifications import create_notification
+                if user_id:
+                    await create_notification(
+                        service_client=supabase,
+                        user_id=user_id,
+                        title="Campaign Deadline Approaching",
+                        message=f"Campaign for {inf_name} is due in {round(hours_diff, 0):.0f} hours.",
+                        type="warning",
+                        link_url="/dashboard"
+                    )
+
                 clog.info(
                     "reminders.48h_done",
                     email_sent=email_ok,
@@ -719,6 +730,17 @@ async def check_deadlines_job() -> dict:
 
                 _mark_flag(supabase, campaign_id, "overdue_alert_sent", clog)
                 overdue_count += 1
+
+                from app.services.notifications import create_notification
+                if user_id:
+                    await create_notification(
+                        service_client=supabase,
+                        user_id=user_id,
+                        title="Campaign Overdue",
+                        message=f"Campaign for {inf_name} missed its deadline.",
+                        type="error",
+                        link_url="/dashboard"
+                    )
 
                 clog.info(
                     "reminders.overdue_done",
