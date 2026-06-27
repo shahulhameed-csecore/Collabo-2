@@ -125,3 +125,17 @@ export interface SortConfig {
 
 // ─── UI helpers ───────────────────────────────────────────────────────────────
 export type AccentColor = 'emerald' | 'amber' | 'rose' | 'slate' | 'blue' | 'purple';
+
+// ─── Notifications ────────────────────────────────────────────────────────────
+export type NotificationType = 'success' | 'info' | 'warning' | 'error';
+
+export interface Notification {
+  id: string;
+  user_id: string;
+  title: string;
+  message: string;
+  type: NotificationType;
+  link_url?: string | null;
+  is_read: boolean;
+  created_at: string;
+}

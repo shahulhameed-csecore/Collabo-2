@@ -13,6 +13,7 @@ import { useTheme } from 'next-themes';
 import Link from 'next/link';
 import { toast } from 'sonner';
 import { Logo } from '@/components/Logo';
+import { NotificationDropdown } from '@/components/NotificationDropdown';
 
 interface Subscription {
   tier: string;
@@ -364,13 +365,7 @@ export default function DashboardLayout({ children, onNewCampaign }: DashboardLa
             </button>
 
             {/* Notifications */}
-            <button
-              className="relative p-2 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-all"
-              aria-label="Notifications"
-            >
-              <Bell className="w-4 h-4" />
-              <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-rose-500 ring-2 ring-white dark:ring-slate-950" />
-            </button>
+            <NotificationDropdown />
 
             {/* Avatar */}
             <div className="w-8 h-8 rounded-full bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center flex-shrink-0 ring-2 ring-emerald-500/20 cursor-pointer hover:scale-105 transition-transform">
