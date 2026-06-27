@@ -96,7 +96,7 @@ async def _call_gemini(client: genai.Client, contents: list) -> ExtractionResult
     # Using asyncio.wait_for to enforce 120s timeout per attempt
     response = await asyncio.wait_for(
         client.aio.models.generate_content(
-            model='gemini-2.5-flash',
+            model='gemini-3.5-flash',
             contents=contents,
             config=types.GenerateContentConfig(
                 system_instruction=SYSTEM_PROMPT,
