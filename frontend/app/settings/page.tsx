@@ -66,11 +66,11 @@ export default function SettingsPage() {
   return (
     <DashboardLayout onNewCampaign={() => {}}>
       <div className="flex items-center gap-3 mb-6">
-        <div className="p-2.5 bg-slate-800/80 rounded-xl border border-slate-700/50">
-          <Settings className="w-5 h-5 text-slate-300" />
+        <div className="p-1.5 bg-emerald-500/10 border border-emerald-500/20 rounded-xl">
+          <Settings className="w-4 h-4 text-emerald-400" />
         </div>
         <div>
-          <h1 className="text-xl font-extrabold text-white tracking-tight">Settings</h1>
+          <h1 className="text-xl font-extrabold text-slate-900 dark:text-white tracking-tight">Settings</h1>
           <p className="text-slate-500 text-sm mt-0.5">Manage your integrations and account preferences</p>
         </div>
       </div>
@@ -78,9 +78,8 @@ export default function SettingsPage() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         
         {/* WhatsApp Integration Card */}
-        <div className="bg-slate-900/60 border border-slate-800/50 rounded-2xl overflow-hidden relative">
-          {/* Subtle glow */}
-          <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/10 rounded-full blur-3xl -translate-y-10 translate-x-10 pointer-events-none" />
+        <div className="bg-white dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800/50 rounded-2xl overflow-hidden relative shadow-sm">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/5 dark:bg-emerald-500/10 rounded-full blur-3xl -translate-y-10 translate-x-10 pointer-events-none" />
           
           <div className="p-6">
             <div className="flex items-center gap-3 mb-5">
@@ -166,8 +165,8 @@ export default function SettingsPage() {
         </div>
 
         {/* Notifications & Reminders Card */}
-        <div className="bg-slate-900/60 border border-slate-800/50 rounded-2xl overflow-hidden relative">
-          <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/10 rounded-full blur-3xl -translate-y-10 translate-x-10 pointer-events-none" />
+        <div className="bg-white dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800/50 rounded-2xl overflow-hidden relative shadow-sm">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-slate-700/10 dark:bg-blue-500/8 rounded-full blur-3xl -translate-y-10 translate-x-10 pointer-events-none" />
           
           <div className="p-6">
             <div className="flex items-center gap-3 mb-5">
@@ -189,11 +188,17 @@ export default function SettingsPage() {
                     </h3>
                     <p className="text-xs text-slate-500 mt-1">Get an email alert 48 hours before a campaign deadline, and an alert when it's overdue.</p>
                   </div>
-                  <button 
+                  <button
                     onClick={() => setEmailEnabled(!emailEnabled)}
-                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-emerald-500/50 ${emailEnabled ? 'bg-emerald-500' : 'bg-slate-700'}`}
+                    className={`relative inline-flex h-6 w-11 flex-shrink-0 items-center rounded-full transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 shadow-inner ${
+                      emailEnabled
+                        ? 'bg-emerald-500 shadow-emerald-500/30'
+                        : 'bg-slate-200 dark:bg-slate-700'
+                    }`}
                   >
-                    <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${emailEnabled ? 'translate-x-6' : 'translate-x-1'}`} />
+                    <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-md transition-transform ${
+                      emailEnabled ? 'translate-x-6' : 'translate-x-1'
+                    }`} />
                   </button>
                 </div>
               </div>
@@ -206,11 +211,17 @@ export default function SettingsPage() {
                     </h3>
                     <p className="text-xs text-slate-500 mt-1">Receive a WhatsApp message from our bot directly to your linked number for upcoming deadlines.</p>
                   </div>
-                  <button 
+                  <button
                     onClick={() => setWaEnabled(!waEnabled)}
-                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-emerald-500/50 ${waEnabled ? 'bg-emerald-500' : 'bg-slate-700'}`}
+                    className={`relative inline-flex h-6 w-11 flex-shrink-0 items-center rounded-full transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 shadow-inner ${
+                      waEnabled
+                        ? 'bg-emerald-500 shadow-emerald-500/30'
+                        : 'bg-slate-200 dark:bg-slate-700'
+                    }`}
                   >
-                    <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${waEnabled ? 'translate-x-6' : 'translate-x-1'}`} />
+                    <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-md transition-transform ${
+                      waEnabled ? 'translate-x-6' : 'translate-x-1'
+                    }`} />
                   </button>
                 </div>
               </div>

@@ -16,10 +16,14 @@ const geistMono = Geist_Mono({
 });
 
 export const viewport: Viewport = {
-  width: "device-width",
+  width: 'device-width',
   initialScale: 1,
-  maximumScale: 1,
-  userScalable: false,
+  maximumScale: 5,
+  userScalable: true,
+  themeColor: [
+    { media: '(prefers-color-scheme: light)', color: '#f8fafc' },
+    { media: '(prefers-color-scheme: dark)', color: '#020617' },
+  ],
 };
 
 export const metadata: Metadata = {
@@ -95,14 +99,17 @@ export default function RootLayout({
           <Toaster
             position="bottom-right"
             toastOptions={{
-              className: 'dark:bg-slate-800 dark:border-slate-700 dark:text-slate-100',
               style: {
-                background: 'var(--toast-bg, #1e293b)',
-                border: '1px solid var(--toast-border, #334155)',
-                color: 'var(--toast-color, #f1f5f9)',
+                background: '#1e293b',
+                border: '1px solid #334155',
+                color: '#f1f5f9',
+                borderRadius: '12px',
+                fontSize: '13px',
+                boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
               },
             }}
             richColors
+            closeButton
           />
         </ThemeProvider>
       </body>

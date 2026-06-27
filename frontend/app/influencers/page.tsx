@@ -63,98 +63,168 @@ export default function InfluencersPage() {
 
   return (
     <DashboardLayout>
-      <div className="max-w-6xl mx-auto space-y-6 animate-fade-in">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white dark:bg-slate-900/60 p-6 rounded-2xl border border-slate-200 dark:border-slate-800/60 shadow-sm">
+      <div className="max-w-6xl mx-auto space-y-5 animate-fade-in">
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
-              <Users className="w-6 h-6 text-emerald-500" />
+            <h1 className="text-xl font-extrabold text-slate-900 dark:text-white tracking-tight flex items-center gap-2">
+              <div className="p-1.5 bg-emerald-500/10 border border-emerald-500/20 rounded-xl">
+                <Users className="w-4 h-4 text-emerald-400" />
+              </div>
               Influencer CRM
             </h1>
-            <p className="text-slate-500 mt-1">Manage your creator relationships and notes.</p>
+            <p className="text-slate-500 text-sm mt-1">Manage your creator relationships and notes.</p>
           </div>
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
             <input
               type="text"
-              placeholder="Search influencers..."
+              placeholder="Search creators..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="pl-9 pr-4 py-2 border border-slate-200 dark:border-slate-700 rounded-xl bg-slate-50 dark:bg-slate-800/50 text-slate-900 dark:text-white focus:outline-none focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/20 text-sm w-full sm:w-64"
+              className="pl-9 pr-8 py-2.5 border border-slate-200 dark:border-slate-700/80 rounded-xl bg-white dark:bg-slate-800/50 text-slate-900 dark:text-white focus:outline-none focus:border-emerald-500/50 focus:ring-2 focus:ring-emerald-500/15 text-sm w-full sm:w-60 transition-all"
             />
+            {search && (
+              <button
+                onClick={() => setSearch('')}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 p-0.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 rounded transition-colors"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
           </div>
         </div>
 
-        <div className="bg-white dark:bg-slate-900/60 rounded-2xl border border-slate-200 dark:border-slate-800/60 shadow-sm overflow-hidden">
+        <div className="bg-white dark:bg-slate-900/60 rounded-2xl border border-slate-200 dark:border-slate-800/50 shadow-sm overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-slate-200 dark:border-slate-800/60 bg-slate-50 dark:bg-slate-900/60 text-left">
-                  <th className="px-6 py-4 font-semibold text-slate-600 dark:text-slate-400">Influencer</th>
-                  <th className="px-6 py-4 font-semibold text-slate-600 dark:text-slate-400">Platform</th>
-                  <th className="px-6 py-4 font-semibold text-slate-600 dark:text-slate-400">Campaigns</th>
-                  <th className="px-6 py-4 font-semibold text-slate-600 dark:text-slate-400">Success Rate</th>
-                  <th className="px-6 py-4 font-semibold text-slate-600 dark:text-slate-400">Last Collab</th>
+                <tr className="border-b border-slate-100 dark:border-slate-800/60 bg-slate-50/80 dark:bg-slate-900/60 text-left">
+                  <th className="px-6 py-3.5 text-xs font-bold text-slate-500 uppercase tracking-widest">Influencer</th>
+                  <th className="px-6 py-3.5 text-xs font-bold text-slate-500 uppercase tracking-widest">Platform</th>
+                  <th className="px-6 py-3.5 text-xs font-bold text-slate-500 uppercase tracking-widest">Campaigns</th>
+                  <th className="px-6 py-3.5 text-xs font-bold text-slate-500 uppercase tracking-widest">Success Rate</th>
+                  <th className="px-6 py-3.5 text-xs font-bold text-slate-500 uppercase tracking-widest">Last Collab</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800/40">
                 {isLoading ? (
-                  [1, 2, 3].map(i => (
+                  [1, 2, 3, 4].map(i => (
                     <tr key={i}>
-                      <td className="px-6 py-4"><div className="h-10 w-48 bg-slate-100 dark:bg-slate-800/50 rounded-lg animate-pulse" /></td>
-                      <td className="px-6 py-4"><div className="h-6 w-24 bg-slate-100 dark:bg-slate-800/50 rounded-md animate-pulse" /></td>
-                      <td className="px-6 py-4"><div className="h-6 w-12 bg-slate-100 dark:bg-slate-800/50 rounded-md animate-pulse" /></td>
-                      <td className="px-6 py-4"><div className="h-6 w-16 bg-slate-100 dark:bg-slate-800/50 rounded-md animate-pulse" /></td>
-                      <td className="px-6 py-4"><div className="h-6 w-24 bg-slate-100 dark:bg-slate-800/50 rounded-md animate-pulse" /></td>
+                      <td className="px-6 py-4"><div className="flex items-center gap-3"><div className="skeleton w-10 h-10 rounded-full" /><div className="space-y-1.5"><div className="skeleton h-3 w-28 rounded" /><div className="skeleton h-2.5 w-20 rounded" /></div></div></td>
+                      <td className="px-6 py-4"><div className="skeleton h-5 w-16 rounded-full" /></td>
+                      <td className="px-6 py-4"><div className="skeleton h-5 w-8 rounded" /></td>
+                      <td className="px-6 py-4"><div className="skeleton h-5 w-12 rounded" /></td>
+                      <td className="px-6 py-4"><div className="skeleton h-5 w-20 rounded" /></td>
                     </tr>
                   ))
                 ) : filtered.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="px-6 py-24 text-center">
+                    <td colSpan={5} className="px-6 py-20 text-center">
                       <div className="flex flex-col items-center justify-center animate-fade-in">
-                        <div className="relative mb-6">
-                          <div className="absolute inset-0 bg-emerald-500/10 rounded-3xl blur-xl" />
-                          <div className="relative p-6 bg-white dark:bg-slate-800/60 rounded-2xl border border-slate-200 dark:border-slate-700/40 shadow-sm">
-                            <Users className="w-10 h-10 text-emerald-500 dark:text-emerald-400" />
-                          </div>
+                        <div className="p-5 bg-emerald-500/8 border border-emerald-500/15 rounded-3xl mb-4">
+                          <Users className="w-8 h-8 text-emerald-400" />
                         </div>
-                        <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">No influencers found</h3>
-                        <p className="text-slate-500 text-sm max-w-sm mb-6 leading-relaxed">
-                          Your creator relationships will automatically appear here once you start tracking campaigns. Build your ultimate CRM.
+                        <h3 className="text-base font-bold text-slate-900 dark:text-white mb-1.5">
+                          {search ? 'No creators found' : 'No creator relationships yet'}
+                        </h3>
+                        <p className="text-slate-500 text-sm max-w-sm leading-relaxed">
+                          {search
+                            ? `No creators match "${search}" — try a different name.`
+                            : 'Creator profiles appear automatically as you add campaigns. Start tracking to build your CRM.'}
                         </p>
+                        {search && (
+                          <button
+                            onClick={() => setSearch('')}
+                            className="mt-3 text-sm text-emerald-400 hover:text-emerald-300 font-semibold"
+                          >
+                            Clear search
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>
                 ) : (
-                  filtered.map(inf => (
-                    <tr 
-                      key={inf.handle} 
-                      onClick={() => handleRowClick(inf)}
-                      className="hover:bg-slate-50 dark:hover:bg-slate-800/20 transition-colors cursor-pointer"
-                    >
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-full bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center font-bold text-emerald-600 dark:text-emerald-400 flex-shrink-0">
-                            {(inf.name || inf.handle).slice(0,2).toUpperCase()}
+                  filtered.map((inf, idx) => {
+                    // Deterministic gradient based on handle
+                    const gradients = [
+                      'from-emerald-400 to-teal-500',
+                      'from-blue-400 to-purple-500',
+                      'from-amber-400 to-orange-500',
+                      'from-pink-400 to-rose-500',
+                      'from-violet-400 to-indigo-500',
+                      'from-cyan-400 to-blue-500',
+                    ];
+                    const gradientIdx = inf.handle.charCodeAt(1) % gradients.length;
+                    const gradient = gradients[gradientIdx];
+
+                    const platformStyles: Record<string, string> = {
+                      Instagram: 'bg-pink-500/15 text-pink-400 border border-pink-500/20',
+                      YouTube:   'bg-red-500/15 text-red-400 border border-red-500/20',
+                      Twitter:   'bg-sky-500/15 text-sky-400 border border-sky-500/20',
+                      X:         'bg-sky-500/15 text-sky-400 border border-sky-500/20',
+                      LinkedIn:  'bg-blue-500/15 text-blue-400 border border-blue-500/20',
+                    };
+                    const platformStyle = platformStyles[inf.platform ?? ''] ?? 'bg-slate-100 dark:bg-slate-800 text-slate-500 border border-slate-200 dark:border-slate-700';
+
+                    return (
+                      <tr
+                        key={inf.handle}
+                        onClick={() => handleRowClick(inf)}
+                        className="hover:bg-slate-50 dark:hover:bg-slate-800/20 transition-colors cursor-pointer group"
+                      >
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-3">
+                            <div className={`w-9 h-9 rounded-full bg-gradient-to-br ${gradient} flex items-center justify-center font-bold text-white text-xs flex-shrink-0 ring-2 ring-white dark:ring-slate-900 shadow-md`}>
+                              {(inf.name || inf.handle).slice(0, 2).toUpperCase()}
+                            </div>
+                            <div>
+                              <p className="font-semibold text-slate-900 dark:text-white text-sm group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
+                                {inf.name || 'Unknown'}
+                              </p>
+                              <p className="text-xs text-slate-400">{inf.handle}</p>
+                            </div>
                           </div>
-                          <div>
-                            <p className="font-semibold text-slate-900 dark:text-white">{inf.name || 'Unknown'}</p>
-                            <p className="text-xs text-slate-500">{inf.handle}</p>
+                        </td>
+                        <td className="px-6 py-4">
+                          {inf.platform ? (
+                            <span className={`inline-block text-[11px] font-bold px-2.5 py-1 rounded-full ${platformStyle}`}>
+                              {inf.platform}
+                            </span>
+                          ) : (
+                            <span className="text-slate-400 text-xs">—</span>
+                          )}
+                        </td>
+                        <td className="px-6 py-4">
+                          <span className="font-bold text-slate-900 dark:text-white">{inf.total_campaigns}</span>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-2">
+                            <div className="w-16 h-1.5 bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden">
+                              <div
+                                className={`h-full rounded-full ${
+                                  inf.success_rate >= 70 ? 'bg-emerald-400' :
+                                  inf.success_rate >= 40 ? 'bg-amber-400' :
+                                  'bg-rose-400'
+                                }`}
+                                style={{ width: `${inf.success_rate}%` }}
+                              />
+                            </div>
+                            <span className={`text-xs font-bold ${
+                              inf.success_rate >= 70 ? 'text-emerald-500 dark:text-emerald-400' :
+                              inf.success_rate >= 40 ? 'text-amber-500 dark:text-amber-400' :
+                              'text-rose-500 dark:text-rose-400'
+                            }`}>{inf.success_rate}%</span>
                           </div>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 text-slate-600 dark:text-slate-400">{inf.platform || '—'}</td>
-                      <td className="px-6 py-4 font-medium text-slate-900 dark:text-white">{inf.total_campaigns}</td>
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-1.5">
-                          <Star className={`w-4 h-4 ${inf.success_rate >= 50 ? 'text-amber-400 fill-amber-400' : 'text-slate-300 dark:text-slate-600'}`} />
-                          <span className="font-medium text-slate-700 dark:text-slate-300">{inf.success_rate}%</span>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 text-slate-500 text-sm">
-                        {inf.last_collaboration ? new Date(inf.last_collaboration).toLocaleDateString() : '—'}
-                      </td>
-                    </tr>
-                  ))
+                        </td>
+                        <td className="px-6 py-4 text-slate-500 dark:text-slate-400 text-xs">
+                          {inf.last_collaboration
+                            ? new Date(inf.last_collaboration).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
+                            : '—'}
+                        </td>
+                      </tr>
+                    );
+                  })
                 )}
               </tbody>
             </table>

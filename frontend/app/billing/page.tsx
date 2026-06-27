@@ -34,11 +34,13 @@ export default function BillingPage() {
       <div className="max-w-5xl mx-auto space-y-8 animate-fade-in pb-12">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
-            <h1 className="text-2xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
-              <CreditCard className="w-6 h-6 text-emerald-500" />
-              Usage & Billing
+            <h1 className="text-xl font-extrabold text-slate-900 dark:text-white tracking-tight flex items-center gap-2">
+              <div className="p-1.5 bg-emerald-500/10 border border-emerald-500/20 rounded-xl">
+                <CreditCard className="w-4 h-4 text-emerald-400" />
+              </div>
+              Usage &amp; Billing
             </h1>
-            <p className="text-slate-500 mt-1 text-sm">Manage your plan, billing details, and API usage.</p>
+            <p className="text-slate-500 mt-1 text-sm">Manage your plan, billing details, and usage.</p>
           </div>
         </div>
 
@@ -72,30 +74,34 @@ export default function BillingPage() {
               </div>
             </div>
 
-            <div className="bg-white dark:bg-slate-900/60 p-6 rounded-3xl border border-slate-200 dark:border-slate-800/60 shadow-sm flex flex-col justify-between">
+            <div className="bg-white dark:bg-slate-900/60 p-6 rounded-2xl border border-slate-200 dark:border-slate-800/50 shadow-sm flex flex-col justify-between">
               <div>
-                <h3 className="font-semibold text-slate-700 dark:text-slate-300 mb-4 flex items-center gap-2">
+                <h3 className="font-semibold text-slate-700 dark:text-slate-300 mb-4 flex items-center gap-2 text-sm">
                   <TrendingUp className="w-4 h-4 text-purple-500" />
                   Campaigns Tracked
                 </h3>
-                <div className="flex items-end gap-2 mb-2">
-                  <p className="text-4xl font-black text-slate-900 dark:text-white">{campaignsUsed}</p>
-                  <p className="text-sm font-semibold text-slate-400 mb-1">/ {campaignsLimit} used</p>
+                <div className="flex items-baseline gap-2 mb-4">
+                  <p className="text-4xl font-extrabold text-slate-900 dark:text-white">{campaignsUsed}</p>
+                  <p className="text-sm font-semibold text-slate-400">/ {campaignsLimit}</p>
                 </div>
               </div>
               <div>
-                <div className="flex justify-between text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2">
+                <div className="flex justify-between text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">
                   <span>Usage limit</span>
-                  <span>{usagePercentage}%</span>
+                  <span className={usagePercentage > 80 ? 'text-rose-400' : 'text-slate-500'}>{usagePercentage}%</span>
                 </div>
-                <div className="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-2.5 overflow-hidden">
-                  <div 
-                    className={`h-full rounded-full transition-all duration-1000 ${usagePercentage > 80 ? 'bg-rose-500' : 'bg-purple-500'}`}
+                <div className="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-2 overflow-hidden">
+                  <div
+                    className={`h-full rounded-full transition-all duration-700 ease-out ${
+                      usagePercentage > 80
+                        ? 'bg-gradient-to-r from-rose-500 to-red-400'
+                        : 'bg-gradient-to-r from-purple-500 to-violet-400'
+                    }`}
                     style={{ width: `${usagePercentage}%` }}
                   />
                 </div>
                 {usagePercentage > 80 && (
-                  <p className="text-xs text-rose-500 font-medium mt-3">You are approaching your free limit.</p>
+                  <p className="text-xs text-rose-500 font-semibold mt-2">Approaching free limit — consider upgrading.</p>
                 )}
               </div>
             </div>

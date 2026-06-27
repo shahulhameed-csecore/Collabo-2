@@ -32,54 +32,70 @@ function StatCard({
 }) {
   const accentMap = {
     emerald: {
-      bg: 'bg-emerald-500/10', text: 'text-emerald-400',
-      border: 'border-emerald-500/20', glow: 'hover:shadow-emerald-500/10',
-      iconBg: 'bg-emerald-500/10 border-emerald-500/20',
+      bg: 'bg-emerald-500/12', text: 'text-emerald-400',
+      border: 'border-emerald-500/20', hover: 'hover:border-emerald-500/35 hover:shadow-emerald-500/12',
+      iconBg: 'bg-emerald-500/12 border-emerald-500/20',
+      blob: 'bg-emerald-400/20',
     },
     amber: {
-      bg: 'bg-amber-500/10', text: 'text-amber-400',
-      border: 'border-amber-500/20', glow: 'hover:shadow-amber-500/10',
-      iconBg: 'bg-amber-500/10 border-amber-500/20',
+      bg: 'bg-amber-500/12', text: 'text-amber-400',
+      border: 'border-amber-500/20', hover: 'hover:border-amber-500/35 hover:shadow-amber-500/12',
+      iconBg: 'bg-amber-500/12 border-amber-500/20',
+      blob: 'bg-amber-400/18',
     },
     rose: {
-      bg: 'bg-rose-500/10', text: 'text-rose-400',
-      border: 'border-rose-500/20', glow: 'hover:shadow-rose-500/10',
-      iconBg: 'bg-rose-500/10 border-rose-500/20',
+      bg: 'bg-rose-500/12', text: 'text-rose-400',
+      border: 'border-rose-500/20', hover: 'hover:border-rose-500/35 hover:shadow-rose-500/12',
+      iconBg: 'bg-rose-500/12 border-rose-500/20',
+      blob: 'bg-rose-400/18',
     },
     slate: {
       bg: 'bg-slate-700/40', text: 'text-slate-300',
-      border: 'border-slate-600/30', glow: 'hover:shadow-slate-500/5',
-      iconBg: 'bg-slate-700/40 border-slate-600/30',
+      border: 'border-slate-700/40', hover: 'hover:border-slate-600/50 hover:shadow-slate-500/8',
+      iconBg: 'bg-slate-700/40 border-slate-700/40',
+      blob: 'bg-slate-500/15',
     },
     blue: {
-      bg: 'bg-blue-500/10', text: 'text-blue-400',
-      border: 'border-blue-500/20', glow: 'hover:shadow-blue-500/10',
-      iconBg: 'bg-blue-500/10 border-blue-500/20',
+      bg: 'bg-blue-500/12', text: 'text-blue-400',
+      border: 'border-blue-500/20', hover: 'hover:border-blue-500/35 hover:shadow-blue-500/12',
+      iconBg: 'bg-blue-500/12 border-blue-500/20',
+      blob: 'bg-blue-400/18',
     },
   };
   const a = accentMap[accent];
   return (
     <div
       id={id}
-      className={`relative bg-slate-900/60 border border-slate-800/50 rounded-2xl p-5 overflow-hidden transition-all duration-200 hover:border-slate-700/60 hover:shadow-lg ${a.glow} group`}
+      className={`
+        relative bg-white dark:bg-slate-900/60 border ${a.border} ${a.hover}
+        rounded-2xl p-5 overflow-hidden transition-all duration-250
+        hover:shadow-xl hover:-translate-y-0.5 group
+        shadow-sm dark:shadow-none
+      `}
     >
-      {/* Background glow blob */}
-      <div className={`absolute top-0 right-0 w-28 h-28 ${a.bg} rounded-full -translate-y-10 translate-x-10 blur-3xl pointer-events-none opacity-60 group-hover:opacity-80 transition-opacity`} />
+      {/* Glow blob */}
+      <div
+        className={`absolute -top-6 -right-6 w-28 h-28 ${a.blob} rounded-full blur-2xl pointer-events-none opacity-70 group-hover:opacity-100 transition-opacity duration-300`}
+      />
 
       <div className="relative flex items-start justify-between gap-3">
         <div className="flex-1 min-w-0">
-          <p className="text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-3">{label}</p>
-          <p className={`text-3xl font-extrabold ${a.text} leading-none mb-1.5`}>{value}</p>
-          {sub && <p className="text-xs text-slate-600 leading-relaxed mt-1">{sub}</p>}
+          <p className="text-[10px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-3 leading-none">
+            {label}
+          </p>
+          <p className={`text-2xl sm:text-3xl font-extrabold ${a.text} leading-none mb-2`}>{value}</p>
+          {sub && (
+            <p className="text-[11px] text-slate-400 dark:text-slate-600 leading-relaxed mt-1 truncate">{sub}</p>
+          )}
           {trend && (
-            <div className={`flex items-center gap-1 mt-2.5 text-xs font-bold ${trend.positive ? 'text-emerald-400' : 'text-rose-400'}`}>
+            <div className={`flex items-center gap-1 mt-2.5 text-xs font-bold ${trend.positive ? 'text-emerald-500 dark:text-emerald-400' : 'text-rose-500 dark:text-rose-400'}`}>
               <TrendingUp className={`w-3 h-3 ${!trend.positive ? 'rotate-180' : ''}`} />
               {trend.value}
             </div>
           )}
         </div>
-        <div className={`p-3 rounded-xl border flex-shrink-0 ${a.iconBg} transition-transform group-hover:scale-110 duration-200`}>
-          <Icon className={`w-5 h-5 ${a.text}`} />
+        <div className={`p-2.5 sm:p-3 rounded-xl border flex-shrink-0 ${a.iconBg} group-hover:scale-110 transition-transform duration-200`}>
+          <Icon className={`w-4 h-4 sm:w-5 sm:h-5 ${a.text}`} />
         </div>
       </div>
     </div>
@@ -89,7 +105,7 @@ function StatCard({
 // ─── Skeleton Stat Card ───────────────────────────────────────────────────────
 function StatCardSkeleton() {
   return (
-    <div className="bg-slate-900/60 border border-slate-800/50 rounded-2xl p-5">
+    <div className="bg-white dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800/50 rounded-2xl p-5 shadow-sm dark:shadow-none">
       <div className="skeleton h-2.5 w-20 rounded mb-4" />
       <div className="skeleton h-8 w-16 rounded mb-2" />
       <div className="skeleton h-2.5 w-24 rounded" />
@@ -102,27 +118,40 @@ function DeadlineItem({ campaign }: { campaign: Campaign }) {
   const deadline = new Date(campaign.deadline!);
   const now = new Date();
   const daysLeft = Math.ceil((deadline.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-  const urgent = daysLeft <= 2;
-  const today  = daysLeft === 0;
+  const overdue = daysLeft < 0;
+  const urgent  = daysLeft >= 0 && daysLeft <= 2;
+  const today   = daysLeft === 0;
+
+  const badgeClass = overdue
+    ? 'bg-rose-500 text-white'
+    : urgent
+    ? 'bg-rose-500/15 text-rose-400 border border-rose-500/25'
+    : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400';
 
   return (
-    <div className={`flex items-center gap-3 p-3 rounded-xl border transition-all hover:bg-slate-800/30 group ${
-      urgent ? 'border-rose-500/20 bg-rose-500/5' : 'border-slate-800/40'
+    <div className={`flex items-center gap-3 p-3 rounded-xl border transition-all hover:bg-slate-50 dark:hover:bg-slate-800/30 group cursor-default ${
+      overdue ? 'border-rose-500/25 bg-rose-500/5' :
+      urgent  ? 'border-amber-500/20 bg-amber-500/4' :
+                'border-slate-200 dark:border-slate-800/40 bg-transparent'
     }`}>
-      <div className={`flex-shrink-0 p-2 rounded-lg transition-all ${urgent ? 'bg-rose-500/10' : 'bg-slate-800/60'}`}>
-        <Calendar className={`w-3.5 h-3.5 ${urgent ? 'text-rose-400' : 'text-slate-500'}`} />
+      <div className={`flex-shrink-0 p-2 rounded-lg ${
+        overdue ? 'bg-rose-500/15' : urgent ? 'bg-amber-500/12' : 'bg-slate-100 dark:bg-slate-800/60'
+      }`}>
+        <Calendar className={`w-3.5 h-3.5 ${
+          overdue ? 'text-rose-400' : urgent ? 'text-amber-400' : 'text-slate-400'
+        }`} />
       </div>
       <div className="flex-1 min-w-0">
-        <p className="text-sm font-semibold text-white truncate">
+        <p className="text-sm font-semibold text-slate-900 dark:text-white truncate">
           {campaign.influencer_name ?? campaign.influencer_handle}
         </p>
         <p className="text-xs text-slate-500 truncate">{campaign.deliverables ?? 'No deliverables set'}</p>
       </div>
-      <div className="flex-shrink-0 text-right">
-        <p className={`text-xs font-extrabold ${today ? 'text-rose-400 animate-pulse' : urgent ? 'text-rose-400' : 'text-slate-300'}`}>
-          {today ? 'Today!' : daysLeft === 1 ? 'Tomorrow' : `${daysLeft}d left`}
-        </p>
-        <p className="text-[10px] text-slate-600 mt-0.5">
+      <div className="flex-shrink-0 text-right space-y-1">
+        <span className={`inline-block text-[10px] font-bold px-2 py-0.5 rounded-full ${badgeClass}`}>
+          {overdue ? `${Math.abs(daysLeft)}d overdue` : today ? 'Today!' : daysLeft === 1 ? 'Tomorrow' : `${daysLeft}d left`}
+        </span>
+        <p className="text-[10px] text-slate-500 text-right">
           {deadline.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}
         </p>
       </div>
@@ -253,9 +282,11 @@ export default function DashboardPage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
         <div>
           <h1 className="text-xl font-extrabold text-slate-900 dark:text-white tracking-tight">Campaign Dashboard</h1>
-          <p className="text-slate-500 text-sm mt-0.5">
+          <p className="text-slate-500 dark:text-slate-500 text-sm mt-0.5">
             {isLoading
               ? 'Loading your campaigns...'
+              : campaigns.length === 0
+              ? 'No campaigns yet — create your first one!'
               : `${campaigns.length} campaign${campaigns.length !== 1 ? 's' : ''} tracked`}
           </p>
         </div>
@@ -337,27 +368,43 @@ export default function DashboardPage() {
 
       {/* ── First-time welcome ── */}
       {isFirstTime && (
-        <div className="mb-6 p-8 bg-gradient-to-br from-emerald-500/10 via-teal-500/5 to-transparent border border-emerald-500/20 rounded-3xl animate-fade-in relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/3 pointer-events-none" />
-          <div className="relative flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
-            <div className="flex items-start gap-5">
-              <div className="p-4 bg-gradient-to-br from-emerald-500/20 to-teal-500/10 rounded-2xl border border-emerald-500/30 flex-shrink-0 animate-float shadow-inner shadow-emerald-500/20">
-                <Zap className="w-8 h-8 text-emerald-500" />
+        <div className="mb-6 relative overflow-hidden rounded-3xl border border-emerald-500/20 animate-fade-in">
+          {/* Background gradient */}
+          <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/8 via-teal-500/4 to-transparent" />
+          <div className="absolute top-0 right-0 w-80 h-80 bg-emerald-500/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/4 pointer-events-none" />
+          <div className="absolute bottom-0 left-0 w-60 h-60 bg-teal-500/6 rounded-full blur-2xl translate-y-1/2 -translate-x-1/4 pointer-events-none" />
+          
+          <div className="relative p-6 sm:p-8">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
+              <div className="flex items-start gap-4 sm:gap-5">
+                <div className="p-3.5 bg-gradient-to-br from-emerald-500/25 to-teal-500/15 rounded-2xl border border-emerald-500/30 flex-shrink-0 animate-float shadow-lg shadow-emerald-500/15">
+                  <Zap className="w-7 h-7 text-emerald-400" />
+                </div>
+                <div>
+                  <h2 className="text-lg sm:text-xl font-black text-slate-900 dark:text-white mb-1.5 tracking-tight">Welcome to Collabo! 👋</h2>
+                  <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed max-w-lg">
+                    Track every influencer deal in one place. Create campaigns, upload DMs,
+                    and build your ultimate creator CRM. Let's make influencer marketing effortless.
+                  </p>
+                  {/* Quick tips */}
+                  <div className="flex flex-wrap gap-2 mt-3">
+                    {['Set deadlines', 'Track payments', 'Auto-reminders'].map(tip => (
+                      <span key={tip} className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded-full">
+                        <CheckCircle2 className="w-3 h-3" />
+                        {tip}
+                      </span>
+                    ))}
+                  </div>
+                </div>
               </div>
-              <div>
-                <h2 className="text-xl font-black text-slate-900 dark:text-white mb-2 tracking-tight">Welcome to Collabo! 👋</h2>
-                <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed max-w-xl">
-                  Track every influencer deal in one place. Upload DMs or enter campaign details to build your ultimate creator CRM. Let's make influencer marketing effortless.
-                </p>
-              </div>
+              <button
+                onClick={() => setIsModalOpen(true)}
+                className="flex items-center gap-2 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-white font-bold rounded-xl px-5 sm:px-6 py-3 sm:py-3.5 text-sm transition-all shadow-xl shadow-emerald-500/25 active:scale-[0.98] whitespace-nowrap hover:shadow-emerald-500/40"
+              >
+                <Plus className="w-4 h-4" />
+                Create First Campaign
+              </button>
             </div>
-            <button
-              onClick={() => setIsModalOpen(true)}
-              className="flex items-center gap-2 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-white font-bold rounded-xl px-6 py-3.5 text-sm transition-all shadow-xl shadow-emerald-500/25 active:scale-[0.98] whitespace-nowrap"
-            >
-              <Plus className="w-4 h-4" />
-              Create First Campaign
-            </button>
           </div>
         </div>
       )}
@@ -380,9 +427,10 @@ export default function DashboardPage() {
               id="stat-active"
               label="Active Now"
               value={String(stats.active)}
-              sub={`${stats.upcomingDeadlines.length} due this week`}
+              sub={stats.upcomingDeadlines.length > 0 ? `${stats.upcomingDeadlines.length} due this week` : 'No upcoming deadlines'}
               icon={TrendingUp}
               accent="emerald"
+              trend={stats.active > 0 ? { value: 'In progress', positive: true } : undefined}
             />
             <StatCard
               id="stat-overdue"
@@ -394,9 +442,9 @@ export default function DashboardPage() {
             />
             <StatCard
               id="stat-spend"
-              label="Pending Payments"
-              value={`₹${stats.pendingSpend.toLocaleString('en-IN')}`}
-              sub={`₹${stats.totalSpend.toLocaleString('en-IN')} total · avg ₹${stats.avgPayment.toLocaleString('en-IN')}`}
+              label="Pending Spend"
+              value={`₹${(stats.pendingSpend / 1000).toFixed(0)}K`}
+              sub={`₹${(stats.totalSpend / 1000).toFixed(0)}K total budget`}
               icon={DollarSign}
               accent="amber"
             />
