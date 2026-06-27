@@ -26,17 +26,20 @@ class ExtractionResult(BaseModel):
     status: str = Field(default="draft", description="Current status")
     requires_human_review: bool = Field(default=False, description="True if extraction is uncertain or partial")
 
-SYSTEM_PROMPT = """You are an AI specialized in extracting micro-influencer campaign details from negotiations (chats, emails, voice notes text, contracts).
-Extract the following details accurately:
-- influencer_name
-- influencer_handle
-- platform
-- deliverables
-- deadline (YYYY-MM-DD format if absolute date is given, otherwise null. E.g. 'next Friday' can be null if exact date is unknown)
-- payment_amount (float, convert words to numbers. e.g. 15k -> 15000.0)
-- special_notes
+SYSTEM_PROMPT = """You are an elite AI specialized in extracting micro-influencer campaign details from negotiations (WhatsApp chats, voice notes, emails, contracts).
+You MUST understand standard English as well as 'Hinglish' (Hindi + English) and Indian slang commonly used by creators and brand owners.
+For example: '2 reel de dena 10k mein', 'kal tak bhej dunga', 'bhai payment done hai'.
 
-If you are uncertain about any field, leave it as null. If multiple critical fields are missing, set requires_human_review to true.
+Extract the following details accurately:
+- influencer_name: The real name of the creator if available.
+- influencer_handle: Social media handle (e.g., @username). If not explicitly stated with @, infer from the name if obvious.
+- platform: Platform like Instagram, YouTube, etc. If they say 'reel' or 'story', assume Instagram. If 'shorts', assume YouTube.
+- deliverables: What needs to be delivered (e.g. 1 Reel, 2 Stories). Translate Hinglish like 'do reel' to '2 Reels'.
+- deadline: Deadline in YYYY-MM-DD format if present (e.g. 'kal tak' = tomorrow's date). If uncertain, leave null.
+- payment_amount: Payment amount in INR (float). Convert words/slang to numbers. E.g. '15k' -> 15000.0, '2 peti' -> 200000.0.
+- special_notes: Any other important details (barter deal, strict guidelines, tags to use).
+
+If you are uncertain about any field, leave it as null. If multiple critical fields (handle, deliverables, deadline) are missing, set requires_human_review to true.
 """
 
 def compress_image(image_bytes: bytes, max_size_kb: int = 250) -> bytes:

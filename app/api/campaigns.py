@@ -89,11 +89,16 @@ async def create_campaign(
         raise
     except Exception as e:
         logger.error("Campaign creation failed", error=type(e).__name__, detail=str(e), user_id=user.user.id)
-        # If it's a database constraint violation, it's typically a bad request (e.g., missing handle, bad enum)
-        error_msg = str(e)
-        if "violates" in error_msg.lower() or "not-null" in error_msg.lower() or "foreign key" in error_msg.lower():
-            raise HTTPException(status_code=400, detail=f"Invalid campaign data: {error_msg}")
-        raise HTTPException(status_code=500, detail="Failed to create campaign. Please check the provided details.")
+        error_msg = str(e).lower()
+        if "violates unique constraint" in error_msg and "short_code" in error_msg:
+            raise HTTPException(status_code=400, detail="A tracking code conflict occurred. Please try again.")
+        if "foreign key" in error_msg:
+            raise HTTPException(status_code=400, detail="Invalid data reference. Make sure the linked data exists.")
+        if "not-null" in error_msg:
+            raise HTTPException(status_code=400, detail="Please fill in all required fields.")
+        if "violates" in error_msg:
+            raise HTTPException(status_code=400, detail="The provided data is invalid. Please double-check your inputs.")
+        raise HTTPException(status_code=500, detail="We couldn't create your campaign. Please try again or contact support if the issue persists.")
 
 
 @router.put("/{id}", response_model=CampaignResponse)
