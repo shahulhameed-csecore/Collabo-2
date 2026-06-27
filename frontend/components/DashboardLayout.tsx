@@ -142,23 +142,20 @@ export default function DashboardLayout({ children, onNewCampaign }: DashboardLa
   /* ── Loading screen ── */
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-950 flex items-center justify-center">
-        <div className="flex flex-col items-center gap-5 animate-fade-in">
-          <div className="relative">
-            <div className="absolute inset-0 bg-emerald-500 rounded-2xl blur-xl opacity-30 animate-pulse" />
-            <div className="relative p-4 bg-slate-900 rounded-2xl shadow-2xl shadow-emerald-500/20 border border-slate-800">
-              <Logo variant="icon" size={32} />
-            </div>
+      <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col items-center justify-center space-y-6">
+        <div className="relative flex items-center justify-center">
+          <div className="absolute inset-0 bg-emerald-500/20 rounded-full blur-xl animate-pulse"></div>
+          <div className="relative w-16 h-16 bg-white dark:bg-slate-900 rounded-2xl shadow-xl flex items-center justify-center border border-slate-200 dark:border-slate-800">
+            <svg className="w-8 h-8 text-emerald-500 animate-spin" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" className="opacity-20" />
+              <path d="M12 2C6.47715 2 2 6.47715 2 12" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeDasharray="31.4 31.4" className="opacity-80" />
+            </svg>
           </div>
-          <div className="text-center mt-1">
-            <Logo variant="full" />
-            <p className="text-slate-600 text-sm mt-2">Loading your workspace...</p>
-          </div>
-          <div className="w-40 h-0.5 bg-slate-800 rounded-full overflow-hidden">
-            <div
-              className="h-full bg-gradient-to-r from-emerald-500 to-teal-400 rounded-full"
-              style={{ backgroundSize: '200% 100%', animation: 'shimmer 1.4s ease-in-out infinite' }}
-            />
+        </div>
+        <div className="flex flex-col items-center space-y-2">
+          <p className="text-slate-600 dark:text-slate-400 text-sm font-medium animate-pulse">Loading your workspace...</p>
+          <div className="w-40 h-1 bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden">
+            <div className="h-full bg-emerald-500 rounded-full animate-shimmer" style={{ width: '50%' }}></div>
           </div>
         </div>
       </div>

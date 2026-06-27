@@ -104,31 +104,34 @@ function SkeletonRow() {
 function EmptyState({ onCreateNew, onLoadSampleData, hasFilters }: { onCreateNew: () => void; onLoadSampleData?: () => void; hasFilters: boolean }) {
   if (hasFilters) {
     return (
-      <div className="flex flex-col items-center justify-center py-20 text-center animate-fade-in">
-        <div className="p-4 bg-slate-50 dark:bg-slate-800/60 rounded-2xl mb-4 border border-slate-200 dark:border-slate-700/30 shadow-sm dark:shadow-none">
-          <Search className="w-8 h-8 text-slate-400 dark:text-slate-400" />
+      <div className="flex flex-col items-center justify-center py-20 text-center animate-in fade-in zoom-in-95 duration-500">
+        <div className="relative mb-4 group cursor-default">
+          <div className="absolute inset-0 bg-slate-200 dark:bg-slate-700 rounded-full blur-lg opacity-50 group-hover:scale-110 transition-transform duration-500" />
+          <div className="relative p-4 bg-white dark:bg-slate-800 rounded-full border border-slate-200 dark:border-slate-700 shadow-sm">
+            <Search className="w-6 h-6 text-slate-400 dark:text-slate-500" />
+          </div>
         </div>
         <h3 className="text-base font-semibold text-slate-900 dark:text-white mb-1">No campaigns match</h3>
-        <p className="text-slate-500 text-sm">Try adjusting your search or filter.</p>
+        <p className="text-slate-500 text-sm">Try adjusting your search or filters to find what you're looking for.</p>
       </div>
     );
   }
   return (
-    <div className="flex flex-col items-center justify-center py-20 text-center animate-fade-in">
-      <div className="relative mb-6">
-        <div className="absolute inset-0 bg-emerald-500/10 rounded-3xl blur-xl" />
-        <div className="relative p-6 bg-white dark:bg-slate-800/60 rounded-2xl border border-slate-200 dark:border-slate-700/40 shadow-sm dark:shadow-none">
+    <div className="flex flex-col items-center justify-center py-24 text-center animate-in fade-in zoom-in-95 duration-700">
+      <div className="relative mb-6 group">
+        <div className="absolute inset-0 bg-emerald-500/20 rounded-full blur-2xl group-hover:bg-emerald-500/30 group-hover:scale-110 transition-all duration-700" />
+        <div className="relative p-6 bg-white dark:bg-slate-900 rounded-full border border-emerald-100 dark:border-emerald-500/20 shadow-xl shadow-emerald-500/10 transform group-hover:-translate-y-1 transition-all duration-300">
           <DollarSign className="w-10 h-10 text-emerald-500 dark:text-emerald-400" />
         </div>
       </div>
-      <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">No campaigns yet</h3>
-      <p className="text-slate-500 text-sm max-w-sm mb-8 leading-relaxed">
-        Start tracking your influencer deals. Upload a DM screenshot and let our AI instantly fill in all the details for you.
+      <h3 className="text-2xl font-bold text-slate-900 dark:text-white mb-2 tracking-tight">Your campaign hub awaits</h3>
+      <p className="text-slate-500 dark:text-slate-400 text-sm max-w-sm mb-8 leading-relaxed">
+        Start tracking your influencer deals today. Just upload a DM screenshot and let our AI instantly extract all the campaign details.
       </p>
-      <div className="flex flex-col sm:flex-row items-center gap-3">
+      <div className="flex flex-col sm:flex-row items-center gap-4">
         <button
           onClick={onCreateNew}
-          className="flex items-center gap-2 bg-emerald-500 hover:bg-emerald-400 active:scale-95 text-white font-semibold rounded-xl px-5 py-2.5 text-sm transition-all shadow-lg shadow-emerald-500/25"
+          className="flex items-center gap-2 bg-emerald-500 hover:bg-emerald-400 text-white font-semibold rounded-full px-6 py-3 text-sm transition-all shadow-lg shadow-emerald-500/25 hover:shadow-emerald-500/40 hover:-translate-y-0.5 active:translate-y-0 active:scale-95"
         >
           <Plus className="w-4 h-4" />
           Create First Campaign
@@ -136,7 +139,7 @@ function EmptyState({ onCreateNew, onLoadSampleData, hasFilters }: { onCreateNew
         {onLoadSampleData && (
           <button
             onClick={onLoadSampleData}
-            className="flex items-center gap-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 active:scale-95 text-slate-700 dark:text-slate-300 font-semibold rounded-xl px-5 py-2.5 text-sm transition-all border border-slate-200 dark:border-slate-700"
+            className="flex items-center gap-2 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-semibold rounded-full px-6 py-3 text-sm transition-all border border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600 hover:-translate-y-0.5 active:translate-y-0 active:scale-95"
           >
             <Database className="w-4 h-4" />
             Load Sample Data
