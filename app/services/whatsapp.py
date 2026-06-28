@@ -86,9 +86,9 @@ async def download_whatsapp_media(
             # Step 2: Stream-download with size guard
             chunks: list[bytes] = []
             total = 0
-            async with client.stream("GET", media_url, headers=headers, timeout=30.0) as stream:
+            async with client.stream("GET", media_url, headers=headers, timeout=45.0) as stream:
                 if stream.status_code != 200:
-                    logger.error("Failed to download media binary", status=stream.status_code)
+                    logger.error("Failed to download media binary from Meta CDN", status=stream.status_code, media_url=media_url)
                     return None
                 async for chunk in stream.aiter_bytes(chunk_size=65536):
                     total += len(chunk)
@@ -97,6 +97,7 @@ async def download_whatsapp_media(
                             "Media download aborted — exceeded size limit",
                             media_id=media_id,
                             max_bytes=max_bytes,
+                            bytes_downloaded=total
                         )
                         return None
                     chunks.append(chunk)

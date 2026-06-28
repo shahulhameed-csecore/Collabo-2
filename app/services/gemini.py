@@ -26,17 +26,39 @@ class ExtractionResult(BaseModel):
     status: str = Field(default="draft", description="Current status")
     requires_human_review: bool = Field(default=False, description="True if extraction is uncertain or partial")
 
-SYSTEM_PROMPT = """You are an elite AI specialized in extracting micro-influencer campaign details from negotiations (WhatsApp chats, voice notes, emails, contracts).
-You MUST understand standard English as well as 'Hinglish' (Hindi + English) and Indian slang commonly used by creators and brand owners.
-For example: '2 reel de dena 10k mein', 'kal tak bhej dunga', 'bhai payment done hai'.
+def get_system_prompt() -> str:
+    from datetime import datetime
+    import pytz
+    ist = pytz.timezone('Asia/Kolkata')
+    now = datetime.now(ist)
+    date_str = now.strftime('%Y-%m-%d')
+    day_str = now.strftime('%A')
+    
+    return f"""You are an elite AI specialized in extracting micro-influencer campaign details from negotiations (WhatsApp chats, voice notes, emails, contracts).
+You MUST understand standard English as well as 'Hinglish' (Hindi + English) and Indian creator slang.
+
+CRITICAL CONTEXT:
+- Today's Date is: {date_str} ({day_str}). Use this to calculate exact relative deadlines!
+  - 'aaj' / 'today' = {date_str}
+  - 'kal' / 'tomorrow' = Add 1 day
+  - 'parso' / 'day after' = Add 2 days
+  - 'next week' = Add 7 days
+
+SLANG & TERMINOLOGY DICTIONARY:
+- 'k' = thousand (e.g., '10k' = 10000.0)
+- 'peti' / 'lakh' = hundred thousand (e.g., '2 peti' = 200000.0, '1.5 lakh' = 150000.0)
+- 'barter' / 'collab' (without money) = Set payment_amount to 0.0 and note 'Barter collab' in special_notes
+- 'reel', 'story', 'post' = Assume 'Instagram' platform
+- 'shorts', 'video' = Assume 'YouTube' platform
+- 'do' = 2, 'teen' = 3, 'chaar' = 4, 'paanch' = 5
 
 Extract the following details accurately:
 - influencer_name: The real name of the creator if available.
 - influencer_handle: Social media handle (e.g., @username). If not explicitly stated with @, infer from the name if obvious.
-- platform: Platform like Instagram, YouTube, etc. If they say 'reel' or 'story', assume Instagram. If 'shorts', assume YouTube.
+- platform: Platform like Instagram, YouTube, etc. 
 - deliverables: What needs to be delivered (e.g. 1 Reel, 2 Stories). Translate Hinglish like 'do reel' to '2 Reels'.
-- deadline: Deadline in YYYY-MM-DD format if present (e.g. 'kal tak' = tomorrow's date). If uncertain, leave null.
-- payment_amount: Payment amount in INR (float). Convert words/slang to numbers. E.g. '15k' -> 15000.0, '2 peti' -> 200000.0.
+- deadline: Deadline in YYYY-MM-DD format if present. If uncertain, leave null.
+- payment_amount: Payment amount in INR (float). Convert words/slang to numbers.
 - special_notes: Any other important details (barter deal, strict guidelines, tags to use).
 
 If you are uncertain about any field, leave it as null. If multiple critical fields (handle, deliverables, deadline) are missing, set requires_human_review to true.
@@ -102,7 +124,7 @@ async def _call_gemini(client: genai.Client, contents: list) -> ExtractionResult
             model='gemini-3.5-flash',
             contents=contents,
             config=types.GenerateContentConfig(
-                system_instruction=SYSTEM_PROMPT,
+                system_instruction=get_system_prompt(),
                 response_mime_type="application/json",
                 response_schema=ExtractionResult,
                 temperature=0.1
@@ -179,7 +201,13 @@ async def extract_campaign_data(file_bytes: bytes, filename: str, mime_type: str
                 raise e
 
     except Exception as e:
-        logger.error("gemini_extraction_failed_completely", error=str(e))
+        logger.error("gemini_extraction_failed_completely", error=str(e), exc_info=True)
+        
+        # Detect if it was an audio failure vs image/text failure
+        error_msg = f"AI Extraction failed ({str(e)}). Please enter details manually."
+        if mime_type and mime_type.startswith("audio/"):
+            error_msg = "Voice note transcription failed or was unclear. Please send text or a screenshot instead."
+        
         # Complete fallback: Never crash, always return usable JSON
         return ExtractionResult(
             influencer_name=None,
@@ -188,7 +216,7 @@ async def extract_campaign_data(file_bytes: bytes, filename: str, mime_type: str
             deliverables=None,
             deadline=None,
             payment_amount=0.0,
-            special_notes=f"AI Extraction failed ({str(e)}). Please enter details manually.",
+            special_notes=error_msg,
             status="draft",
             requires_human_review=True
         ).model_dump()
