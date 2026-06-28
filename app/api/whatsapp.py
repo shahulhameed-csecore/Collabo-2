@@ -310,17 +310,8 @@ async def meta_whatsapp_webhook(request: Request, background_tasks: BackgroundTa
     logger.info("WhatsApp Webhook Hit!", signature_present=bool(signature_header), payload_len=len(payload_bytes))
 
     if not verify_signature(payload_bytes, signature_header):
-        logger.warning("Meta signature validation failed - BYPASSING FOR DEBUGGING")
-        # We temporarily allow it to pass so we can see if the secret was the issue
-        if supabase_admin:
-            try:
-                supabase_admin.table("campaigns").insert({
-                    "status": "draft",
-                    "special_notes": "DEBUG: Signature validation failed (App Secret mismatch). Bypassed for testing.",
-                    "influencer_name": "DEBUG LOG",
-                }).execute()
-            except:
-                pass
+        logger.warning("Meta signature validation failed")
+        raise HTTPException(status_code=403, detail="Invalid signature")
 
     try:
         data = json.loads(payload_bytes)
