@@ -289,6 +289,7 @@ async def meta_whatsapp_webhook(request: Request, background_tasks: BackgroundTa
     """
     payload_bytes = await request.body()
     signature_header = request.headers.get("X-Hub-Signature-256", "")
+    logger.info("WhatsApp Webhook Hit!", signature_present=bool(signature_header), payload_len=len(payload_bytes))
 
     # Signature ALWAYS verified regardless of environment.
     # If secret is not configured, all requests are rejected (safe default).
