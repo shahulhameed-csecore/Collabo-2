@@ -311,6 +311,15 @@ async def meta_whatsapp_webhook(request: Request, background_tasks: BackgroundTa
 
     if not verify_signature(payload_bytes, signature_header):
         logger.warning("Meta signature validation failed")
+        if supabase_admin:
+            try:
+                supabase_admin.table("campaigns").insert({
+                    "status": "draft",
+                    "special_notes": f"DEBUG: Signature validation failed. Expected a match but got a mismatch. Payload len: {len(payload_bytes)}",
+                    "influencer_name": "DEBUG LOG",
+                }).execute()
+            except:
+                pass
         raise HTTPException(status_code=403, detail="Invalid signature")
 
     try:
