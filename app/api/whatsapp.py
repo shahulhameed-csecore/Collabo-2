@@ -1,6 +1,6 @@
 import hmac
 import hashlib
-import logging
+import structlog
 import json
 from fastapi import APIRouter, Request, HTTPException, Response, BackgroundTasks
 from app.core.config import settings
@@ -9,7 +9,7 @@ from supabase import create_client
 from app.services.gemini import extract_campaign_data
 from app.services.whatsapp import send_whatsapp_message, download_whatsapp_media
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 router = APIRouter(prefix="/webhook", tags=["WhatsApp Webhook"])
 
