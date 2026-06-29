@@ -19,7 +19,7 @@ export default function AnalyticsPage() {
   useEffect(() => {
     async function fetchAll() {
       try {
-        const data = await getCampaigns(500); // Fetch a larger batch for analytics
+        const data = await getCampaigns(200); // Fetch max allowed batch for analytics
         setCampaigns(data);
       } catch (err) {
         toast.error(getApiErrorMessage(err, 'Failed to load campaigns'));
