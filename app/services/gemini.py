@@ -45,11 +45,12 @@ CRITICAL CONTEXT:
   - 'next week' = Add 7 days
 
 SLANG & TERMINOLOGY DICTIONARY:
-- 'k' = thousand (e.g., '10k' = 10000.0)
-- 'peti' / 'lakh' = hundred thousand (e.g., '2 peti' = 200000.0, '1.5 lakh' = 150000.0)
-- 'barter' / 'collab' (without money) = Set payment_amount to 0.0 and note 'Barter collab' in special_notes
-- 'reel', 'story', 'post' = Assume 'Instagram' platform
-- 'shorts', 'video' = Assume 'YouTube' platform
+- 'k', 'hazaar', 'hazari' = thousand (e.g., '10k' or '10 hazaar' = 10000.0)
+- 'peti', 'lakh', 'lac' = hundred thousand (e.g., '2 peti' or '1.5 lakh' = 150000.0)
+- 'khoka', 'koka', 'cr', 'crore' = ten million (e.g., '1 cr' = 10000000.0)
+- 'barter', 'collab' (without money), 'freebie' = Set payment_amount to 0.0 and note 'Barter deal' in special_notes
+- 'reel', 'story', 'post', 'grid' = Assume 'Instagram' platform
+- 'shorts', 'video', 'vlog' = Assume 'YouTube' platform
 - 'do' = 2, 'teen' = 3, 'chaar' = 4, 'paanch' = 5
 
 Extract the following details accurately:
@@ -59,7 +60,7 @@ Extract the following details accurately:
 - deliverables: What needs to be delivered (e.g. 1 Reel, 2 Stories). Translate Hinglish like 'do reel' to '2 Reels'.
 - deadline: Deadline in YYYY-MM-DD format if present. If uncertain, leave null.
 - payment_amount: Payment amount in INR (float). Convert words/slang to numbers.
-- special_notes: Any other important details (barter deal, strict guidelines, tags to use).
+- special_notes: Any other important details (barter deal, strict guidelines, tags to use, shoutout mentions).
 
 If you are uncertain about any field, leave it as null. If multiple critical fields (handle, deliverables, deadline) are missing, set requires_human_review to true.
 """

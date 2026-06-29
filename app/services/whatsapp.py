@@ -40,10 +40,18 @@ async def send_whatsapp_message(to_number: str, body: str) -> bool:
         async with httpx.AsyncClient() as client:
             response = await client.post(url, headers=headers, json=payload, timeout=10.0)
             if response.status_code not in (200, 201):
+                error_msg = "Unknown error"
+                try:
+                    err_json = response.json()
+                    if "error" in err_json:
+                        error_msg = f"{err_json['error'].get('message', '')} (Code: {err_json['error'].get('code', '')}, Subcode: {err_json['error'].get('error_subcode', '')})"
+                except:
+                    error_msg = response.text[:200]
+                    
                 logger.error(
                     "WhatsApp API error",
                     status=response.status_code,
-                    body=response.text[:500],
+                    detail=error_msg,
                 )
                 return False
             return True
