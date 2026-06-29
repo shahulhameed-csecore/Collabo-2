@@ -77,6 +77,7 @@ async def process_whatsapp_message(sender_id: str, message: dict):
     Looks up the user, calls Gemini AI, and inserts a campaign into Supabase.
     """
     try:
+        logger.info("Started process_whatsapp_message", sender_id=sender_id)
         if not supabase_admin:
             logger.error("Supabase Admin client not initialized — SERVICE_ROLE_KEY missing.")
             return
@@ -121,6 +122,7 @@ async def process_whatsapp_message(sender_id: str, message: dict):
         )
 
         if not user_response.data:
+            logger.warning("No linked Collabo account found for number", possible_numbers=possible_numbers)
             unlinked_msg = (
                 "👋 *Hi! I'm Collabo AI.*\n\n"
                 "I noticed your WhatsApp number isn't linked to a Collabo account yet.\n\n"
@@ -129,10 +131,12 @@ async def process_whatsapp_message(sender_id: str, message: dict):
                 "2. Save this exact number.\n\n"
                 "Once linked, you can forward me influencer chats or voice notes and I'll do the rest! ✨"
             )
-            await send_whatsapp_message(sender_id, unlinked_msg)
+            success = await send_whatsapp_message(sender_id, unlinked_msg)
+            logger.info("Sent unlinked message fallback", success=success)
             return
 
         user_id = user_response.data[0]["user_id"]
+        logger.info("Matched user account", user_id=user_id)
 
         # 3. Extract content (Text / Audio / Image)
         msg_type = message.get("type")
@@ -209,7 +213,9 @@ async def process_whatsapp_message(sender_id: str, message: dict):
                 if content_for_gemini.get("caption"):
                     file_bytes += b"\n" + content_for_gemini["caption"].encode('utf-8')
                     
+        logger.info("Calling Gemini extraction", mime_type=mime_type)
         extracted_data = await extract_campaign_data(file_bytes=file_bytes, filename="whatsapp_input", mime_type=mime_type)
+        logger.info("Gemini extraction complete", extracted_data=extracted_data)
         
         if extracted_data:
             try:
@@ -242,10 +248,12 @@ async def process_whatsapp_message(sender_id: str, message: dict):
         insert_response = supabase_admin.table("campaigns").insert(campaign_data).execute()
 
         if insert_response.data:
+            logger.info("Campaign inserted successfully into DB", campaign_id=insert_response.data[0].get("id"))
             influencer = extracted_data.get("influencer_handle") or extracted_data.get("influencer_name") or "Unknown"
-            await send_whatsapp_message(
+            success = await send_whatsapp_message(
                 sender_id, f"✅ Success! Campaign created for *{influencer}*.\n\nIt is now safely tracked in your Collabo dashboard."
             )
+            logger.info("Sent success message to user", success=success)
             
             from app.services.notifications import create_notification
             if extracted_data.get("requires_human_review"):
@@ -267,6 +275,7 @@ async def process_whatsapp_message(sender_id: str, message: dict):
                     link_url="/dashboard"
                 )
         else:
+            logger.error("Failed to insert campaign into DB", response_data=insert_response.data)
             await send_whatsapp_message(
                 sender_id, "❌ Sorry, I failed to save the campaign to the database. Please try again or check the dashboard."
             )
@@ -306,6 +315,8 @@ async def meta_whatsapp_webhook(request: Request, background_tasks: BackgroundTa
         logger.warning("Meta signature validation failed - unauthorized access attempt.")
         raise HTTPException(status_code=403, detail="Invalid signature")
 
+    logger.info("Webhook signature verified successfully.")
+
     # 2. Payload parsing
     # Meta requires a 200 OK for ALL validly signed webhooks, even if we can't parse it.
     try:
@@ -324,6 +335,7 @@ async def meta_whatsapp_webhook(request: Request, background_tasks: BackgroundTa
                 value = change.get("value", {})
                 for message in value.get("messages", []):
                     sender_id = message.get("from", "")
+                    logger.info("Queueing WhatsApp message to background", sender_id=sender_id, msg_id=message.get("id"))
                     # Send to background task
                     background_tasks.add_task(process_whatsapp_message, sender_id, message)
     except Exception as e:
