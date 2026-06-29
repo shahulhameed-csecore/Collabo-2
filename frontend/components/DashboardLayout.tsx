@@ -15,6 +15,7 @@ import { toast } from 'sonner';
 import { Logo } from '@/components/Logo';
 import { NotificationDropdown } from '@/components/NotificationDropdown';
 import { ProfileDropdown } from '@/components/ProfileDropdown';
+import { IS_TESTING_PHASE } from '@/lib/config';
 
 interface Subscription {
   tier: string;
@@ -167,7 +168,9 @@ export default function DashboardLayout({ children, onNewCampaign }: DashboardLa
   const userInitials = customUsername
     ? customUsername.slice(0, 2).toUpperCase()
     : (user?.email?.slice(0, 2).toUpperCase() ?? 'IT');
-  const isPro        = true; // HARDCODED FOR TESTING: subscription?.tier === 'pro' || subscription?.tier === 'Pro';
+  
+  // Clean, dynamic check: defaults to Pro during testing phase, otherwise checks DB tier
+  const isPro        = IS_TESTING_PHASE || subscription?.tier === 'pro' || subscription?.tier === 'Pro';
   const displayTier  = isPro ? 'PRO' : 'FREE';
 
   const getGreeting = () => {

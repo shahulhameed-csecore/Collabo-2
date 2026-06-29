@@ -1,39 +1,32 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import DashboardLayout from '@/components/DashboardLayout';
 import { Campaign } from '@/lib/types';
 import api from '@/lib/api';
-import { getBillingUsage, BillingUsage } from '@/lib/api';
 import { toast } from 'sonner';
-import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Clock, CheckCircle2, Lock, Sparkles } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, AlertCircle, Sparkles, Plus, Flag } from 'lucide-react';
 import Link from 'next/link';
 import EditCampaignModal from '@/components/EditCampaignModal';
+import DayViewModal from '@/components/DayViewModal';
 
 export default function CalendarPage() {
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
-  const [usage, setUsage] = useState<BillingUsage | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedCampaign, setSelectedCampaign] = useState<Campaign | null>(null);
+  
+  // Day View Modal State
+  const [selectedDayStr, setSelectedDayStr] = useState<string | null>(null);
 
   const fetchData = async () => {
     setIsLoading(true);
-    
     try {
       const campRes = await api.get<Campaign[]>('/campaigns/');
       setCampaigns(campRes.data);
     } catch (err) {
       toast.error('Failed to load campaigns');
     }
-
-    try {
-      const usageRes = await getBillingUsage();
-      setUsage(usageRes);
-    } catch (err) {
-      // Non-fatal error, silently ignore or log
-    }
-
     setIsLoading(false);
   };
 
@@ -53,14 +46,56 @@ export default function CalendarPage() {
   const firstDayOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1).getDay();
   const monthName = currentDate.toLocaleString('default', { month: 'long', year: 'numeric' });
 
+  // Format YYYY-MM-DD
+  const formatDateStr = (y: number, m: number, d: number) => {
+    return `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+  };
+
   const getEventsForDay = (day: number) => {
-    // Prevent timezone offset issues by assembling the YYYY-MM-DD string locally
-    const y = currentDate.getFullYear();
-    const m = String(currentDate.getMonth() + 1).padStart(2, '0');
-    const d = String(day).padStart(2, '0');
-    const targetDateStr = `${y}-${m}-${d}`;
+    const targetDateStr = formatDateStr(currentDate.getFullYear(), currentDate.getMonth() + 1, day);
     return campaigns.filter(c => c.deadline === targetDateStr);
   };
+
+  // --- Stats Calculation ---
+  const stats = useMemo(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    const sevenDaysFromNow = new Date(today);
+    sevenDaysFromNow.setDate(today.getDate() + 7);
+
+    let thisWeek = 0;
+    let overdue = 0;
+    let thisMonth = 0;
+
+    const y = currentDate.getFullYear();
+    const m = currentDate.getMonth() + 1; // 1-indexed for string building
+    const monthPrefix = `${y}-${String(m).padStart(2, '0')}`;
+
+    campaigns.forEach(c => {
+      if (!c.deadline) return;
+      
+      const deadlineDate = new Date(c.deadline);
+      deadlineDate.setHours(0, 0, 0, 0);
+
+      // Overdue (in the past, and not completed/cancelled)
+      if (deadlineDate < today && !['approved', 'paid', 'cancelled'].includes(c.status)) {
+        overdue++;
+      }
+
+      // This week (today <= deadline <= today + 7)
+      if (deadlineDate >= today && deadlineDate <= sevenDaysFromNow && !['approved', 'paid', 'cancelled'].includes(c.status)) {
+        thisWeek++;
+      }
+
+      // This viewed month
+      if (c.deadline.startsWith(monthPrefix)) {
+        thisMonth++;
+      }
+    });
+
+    return { thisWeek, overdue, thisMonth };
+  }, [campaigns, currentDate]);
 
   const STATUS_COLORS: Record<string, string> = {
     draft: 'bg-amber-100 text-amber-800 border-amber-200 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-800',
@@ -70,98 +105,203 @@ export default function CalendarPage() {
     paid: 'bg-slate-100 text-slate-800 border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700',
     cancelled: 'bg-rose-100 text-rose-800 border-rose-200 dark:bg-rose-900/30 dark:text-rose-400 dark:border-rose-800',
   };
-  const isPro = true;
+
+  const hasCampaignsThisMonth = stats.thisMonth > 0;
+  const isCalendarEmpty = !isLoading && campaigns.length === 0;
 
   return (
     <DashboardLayout>
-      <div className="max-w-6xl mx-auto space-y-6 animate-fade-in">
+      <div className="max-w-6xl mx-auto space-y-6 animate-fade-in pb-12">
+        
+        {/* Header & Controls */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white dark:bg-slate-900/60 p-6 rounded-2xl border border-slate-200 dark:border-slate-800/60 shadow-sm">
           <div>
             <h1 className="text-2xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
               <CalendarIcon className="w-6 h-6 text-emerald-500" />
               Content Calendar
             </h1>
-            <p className="text-slate-500 mt-1">Track upcoming campaign deadlines.</p>
+            <p className="text-slate-500 mt-1">Plan and track your influencer deadlines.</p>
           </div>
           
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 sm:gap-4 bg-slate-50 dark:bg-slate-800/50 p-1.5 rounded-xl border border-slate-200 dark:border-slate-700">
             <button
               onClick={handlePrevMonth}
-              className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors border border-slate-200 dark:border-slate-700"
+              className="p-2 hover:bg-white dark:hover:bg-slate-700 rounded-lg transition-colors shadow-sm"
             >
               <ChevronLeft className="w-5 h-5 text-slate-700 dark:text-slate-300" />
             </button>
-            <span className="text-lg font-semibold w-40 text-center text-slate-900 dark:text-white">
+            <span className="text-base sm:text-lg font-bold w-32 sm:w-40 text-center text-slate-900 dark:text-white">
               {monthName}
             </span>
             <button
               onClick={handleNextMonth}
-              className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors border border-slate-200 dark:border-slate-700"
+              className="p-2 hover:bg-white dark:hover:bg-slate-700 rounded-lg transition-colors shadow-sm"
             >
               <ChevronRight className="w-5 h-5 text-slate-700 dark:text-slate-300" />
             </button>
           </div>
         </div>
 
-        <div className="bg-white dark:bg-slate-900/60 rounded-2xl border border-slate-200 dark:border-slate-800/60 shadow-sm overflow-hidden">
-          {/* Calendar Header */}
-          <div className="grid grid-cols-7 border-b border-slate-200 dark:border-slate-800/60">
-            {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
-              <div key={day} className="py-3 text-center text-xs font-semibold text-slate-500 uppercase tracking-wider bg-slate-50 dark:bg-slate-800/50">
-                {day}
-              </div>
-            ))}
-          </div>
-          
-          {/* Calendar Grid */}
-          <div className="grid grid-cols-7 auto-rows-fr">
-            {Array.from({ length: firstDayOfMonth }).map((_, i) => (
-              <div key={`empty-${i}`} className="min-h-[120px] p-2 border-b border-r border-slate-100 dark:border-slate-800/40 bg-slate-50/50 dark:bg-slate-900/20" />
-            ))}
-            
-            {Array.from({ length: daysInMonth }).map((_, i) => {
-              const day = i + 1;
-              const isToday = new Date().toDateString() === new Date(currentDate.getFullYear(), currentDate.getMonth(), day).toDateString();
-              const events = getEventsForDay(day);
-              
-              return (
-                <div key={day} className={`min-h-[120px] p-2 border-b border-r border-slate-100 dark:border-slate-800/40 transition-colors ${isToday ? 'bg-emerald-50/50 dark:bg-emerald-500/5' : 'hover:bg-slate-50 dark:hover:bg-slate-800/20'}`}>
-                  <div className="flex items-center justify-between mb-2">
-                    <span className={`text-sm font-medium w-7 h-7 flex items-center justify-center rounded-full ${isToday ? 'bg-emerald-500 text-white shadow-sm shadow-emerald-500/20' : 'text-slate-700 dark:text-slate-300'}`}>
-                      {day}
-                    </span>
-                  </div>
-                  <div className="space-y-1.5">
-                    {isLoading ? (
-                      Array.from({ length: 2 }).map((_, i) => (
-                        <div key={`skel-${i}`} className="h-6 bg-slate-100 dark:bg-slate-800/50 rounded animate-pulse w-full" />
-                      ))
-                    ) : (
-                      events.map(event => (
-                        <div
-                          key={event.id}
-                          onClick={() => setSelectedCampaign(event)}
-                          className={`text-[11px] font-semibold px-2 py-1.5 rounded-lg truncate border cursor-pointer shadow-sm hover:scale-[1.02] transition-transform ${STATUS_COLORS[event.status] || STATUS_COLORS.draft}`}
-                          title={`${event.influencer_name || event.influencer_handle} - ${event.status}`}
-                        >
-                          {event.influencer_name || event.influencer_handle}
-                        </div>
-                      ))
-                    )}
-                  </div>
+        {/* Stats Dashboard */}
+        {!isCalendarEmpty && (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-emerald-950/30 dark:to-teal-950/30 border border-emerald-100 dark:border-emerald-900/50 p-5 rounded-2xl shadow-sm">
+              <div className="flex items-center gap-3 mb-2">
+                <div className="p-2 bg-emerald-100 dark:bg-emerald-900/50 rounded-lg">
+                  <Flag className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
                 </div>
-              );
-            })}
+                <h3 className="font-semibold text-emerald-900 dark:text-emerald-400">Due This Week</h3>
+              </div>
+              <p className="text-3xl font-black text-emerald-700 dark:text-emerald-300 ml-12">{stats.thisWeek}</p>
+            </div>
+
+            <div className="bg-gradient-to-br from-rose-50 to-red-50 dark:from-rose-950/30 dark:to-red-950/30 border border-rose-100 dark:border-rose-900/50 p-5 rounded-2xl shadow-sm relative overflow-hidden">
+              <div className="flex items-center gap-3 mb-2">
+                <div className="p-2 bg-rose-100 dark:bg-rose-900/50 rounded-lg">
+                  <AlertCircle className="w-5 h-5 text-rose-600 dark:text-rose-400" />
+                </div>
+                <h3 className="font-semibold text-rose-900 dark:text-rose-400">Overdue</h3>
+              </div>
+              <p className="text-3xl font-black text-rose-700 dark:text-rose-300 ml-12">{stats.overdue}</p>
+              {stats.overdue > 0 && (
+                <div className="absolute top-0 right-0 w-2 h-full bg-rose-500 animate-pulse" />
+              )}
+            </div>
+
+            <div className="bg-gradient-to-br from-slate-50 to-gray-50 dark:from-slate-800/40 dark:to-slate-800/20 border border-slate-200 dark:border-slate-700/50 p-5 rounded-2xl shadow-sm">
+              <div className="flex items-center gap-3 mb-2">
+                <div className="p-2 bg-slate-200 dark:bg-slate-700/50 rounded-lg">
+                  <CalendarIcon className="w-5 h-5 text-slate-600 dark:text-slate-400" />
+                </div>
+                <h3 className="font-semibold text-slate-900 dark:text-slate-300">Total This Month</h3>
+              </div>
+              <p className="text-3xl font-black text-slate-700 dark:text-slate-200 ml-12">{stats.thisMonth}</p>
+            </div>
           </div>
-        </div>
+        )}
+
+        {/* Global Empty State */}
+        {isCalendarEmpty ? (
+          <div className="bg-white dark:bg-slate-900/60 rounded-3xl border border-slate-200 dark:border-slate-800/60 shadow-xl overflow-hidden text-center py-24 relative">
+            <div className="absolute inset-0 bg-gradient-to-b from-emerald-500/5 to-transparent dark:from-emerald-500/10" />
+            <div className="relative z-10 max-w-md mx-auto space-y-6 px-4">
+              <div className="w-20 h-20 bg-emerald-100 dark:bg-emerald-900/30 rounded-2xl flex items-center justify-center mx-auto transform -rotate-6 shadow-inner">
+                <Sparkles className="w-10 h-10 text-emerald-500" />
+              </div>
+              <h2 className="text-3xl font-black text-slate-900 dark:text-white">Your Calendar is Clear!</h2>
+              <p className="text-slate-500 dark:text-slate-400 text-lg">
+                Start tracking your influencer deadlines to see them beautifully organized here.
+              </p>
+              <Link
+                href="/dashboard"
+                className="inline-flex items-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white px-6 py-3 rounded-xl font-bold transition-all hover:scale-105 hover:shadow-lg hover:shadow-emerald-500/25"
+              >
+                <Plus className="w-5 h-5" />
+                Create First Campaign
+              </Link>
+            </div>
+          </div>
+        ) : (
+          /* The Calendar Grid */
+          <div className="bg-white dark:bg-slate-900/60 rounded-2xl border border-slate-200 dark:border-slate-800/60 shadow-sm overflow-hidden">
+            {/* Calendar Header */}
+            <div className="grid grid-cols-7 border-b border-slate-200 dark:border-slate-800/60">
+              {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
+                <div key={day} className="py-3 text-center text-[10px] sm:text-xs font-bold text-slate-500 uppercase tracking-wider bg-slate-50 dark:bg-slate-800/50">
+                  <span className="hidden sm:inline">{day}</span>
+                  <span className="sm:hidden">{day.charAt(0)}</span>
+                </div>
+              ))}
+            </div>
+            
+            {/* Calendar Grid Container (Handles mobile overflow) */}
+            <div className="overflow-x-auto">
+              <div className="min-w-[600px] sm:min-w-0 grid grid-cols-7 auto-rows-fr">
+                {Array.from({ length: firstDayOfMonth }).map((_, i) => (
+                  <div key={`empty-${i}`} className="min-h-[100px] sm:min-h-[140px] p-2 border-b border-r border-slate-100 dark:border-slate-800/40 bg-slate-50/50 dark:bg-slate-900/20" />
+                ))}
+                
+                {Array.from({ length: daysInMonth }).map((_, i) => {
+                  const day = i + 1;
+                  const isToday = new Date().toDateString() === new Date(currentDate.getFullYear(), currentDate.getMonth(), day).toDateString();
+                  const events = getEventsForDay(day);
+                  const hasEvents = events.length > 0;
+                  
+                  return (
+                    <div 
+                      key={day} 
+                      onClick={() => hasEvents && setSelectedDayStr(formatDateStr(currentDate.getFullYear(), currentDate.getMonth() + 1, day))}
+                      className={`
+                        min-h-[100px] sm:min-h-[140px] p-1.5 sm:p-2 border-b border-r border-slate-100 dark:border-slate-800/40 transition-all
+                        ${isToday ? 'bg-emerald-50/30 dark:bg-emerald-500/5 relative overflow-hidden' : 'hover:bg-slate-50 dark:hover:bg-slate-800/20'}
+                        ${hasEvents ? 'cursor-pointer hover:shadow-inner' : ''}
+                      `}
+                    >
+                      {/* Today indicator border */}
+                      {isToday && <div className="absolute top-0 left-0 w-full h-1 bg-emerald-500" />}
+
+                      <div className="flex items-center justify-between mb-1.5 sm:mb-2">
+                        <span className={`text-xs sm:text-sm font-bold w-6 h-6 sm:w-7 sm:h-7 flex items-center justify-center rounded-full ${isToday ? 'bg-emerald-500 text-white shadow-md shadow-emerald-500/30' : 'text-slate-700 dark:text-slate-300'}`}>
+                          {day}
+                        </span>
+                        {events.length > 0 && (
+                          <span className="text-[9px] sm:text-[10px] font-bold text-slate-400 dark:text-slate-500 bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded-full">
+                            {events.length}
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="space-y-1">
+                        {isLoading ? (
+                          Array.from({ length: 2 }).map((_, i) => (
+                            <div key={`skel-${i}`} className="h-5 sm:h-6 bg-slate-100 dark:bg-slate-800/50 rounded animate-pulse w-full" />
+                          ))
+                        ) : (
+                          <>
+                            {events.slice(0, 3).map(event => (
+                              <div
+                                key={event.id}
+                                className={`text-[9px] sm:text-[10px] font-bold px-1.5 py-1 sm:px-2 sm:py-1.5 rounded-md sm:rounded-lg truncate border shadow-sm ${STATUS_COLORS[event.status] || STATUS_COLORS.draft}`}
+                                title={`${event.influencer_name || event.influencer_handle} - ${event.status}`}
+                              >
+                                {event.influencer_name || event.influencer_handle}
+                              </div>
+                            ))}
+                            {events.length > 3 && (
+                              <div className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 text-center py-0.5 bg-slate-50 dark:bg-slate-800/50 rounded border border-slate-100 dark:border-slate-800/60">
+                                +{events.length - 3} more
+                              </div>
+                            )}
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
+      {/* Campaign Details Modal (When clicked from DayViewModal) */}
       {selectedCampaign && (
         <EditCampaignModal
           campaign={selectedCampaign}
           isOpen={true}
           onClose={() => setSelectedCampaign(null)}
           onSuccess={fetchData}
+        />
+      )}
+
+      {/* Day Agenda Modal */}
+      {selectedDayStr && (
+        <DayViewModal
+          isOpen={true}
+          onClose={() => setSelectedDayStr(null)}
+          dateStr={selectedDayStr}
+          campaigns={campaigns.filter(c => c.deadline === selectedDayStr)}
+          onSelectCampaign={(c) => setSelectedCampaign(c)}
         />
       )}
     </DashboardLayout>

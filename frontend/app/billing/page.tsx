@@ -5,6 +5,7 @@ import DashboardLayout from '@/components/DashboardLayout';
 import { getBillingUsage, BillingUsage } from '@/lib/api';
 import { CreditCard, Zap, Check, Shield, Sparkles, TrendingUp, Star, ArrowRight } from 'lucide-react';
 import Link from 'next/link';
+import { IS_TESTING_PHASE } from '@/lib/config';
 
 export default function BillingPage() {
   const [usage, setUsage] = useState<BillingUsage | null>(null);
@@ -28,6 +29,8 @@ export default function BillingPage() {
   const campaignsUsed = usage?.campaigns_this_month || 0;
   const campaignsLimit = 5;
   const usagePercentage = Math.min(100, Math.round((campaignsUsed / campaignsLimit) * 100));
+
+  const activePlan = IS_TESTING_PHASE ? 'PRO (TESTING)' : (usage?.current_plan === 'pro' ? 'PRO' : 'FREE TIER');
 
   return (
     <DashboardLayout>
@@ -61,16 +64,20 @@ export default function BillingPage() {
                   <div className="flex items-center justify-between mb-4">
                     <h3 className="font-semibold text-slate-700 dark:text-slate-300">Active Plan</h3>
                     <span className="bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border border-slate-200 dark:border-slate-700">
-                      FREE TIER
+                      {activePlan}
                     </span>
                   </div>
                   <p className="text-sm text-slate-500 mb-6 leading-relaxed">
-                    You're currently on the free plan. Upgrade to unlock unlimited campaigns, deep analytics, and CRM.
+                    {activePlan.includes('PRO') 
+                      ? "You are currently on the Pro plan with unlimited campaigns, deep analytics, and CRM."
+                      : "You're currently on the free plan. Upgrade to unlock unlimited campaigns, deep analytics, and CRM."}
                   </p>
                 </div>
-                <button className="w-full flex items-center justify-center gap-2 bg-emerald-500 hover:bg-emerald-400 active:scale-95 text-white font-bold rounded-xl px-5 py-3 transition-all shadow-lg shadow-emerald-500/25">
-                  <Sparkles className="w-4 h-4" /> Upgrade to Pro
-                </button>
+                {!activePlan.includes('PRO') && (
+                  <button className="w-full flex items-center justify-center gap-2 bg-emerald-500 hover:bg-emerald-400 active:scale-95 text-white font-bold rounded-xl px-5 py-3 transition-all shadow-lg shadow-emerald-500/25">
+                    <Sparkles className="w-4 h-4" /> Upgrade to Pro
+                  </button>
+                )}
               </div>
             </div>
 
@@ -155,9 +162,15 @@ export default function BillingPage() {
                 <span className="text-4xl font-black text-slate-900 dark:text-white">₹0</span>
                 <span className="text-slate-500 font-medium">/ forever</span>
               </div>
-              <button className="w-full py-3 px-5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold rounded-xl transition-colors mb-8">
-                Current Plan
-              </button>
+              {!activePlan.includes('PRO') ? (
+                <button className="w-full py-3 px-5 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold rounded-xl mb-8 cursor-default">
+                  Current Plan
+                </button>
+              ) : (
+                <button className="w-full py-3 px-5 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold rounded-xl transition-colors mb-8">
+                  Downgrade
+                </button>
+              )}
               <ul className="space-y-4">
                 {[
                   "Up to 5 campaigns per month",
@@ -186,9 +199,16 @@ export default function BillingPage() {
                 <span className="text-4xl font-black text-white">{isAnnual ? '₹399' : '₹499'}</span>
                 <span className="text-slate-400 font-medium">/ month</span>
               </div>
-              <button className="relative z-10 w-full py-3 px-5 bg-emerald-500 hover:bg-emerald-400 active:scale-95 text-white font-bold rounded-xl transition-all shadow-lg shadow-emerald-500/25 mb-8 flex items-center justify-center gap-2 group/btn">
-                Upgrade to Pro <ArrowRight className="w-4 h-4 group-hover/btn:translate-x-1 transition-transform" />
-              </button>
+              
+              {activePlan.includes('PRO') ? (
+                <button className="relative z-10 w-full py-3 px-5 bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 font-bold rounded-xl mb-8 cursor-default">
+                  Current Plan
+                </button>
+              ) : (
+                <button className="relative z-10 w-full py-3 px-5 bg-emerald-500 hover:bg-emerald-400 active:scale-95 text-white font-bold rounded-xl transition-all shadow-lg shadow-emerald-500/25 mb-8 flex items-center justify-center gap-2 group/btn">
+                  Upgrade to Pro <ArrowRight className="w-4 h-4 group-hover/btn:translate-x-1 transition-transform" />
+                </button>
+              )}
               
               <ul className="space-y-4 relative z-10">
                 {[
