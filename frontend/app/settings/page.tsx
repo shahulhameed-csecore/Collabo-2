@@ -2,7 +2,10 @@
 
 import { useState, useEffect } from 'react';
 import DashboardLayout from '@/components/DashboardLayout';
-import { Settings, MessageSquare, Phone, AlertCircle, Save, Bell, Mail, Copy, Check } from 'lucide-react';
+import { 
+  Settings, MessageSquare, Phone, AlertCircle, Save, 
+  Bell, Mail, Copy, Check, Info, ShieldCheck 
+} from 'lucide-react';
 import { toast } from 'sonner';
 import { saveWhatsAppNumber, getWhatsAppNumber, getApiErrorMessage } from '@/lib/api';
 
@@ -11,7 +14,8 @@ export default function SettingsPage() {
   const [emailEnabled, setEmailEnabled] = useState(true);
   const [waEnabled, setWaEnabled] = useState(true);
   const [isLoading, setIsLoading] = useState(true);
-  const [isSaving, setIsSaving] = useState(false);
+  const [isSavingWA, setIsSavingWA] = useState(false);
+  const [isSavingReminders, setIsSavingReminders] = useState(false);
   const [copied, setCopied] = useState(false);
 
   const botNumber = process.env.NEXT_PUBLIC_BOT_NUMBER || "+1 (555) 656-5993";
@@ -43,9 +47,8 @@ export default function SettingsPage() {
     loadSettings();
   }, []);
 
-  const handleSave = async () => {
-    setIsSaving(true);
-    
+  const handleSaveWA = async () => {
+    setIsSavingWA(true);
     try {
       const response = await saveWhatsAppNumber({
         whatsapp_number: whatsappNumber,
@@ -53,205 +56,229 @@ export default function SettingsPage() {
         whatsapp_reminders_enabled: waEnabled
       });
       setWhatsappNumber(response.whatsapp_number || '');
-      setEmailEnabled(response.email_reminders_enabled);
-      setWaEnabled(response.whatsapp_reminders_enabled);
-      toast.success('Settings saved successfully!');
+      toast.success('WhatsApp integration updated!');
     } catch (error) {
       toast.error(getApiErrorMessage(error, 'Failed to save settings. Please try again.'));
     } finally {
-      setIsSaving(false);
+      setIsSavingWA(false);
+    }
+  };
+
+  const handleSaveReminders = async () => {
+    setIsSavingReminders(true);
+    try {
+      const response = await saveWhatsAppNumber({
+        whatsapp_number: whatsappNumber,
+        email_reminders_enabled: emailEnabled,
+        whatsapp_reminders_enabled: waEnabled
+      });
+      setEmailEnabled(response.email_reminders_enabled);
+      setWaEnabled(response.whatsapp_reminders_enabled);
+      toast.success('Reminder preferences updated!');
+    } catch (error) {
+      toast.error(getApiErrorMessage(error, 'Failed to save settings. Please try again.'));
+    } finally {
+      setIsSavingReminders(false);
     }
   };
 
   return (
     <DashboardLayout onNewCampaign={() => {}}>
-      <div className="flex items-center gap-3 mb-6">
-        <div className="p-1.5 bg-emerald-500/10 border border-emerald-500/20 rounded-xl">
-          <Settings className="w-4 h-4 text-emerald-400" />
-        </div>
-        <div>
-          <h1 className="text-xl font-extrabold text-slate-900 dark:text-white tracking-tight">Settings</h1>
-          <p className="text-slate-500 text-sm mt-0.5">Manage your integrations and account preferences</p>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="max-w-5xl mx-auto pb-16 animate-fade-in">
         
-        {/* WhatsApp Integration Card */}
-        <div className="bg-white dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800/50 rounded-2xl overflow-hidden relative shadow-sm">
-          <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/5 dark:bg-emerald-500/10 rounded-full blur-3xl -translate-y-10 translate-x-10 pointer-events-none" />
-          
-          <div className="p-6">
-            <div className="flex items-center gap-3 mb-5">
-              <div className="p-2.5 bg-emerald-500/10 border border-emerald-500/20 rounded-xl">
-                <MessageSquare className="w-5 h-5 text-emerald-400" />
-              </div>
-              <div>
-                <h2 className="text-base font-bold text-white">WhatsApp Bot Integration</h2>
-                <p className="text-xs text-slate-400 mt-0.5">Forward chats to automatically create campaigns</p>
-              </div>
-            </div>
-
-            <div className="space-y-5">
-              {/* Instructions */}
-              <div className="p-4 bg-slate-800/40 rounded-xl border border-slate-700/40 space-y-4">
-                <h3 className="text-sm font-bold text-slate-200 flex items-center gap-2">
-                  <AlertCircle className="w-4 h-4 text-emerald-400" />
-                  How to link your WhatsApp
-                </h3>
-                
-                <div className="space-y-4 text-sm text-slate-300">
-                  <div className="flex gap-3">
-                    <span className="flex-shrink-0 w-6 h-6 rounded-full bg-slate-700 flex items-center justify-center text-xs font-bold text-white mt-0.5">1</span>
-                    <p className="leading-snug">Save your personal WhatsApp phone number below. We automatically handle country codes like <span className="text-emerald-400 font-mono">+91</span>.</p>
-                  </div>
-                  
-                  <div className="flex gap-3">
-                    <span className="flex-shrink-0 w-6 h-6 rounded-full bg-slate-700 flex items-center justify-center text-xs font-bold text-white mt-0.5">2</span>
-                    <div className="w-full">
-                      <p className="mb-2 leading-snug">Save our Official Bot number to your contacts:</p>
-                      <button 
-                        onClick={handleCopy}
-                        className="flex items-center gap-2.5 px-3 py-2 bg-slate-900 border border-slate-700 hover:border-emerald-500/50 rounded-lg text-emerald-400 font-mono font-bold text-sm transition-colors group w-full sm:w-auto"
-                      >
-                        {botNumber}
-                        {copied ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4 text-slate-500 group-hover:text-emerald-400 transition-colors" />}
-                      </button>
-                    </div>
-                  </div>
-                  
-                  <div className="flex gap-3">
-                    <span className="flex-shrink-0 w-6 h-6 rounded-full bg-slate-700 flex items-center justify-center text-xs font-bold text-white mt-0.5">3</span>
-                    <p className="leading-snug">Forward any influencer chat, screenshot, or voice note to the Bot. Collabo AI will instantly create your campaign!</p>
-                  </div>
-
-                  {/* Test Number Warning */}
-                  {botNumber.includes("+1") && (
-                    <div className="mt-4 p-3 bg-yellow-500/10 border border-yellow-500/20 rounded-lg">
-                      <p className="text-xs text-yellow-500 font-medium">
-                        <strong className="block mb-1">⚠️ Using a Meta Test Number?</strong>
-                        Meta blocks unverified international texts to US Test Numbers. To test it, you must initiate the chat from the Meta Dashboard first, or upgrade to a real Indian Production Number.
-                      </p>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Input */}
-              <div className="space-y-2">
-                <label className="text-xs font-bold text-slate-300">Your WhatsApp Number</label>
-                <div className="relative">
-                  <Phone className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
-                  <input
-                    type="tel"
-                    value={whatsappNumber}
-                    onChange={(e) => setWhatsappNumber(e.target.value)}
-                    placeholder="e.g. 9876543210"
-                    disabled={isLoading}
-                    className="w-full bg-slate-950/50 border border-slate-700/60 text-white placeholder-slate-600 rounded-xl pl-10 pr-4 py-2.5 text-sm focus:outline-none focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/20 transition-all disabled:opacity-50"
-                  />
-                </div>
-                <p className="text-[11px] text-slate-400">
-                  <strong className="text-emerald-400">Indian Users:</strong> Enter your 10-digit number. We automatically handle the +91 country code.
-                </p>
-              </div>
-
-              <button
-                onClick={handleSave}
-                disabled={isSaving || isLoading}
-                className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-white font-bold rounded-xl px-4 py-2.5 text-sm transition-all shadow-lg shadow-emerald-500/25 active:scale-[0.98] disabled:opacity-70 disabled:pointer-events-none"
-              >
-                {isSaving ? (
-                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                ) : (
-                  <>
-                    <Save className="w-4 h-4" />
-                    Save WhatsApp Link
-                  </>
-                )}
-              </button>
-            </div>
+        {/* Page Header */}
+        <div className="mb-10 flex items-center gap-4 border-b border-slate-200 dark:border-slate-800/60 pb-8">
+          <div className="p-3 bg-slate-100 dark:bg-slate-800/50 rounded-2xl border border-slate-200 dark:border-slate-700/50">
+            <Settings className="w-6 h-6 text-slate-700 dark:text-slate-300" />
+          </div>
+          <div>
+            <h1 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">Settings</h1>
+            <p className="text-slate-500 text-sm mt-1">Manage your integrations, notifications, and account preferences.</p>
           </div>
         </div>
 
-        {/* Notifications & Reminders Card */}
-        <div className="bg-white dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800/50 rounded-2xl overflow-hidden relative shadow-sm">
-          <div className="absolute top-0 right-0 w-32 h-32 bg-slate-700/10 dark:bg-blue-500/8 rounded-full blur-3xl -translate-y-10 translate-x-10 pointer-events-none" />
+        <div className="space-y-12">
           
-          <div className="p-6">
-            <div className="flex items-center gap-3 mb-5">
-              <div className="p-2.5 bg-blue-500/10 border border-blue-500/20 rounded-xl">
-                <Bell className="w-5 h-5 text-blue-400" />
-              </div>
-              <div>
-                <h2 className="text-base font-bold text-white">Automated Reminders</h2>
-                <p className="text-xs text-slate-400 mt-0.5">Stay on top of deadlines automatically</p>
-              </div>
-            </div>
-
-            <div className="space-y-4">
-              <div className="p-4 bg-slate-800/40 rounded-xl border border-slate-700/40">
-                <div className="flex items-start justify-between gap-4">
-                  <div>
-                    <h3 className="text-sm font-bold text-slate-200 flex items-center gap-2">
-                      <Mail className="w-4 h-4 text-slate-400" /> Email Reminders
-                    </h3>
-                    <p className="text-xs text-slate-500 mt-1">Get an email alert 48 hours before a campaign deadline, and an alert when it's overdue.</p>
-                  </div>
-                  <button
-                    onClick={() => setEmailEnabled(!emailEnabled)}
-                    className={`relative inline-flex h-6 w-11 flex-shrink-0 items-center rounded-full transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 shadow-inner ${
-                      emailEnabled
-                        ? 'bg-emerald-500 shadow-emerald-500/30'
-                        : 'bg-slate-200 dark:bg-slate-700'
-                    }`}
-                  >
-                    <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-md transition-transform ${
-                      emailEnabled ? 'translate-x-6' : 'translate-x-1'
-                    }`} />
-                  </button>
-                </div>
-              </div>
-
-              <div className="p-4 bg-slate-800/40 rounded-xl border border-slate-700/40">
-                <div className="flex items-start justify-between gap-4">
-                  <div>
-                    <h3 className="text-sm font-bold text-slate-200 flex items-center gap-2">
-                      <MessageSquare className="w-4 h-4 text-slate-400" /> WhatsApp Reminders
-                    </h3>
-                    <p className="text-xs text-slate-500 mt-1">Receive a WhatsApp message from our bot directly to your linked number for upcoming deadlines.</p>
-                  </div>
-                  <button
-                    onClick={() => setWaEnabled(!waEnabled)}
-                    className={`relative inline-flex h-6 w-11 flex-shrink-0 items-center rounded-full transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 shadow-inner ${
-                      waEnabled
-                        ? 'bg-emerald-500 shadow-emerald-500/30'
-                        : 'bg-slate-200 dark:bg-slate-700'
-                    }`}
-                  >
-                    <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-md transition-transform ${
-                      waEnabled ? 'translate-x-6' : 'translate-x-1'
-                    }`} />
-                  </button>
-                </div>
-              </div>
+          {/* ─── SECTION: WhatsApp Integration ─── */}
+          <section className="flex flex-col lg:flex-row gap-8 lg:gap-12">
+            <div className="lg:w-1/3 flex-shrink-0">
+              <h2 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-wider mb-2">WhatsApp AI Bot</h2>
+              <p className="text-sm text-slate-500 leading-relaxed">
+                Connect your WhatsApp to forward negotiation chats, voice notes, and screenshots directly to Collabo. Our AI will instantly extract the data and track your campaign.
+              </p>
             </div>
             
-            <button
-                onClick={handleSave}
-                disabled={isSaving || isLoading}
-                className="w-full mt-6 flex items-center justify-center gap-2 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-xl px-4 py-2.5 text-sm transition-all border border-slate-700/50 active:scale-[0.98] disabled:opacity-70 disabled:pointer-events-none"
-              >
-                {isSaving ? (
-                  <div className="w-4 h-4 border-2 border-slate-400 border-t-white rounded-full animate-spin" />
-                ) : (
-                  <>
-                    <Save className="w-4 h-4" />
-                    Save Settings
-                  </>
-                )}
-            </button>
-          </div>
+            <div className="lg:w-2/3">
+              <div className="bg-white dark:bg-[#0A0F1C] border border-slate-200 dark:border-slate-800/60 rounded-3xl overflow-hidden shadow-sm relative">
+                <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/5 rounded-full blur-3xl pointer-events-none translate-x-1/4 -translate-y-1/4" />
+                
+                <div className="p-6 sm:p-8 relative z-10 space-y-8">
+                  {/* Instructions */}
+                  <div>
+                    <h3 className="text-sm font-bold text-slate-900 dark:text-white mb-5 flex items-center gap-2">
+                      <ShieldCheck className="w-5 h-5 text-emerald-500" />
+                      How to connect
+                    </h3>
+                    
+                    <div className="space-y-5">
+                      <div className="flex gap-4">
+                        <div className="flex-shrink-0 w-7 h-7 rounded-full bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center text-xs font-black text-slate-600 dark:text-slate-300">1</div>
+                        <div className="pt-1">
+                          <p className="text-sm text-slate-700 dark:text-slate-300 font-medium leading-snug mb-1">Save the Bot Number</p>
+                          <p className="text-xs text-slate-500 leading-relaxed mb-3">Add this official number to your phone's contacts as "Collabo Bot".</p>
+                          <div className="inline-flex items-center gap-0 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden shadow-sm">
+                            <div className="px-4 py-2 bg-slate-100 dark:bg-slate-800/50 border-r border-slate-200 dark:border-slate-800">
+                              <code className="text-sm font-mono font-bold text-slate-900 dark:text-emerald-400">{botNumber}</code>
+                            </div>
+                            <button 
+                              onClick={handleCopy}
+                              className="px-4 py-2.5 text-slate-500 hover:text-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-500/10 transition-colors flex items-center gap-2"
+                            >
+                              {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                              <span className="text-xs font-bold uppercase tracking-wider">{copied ? 'Copied' : 'Copy'}</span>
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex gap-4">
+                        <div className="flex-shrink-0 w-7 h-7 rounded-full bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center text-xs font-black text-slate-600 dark:text-slate-300">2</div>
+                        <div className="pt-1 w-full">
+                          <p className="text-sm text-slate-700 dark:text-slate-300 font-medium leading-snug mb-3">Enter your personal WhatsApp number</p>
+                          <div className="space-y-2">
+                            <div className="relative max-w-sm">
+                              <Phone className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                              <input
+                                type="tel"
+                                value={whatsappNumber}
+                                onChange={(e) => setWhatsappNumber(e.target.value)}
+                                placeholder="e.g. 9876543210"
+                                disabled={isLoading}
+                                className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 rounded-xl pl-10 pr-4 py-3 text-sm focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all shadow-inner disabled:opacity-50"
+                              />
+                            </div>
+                            <p className="text-[11px] text-slate-500 flex items-center gap-1">
+                              <Info className="w-3 h-3 text-emerald-500" />
+                              Indian numbers don't need +91. We format it automatically.
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {botNumber.includes("+1") && (
+                    <div className="p-4 bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/20 rounded-2xl flex items-start gap-3">
+                      <AlertCircle className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
+                      <div className="text-sm">
+                        <strong className="text-amber-800 dark:text-amber-500 block mb-1">Testing with Meta Sandbox?</strong>
+                        <p className="text-amber-700 dark:text-amber-500/80 leading-relaxed">
+                          Because this is a US Test Number, Meta restricts inbound messages unless you initiate a chat from the Meta Dashboard first. Upgrade to a production Indian number to remove this restriction.
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="pt-4 border-t border-slate-100 dark:border-slate-800/60 flex justify-end">
+                    <button
+                      onClick={handleSaveWA}
+                      disabled={isSavingWA || isLoading}
+                      className="inline-flex items-center gap-2 bg-slate-900 dark:bg-white text-white dark:text-slate-900 hover:bg-slate-800 dark:hover:bg-slate-100 active:scale-95 font-bold rounded-xl px-5 py-2.5 text-sm transition-all disabled:opacity-70 disabled:pointer-events-none"
+                    >
+                      {isSavingWA ? (
+                        <div className="w-4 h-4 border-2 border-slate-400 dark:border-slate-400 border-t-white dark:border-t-slate-900 rounded-full animate-spin" />
+                      ) : (
+                        'Save WhatsApp Link'
+                      )}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <hr className="border-slate-200 dark:border-slate-800/60" />
+
+          {/* ─── SECTION: Notifications ─── */}
+          <section className="flex flex-col lg:flex-row gap-8 lg:gap-12">
+            <div className="lg:w-1/3 flex-shrink-0">
+              <h2 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-wider mb-2">Notifications</h2>
+              <p className="text-sm text-slate-500 leading-relaxed">
+                Control how you want to be reminded about upcoming deadlines. We recommend keeping WhatsApp reminders on for the best experience.
+              </p>
+            </div>
+            
+            <div className="lg:w-2/3">
+              <div className="bg-white dark:bg-[#0A0F1C] border border-slate-200 dark:border-slate-800/60 rounded-3xl overflow-hidden shadow-sm">
+                
+                <div className="p-6 sm:p-8 space-y-6">
+                  
+                  <div className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border border-slate-200 dark:border-slate-800/50">
+                    <div className="flex items-start gap-4">
+                      <div className="p-2.5 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm shrink-0">
+                        <Mail className="w-5 h-5 text-slate-500 dark:text-slate-400" />
+                      </div>
+                      <div>
+                        <h3 className="text-sm font-bold text-slate-900 dark:text-white mb-1">Email Reminders</h3>
+                        <p className="text-xs text-slate-500 leading-relaxed max-w-sm">
+                          Get an email 48 hours before a deadline, and an alert when a campaign becomes overdue.
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => setEmailEnabled(!emailEnabled)}
+                      className={`relative inline-flex h-6 w-11 flex-shrink-0 items-center rounded-full transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500/50 dark:focus:ring-offset-slate-900 ${
+                        emailEnabled ? 'bg-emerald-500' : 'bg-slate-200 dark:bg-slate-700'
+                      }`}
+                    >
+                      <span className={`inline-block h-5 w-5 transform rounded-full bg-white shadow-sm transition-transform duration-300 ${
+                        emailEnabled ? 'translate-x-[22px]' : 'translate-x-[2px]'
+                      }`} />
+                    </button>
+                  </div>
+
+                  <div className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border border-slate-200 dark:border-slate-800/50">
+                    <div className="flex items-start gap-4">
+                      <div className="p-2.5 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm shrink-0">
+                        <MessageSquare className="w-5 h-5 text-emerald-500 dark:text-emerald-400" />
+                      </div>
+                      <div>
+                        <h3 className="text-sm font-bold text-slate-900 dark:text-white mb-1">WhatsApp Reminders</h3>
+                        <p className="text-xs text-slate-500 leading-relaxed max-w-sm">
+                          Receive instant pings from our bot to your linked number for critical deadlines.
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => setWaEnabled(!waEnabled)}
+                      className={`relative inline-flex h-6 w-11 flex-shrink-0 items-center rounded-full transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500/50 dark:focus:ring-offset-slate-900 ${
+                        waEnabled ? 'bg-emerald-500' : 'bg-slate-200 dark:bg-slate-700'
+                      }`}
+                    >
+                      <span className={`inline-block h-5 w-5 transform rounded-full bg-white shadow-sm transition-transform duration-300 ${
+                        waEnabled ? 'translate-x-[22px]' : 'translate-x-[2px]'
+                      }`} />
+                    </button>
+                  </div>
+
+                  <div className="pt-4 border-t border-slate-100 dark:border-slate-800/60 flex justify-end">
+                    <button
+                      onClick={handleSaveReminders}
+                      disabled={isSavingReminders || isLoading}
+                      className="inline-flex items-center gap-2 bg-slate-900 dark:bg-white text-white dark:text-slate-900 hover:bg-slate-800 dark:hover:bg-slate-100 active:scale-95 font-bold rounded-xl px-5 py-2.5 text-sm transition-all disabled:opacity-70 disabled:pointer-events-none"
+                    >
+                      {isSavingReminders ? (
+                        <div className="w-4 h-4 border-2 border-slate-400 dark:border-slate-400 border-t-white dark:border-t-slate-900 rounded-full animate-spin" />
+                      ) : (
+                        'Save Preferences'
+                      )}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+
         </div>
       </div>
     </DashboardLayout>
