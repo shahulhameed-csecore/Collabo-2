@@ -4,6 +4,10 @@ from typing import Optional
 from datetime import datetime, timezone
 from app.api.dependencies import get_current_user, get_user_supabase_client, AuthenticatedUser
 
+# Toggle this to False when integrating real payments (Stripe/Razorpay)
+# When True, all users get a 'pro' plan by default.
+IS_TESTING_PHASE = True
+
 router = APIRouter(prefix="/billing", tags=["Billing"])
 
 class BillingUsageResponse(BaseModel):
@@ -27,7 +31,7 @@ async def get_billing_usage(
         structlog.get_logger(__name__).error("billing_subscription_fetch_failed", error=str(e))
         sub_data = {}
     
-    current_plan = "pro" # HARDCODED FOR TESTING: sub_data.get("tier", "free")
+    current_plan = "pro" if IS_TESTING_PHASE else sub_data.get("tier", "free")
     trial_ends_at = sub_data.get("trial_ends_at")
     ai_extractions_used = sub_data.get("ai_extractions_count", 0)
     
