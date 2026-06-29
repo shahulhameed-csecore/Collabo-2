@@ -100,19 +100,19 @@ export default function SettingsPage() {
                   How to link your WhatsApp
                 </h3>
                 
-                <div className="space-y-3 text-sm text-slate-300">
+                <div className="space-y-4 text-sm text-slate-300">
                   <div className="flex gap-3">
-                    <span className="flex-shrink-0 w-6 h-6 rounded-full bg-slate-700 flex items-center justify-center text-xs font-bold text-white">1</span>
-                    <p>Save your WhatsApp phone number below. For Indian numbers, simply enter the 10 digits.</p>
+                    <span className="flex-shrink-0 w-6 h-6 rounded-full bg-slate-700 flex items-center justify-center text-xs font-bold text-white mt-0.5">1</span>
+                    <p className="leading-snug">Save your personal WhatsApp phone number below. We automatically handle country codes like <span className="text-emerald-400 font-mono">+91</span>.</p>
                   </div>
                   
                   <div className="flex gap-3">
-                    <span className="flex-shrink-0 w-6 h-6 rounded-full bg-slate-700 flex items-center justify-center text-xs font-bold text-white">2</span>
-                    <div>
-                      <p className="mb-2">Save our Official Bot number to your contacts:</p>
+                    <span className="flex-shrink-0 w-6 h-6 rounded-full bg-slate-700 flex items-center justify-center text-xs font-bold text-white mt-0.5">2</span>
+                    <div className="w-full">
+                      <p className="mb-2 leading-snug">Save our Official Bot number to your contacts:</p>
                       <button 
                         onClick={handleCopy}
-                        className="flex items-center gap-2.5 px-3 py-2 bg-slate-900 border border-slate-700 hover:border-emerald-500/50 rounded-lg text-emerald-400 font-mono font-bold text-sm transition-colors group"
+                        className="flex items-center gap-2.5 px-3 py-2 bg-slate-900 border border-slate-700 hover:border-emerald-500/50 rounded-lg text-emerald-400 font-mono font-bold text-sm transition-colors group w-full sm:w-auto"
                       >
                         {botNumber}
                         {copied ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4 text-slate-500 group-hover:text-emerald-400 transition-colors" />}
@@ -121,9 +121,19 @@ export default function SettingsPage() {
                   </div>
                   
                   <div className="flex gap-3">
-                    <span className="flex-shrink-0 w-6 h-6 rounded-full bg-slate-700 flex items-center justify-center text-xs font-bold text-white">3</span>
-                    <p>Forward any influencer chat or voice note to the Bot. Collabo Assistant will reply and instantly create your campaign!</p>
+                    <span className="flex-shrink-0 w-6 h-6 rounded-full bg-slate-700 flex items-center justify-center text-xs font-bold text-white mt-0.5">3</span>
+                    <p className="leading-snug">Forward any influencer chat, screenshot, or voice note to the Bot. Collabo AI will instantly create your campaign!</p>
                   </div>
+
+                  {/* Test Number Warning */}
+                  {botNumber.includes("+1") && (
+                    <div className="mt-4 p-3 bg-yellow-500/10 border border-yellow-500/20 rounded-lg">
+                      <p className="text-xs text-yellow-500 font-medium">
+                        <strong className="block mb-1">⚠️ Using a Meta Test Number?</strong>
+                        Meta blocks unverified international texts to US Test Numbers. To test it, you must initiate the chat from the Meta Dashboard first, or upgrade to a real Indian Production Number.
+                      </p>
+                    </div>
+                  )}
                 </div>
               </div>
 
