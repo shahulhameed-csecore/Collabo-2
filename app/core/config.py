@@ -18,6 +18,10 @@ class Settings(BaseSettings):
     # Required for webhook to insert data without user JWT
     SUPABASE_SERVICE_ROLE_KEY: Optional[str] = None
 
+    # Telegram Integration
+    TELEGRAM_BOT_TOKEN: Optional[str] = None
+    TELEGRAM_WEBHOOK_SECRET: Optional[str] = None
+
     # Webhook Settings
     GMAIL_WEBHOOK_URL: Optional[str] = None
     GMAIL_WEBHOOK_SECRET: Optional[str] = None

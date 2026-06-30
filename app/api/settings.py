@@ -14,16 +14,17 @@ _PHONE_RE = re.compile(r"^\d{8,15}$")
 
 from typing import Optional
 
-class WhatsAppSettingsInput(BaseModel):
+class SettingsInput(BaseModel):
     whatsapp_number: Optional[str] = None
     email_reminders_enabled: bool = True
     whatsapp_reminders_enabled: bool = True
     username: Optional[str] = None
+    telegram_username: Optional[str] = None
 
 
 @router.post("/whatsapp")
-async def save_whatsapp_settings(
-    input_data: WhatsAppSettingsInput,
+async def save_settings(
+    input_data: SettingsInput,
     current_user: AuthenticatedUser = Depends(get_current_user),
     client=Depends(get_user_supabase_client),
 ):
@@ -66,6 +67,12 @@ async def save_whatsapp_settings(
             payload["whatsapp_number"] = clean_number
         if input_data.username is not None:
             payload["username"] = input_data.username
+        if input_data.telegram_username is not None:
+            # ensure @ prefix is kept or add it later? Actually, frontend will just send string.
+            tg = input_data.telegram_username.strip()
+            if tg and not tg.startswith("@"):
+                tg = f"@{tg}"
+            payload["telegram_username"] = tg if tg else None
 
         client.table("user_settings").upsert(payload).execute()
         
@@ -92,6 +99,7 @@ async def save_whatsapp_settings(
             "email_reminders_enabled": input_data.email_reminders_enabled,
             "whatsapp_reminders_enabled": input_data.whatsapp_reminders_enabled,
             "username": input_data.username,
+            "telegram_username": input_data.telegram_username,
         }
     except Exception as e:
         error_str = str(e).lower()
@@ -115,7 +123,7 @@ async def save_whatsapp_settings(
 
 
 @router.get("/whatsapp")
-async def get_whatsapp_settings(
+async def get_settings(
     current_user: AuthenticatedUser = Depends(get_current_user),
     client=Depends(get_user_supabase_client),
 ):
@@ -124,7 +132,7 @@ async def get_whatsapp_settings(
     try:
         response = (
             client.table("user_settings")
-            .select("whatsapp_number, email_reminders_enabled, whatsapp_reminders_enabled, username")
+            .select("whatsapp_number, email_reminders_enabled, whatsapp_reminders_enabled, username, telegram_username")
             .eq("user_id", user_id)
             .execute()
         )
@@ -135,6 +143,7 @@ async def get_whatsapp_settings(
             "email_reminders_enabled": True,
             "whatsapp_reminders_enabled": True,
             "username": None,
+            "telegram_username": None,
         }
     except Exception as e:
         logger.error("Failed to fetch user settings", user_id=user_id, error=type(e).__name__)
@@ -142,4 +151,5 @@ async def get_whatsapp_settings(
             "whatsapp_number": None,
             "email_reminders_enabled": True,
             "whatsapp_reminders_enabled": True,
+            "telegram_username": None,
         }
