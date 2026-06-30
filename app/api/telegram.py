@@ -257,7 +257,7 @@ async def process_telegram_message(update: dict):
         if 'chat_id' in locals() and chat_id:
             await send_telegram_message(chat_id, "🤖 *Collabo AI*\n\n❌ Oops, my servers hit a snag while processing that message. Please try again!")
 
-@router.post("")
+@router.post("/telegram")
 @limiter.limit("200/minute")
 async def telegram_webhook(
     request: Request, 
