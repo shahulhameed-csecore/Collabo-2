@@ -4,21 +4,24 @@ import { useState, useEffect } from 'react';
 import DashboardLayout from '@/components/DashboardLayout';
 import { 
   Settings, MessageSquare, Phone, AlertCircle, Save, 
-  Bell, Mail, Copy, Check, Info, ShieldCheck 
+  Bell, Mail, Copy, Check, Info, ShieldCheck, Send
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { saveWhatsAppNumber, getWhatsAppNumber, getApiErrorMessage } from '@/lib/api';
 
 export default function SettingsPage() {
   const [whatsappNumber, setWhatsappNumber] = useState('');
+  const [telegramUsername, setTelegramUsername] = useState('');
   const [emailEnabled, setEmailEnabled] = useState(true);
   const [waEnabled, setWaEnabled] = useState(true);
   const [isLoading, setIsLoading] = useState(true);
   const [isSavingWA, setIsSavingWA] = useState(false);
+  const [isSavingTG, setIsSavingTG] = useState(false);
   const [isSavingReminders, setIsSavingReminders] = useState(false);
   const [copied, setCopied] = useState(false);
 
   const botNumber = process.env.NEXT_PUBLIC_BOT_NUMBER || "+1 (555) 656-5993";
+  const telegramBotUsername = process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME || "@collabo_bot";
 
   const handleCopy = () => {
     navigator.clipboard.writeText(botNumber);
@@ -33,6 +36,9 @@ export default function SettingsPage() {
         const settings = await getWhatsAppNumber();
         if (settings.whatsapp_number) {
           setWhatsappNumber(settings.whatsapp_number);
+        }
+        if (settings.telegram_username) {
+          setTelegramUsername(settings.telegram_username);
         }
         if (settings.email_reminders_enabled !== undefined) {
           setEmailEnabled(settings.email_reminders_enabled);
@@ -52,6 +58,7 @@ export default function SettingsPage() {
     try {
       const response = await saveWhatsAppNumber({
         whatsapp_number: whatsappNumber,
+        telegram_username: telegramUsername,
         email_reminders_enabled: emailEnabled,
         whatsapp_reminders_enabled: waEnabled
       });
@@ -64,11 +71,30 @@ export default function SettingsPage() {
     }
   };
 
+  const handleSaveTG = async () => {
+    setIsSavingTG(true);
+    try {
+      const response = await saveWhatsAppNumber({
+        whatsapp_number: whatsappNumber,
+        telegram_username: telegramUsername,
+        email_reminders_enabled: emailEnabled,
+        whatsapp_reminders_enabled: waEnabled
+      });
+      setTelegramUsername(response.telegram_username || '');
+      toast.success('Telegram integration updated!');
+    } catch (error) {
+      toast.error(getApiErrorMessage(error, 'Failed to save settings. Please try again.'));
+    } finally {
+      setIsSavingTG(false);
+    }
+  };
+
   const handleSaveReminders = async () => {
     setIsSavingReminders(true);
     try {
       const response = await saveWhatsAppNumber({
         whatsapp_number: whatsappNumber,
+        telegram_username: telegramUsername,
         email_reminders_enabled: emailEnabled,
         whatsapp_reminders_enabled: waEnabled
       });
@@ -189,6 +215,87 @@ export default function SettingsPage() {
                         <div className="w-4 h-4 border-2 border-slate-400 dark:border-slate-400 border-t-white dark:border-t-slate-900 rounded-full animate-spin" />
                       ) : (
                         'Save WhatsApp Link'
+                      )}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <hr className="border-slate-200 dark:border-slate-800/60" />
+
+          {/* ─── SECTION: Telegram Integration ─── */}
+          <section className="flex flex-col lg:flex-row gap-8 lg:gap-12">
+            <div className="lg:w-1/3 flex-shrink-0">
+              <h2 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-wider mb-2">Telegram AI Bot</h2>
+              <p className="text-sm text-slate-500 leading-relaxed">
+                Prefer Telegram? Connect your account to forward messages, voice notes, and media directly to our Telegram Bot. Our AI will automatically track the campaign.
+              </p>
+            </div>
+            
+            <div className="lg:w-2/3">
+              <div className="bg-white dark:bg-[#0A0F1C] border border-slate-200 dark:border-slate-800/60 rounded-3xl overflow-hidden shadow-sm relative">
+                <div className="absolute top-0 right-0 w-64 h-64 bg-blue-500/5 rounded-full blur-3xl pointer-events-none translate-x-1/4 -translate-y-1/4" />
+                
+                <div className="p-6 sm:p-8 relative z-10 space-y-8">
+                  {/* Instructions */}
+                  <div>
+                    <h3 className="text-sm font-bold text-slate-900 dark:text-white mb-5 flex items-center gap-2">
+                      <ShieldCheck className="w-5 h-5 text-blue-500" />
+                      How to connect
+                    </h3>
+                    
+                    <div className="space-y-5">
+                      <div className="flex gap-4">
+                        <div className="flex-shrink-0 w-7 h-7 rounded-full bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center text-xs font-black text-slate-600 dark:text-slate-300">1</div>
+                        <div className="pt-1">
+                          <p className="text-sm text-slate-700 dark:text-slate-300 font-medium leading-snug mb-1">Start a chat with our Bot</p>
+                          <p className="text-xs text-slate-500 leading-relaxed mb-3">Search for this bot on Telegram and tap Start.</p>
+                          <div className="inline-flex items-center gap-0 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden shadow-sm">
+                            <div className="px-4 py-2 bg-slate-100 dark:bg-slate-800/50 border-r border-slate-200 dark:border-slate-800">
+                              <code className="text-sm font-mono font-bold text-slate-900 dark:text-blue-400">{telegramBotUsername}</code>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex gap-4">
+                        <div className="flex-shrink-0 w-7 h-7 rounded-full bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center text-xs font-black text-slate-600 dark:text-slate-300">2</div>
+                        <div className="pt-1 w-full">
+                          <p className="text-sm text-slate-700 dark:text-slate-300 font-medium leading-snug mb-3">Enter your Telegram username</p>
+                          <div className="space-y-2">
+                            <div className="relative max-w-sm">
+                              <Send className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                              <input
+                                type="text"
+                                value={telegramUsername}
+                                onChange={(e) => setTelegramUsername(e.target.value)}
+                                placeholder="e.g. @yourusername"
+                                disabled={isLoading}
+                                className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 rounded-xl pl-10 pr-4 py-3 text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all shadow-inner disabled:opacity-50"
+                              />
+                            </div>
+                            <p className="text-[11px] text-slate-500 flex items-center gap-1">
+                              <Info className="w-3 h-3 text-blue-500" />
+                              We use this to verify messages are from you.
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="pt-4 border-t border-slate-100 dark:border-slate-800/60 flex justify-end">
+                    <button
+                      onClick={handleSaveTG}
+                      disabled={isSavingTG || isLoading}
+                      className="inline-flex items-center gap-2 bg-slate-900 dark:bg-white text-white dark:text-slate-900 hover:bg-slate-800 dark:hover:bg-slate-100 active:scale-95 font-bold rounded-xl px-5 py-2.5 text-sm transition-all disabled:opacity-70 disabled:pointer-events-none"
+                    >
+                      {isSavingTG ? (
+                        <div className="w-4 h-4 border-2 border-slate-400 dark:border-slate-400 border-t-white dark:border-t-slate-900 rounded-full animate-spin" />
+                      ) : (
+                        'Save Telegram Link'
                       )}
                     </button>
                   </div>
