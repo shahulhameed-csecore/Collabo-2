@@ -68,12 +68,10 @@ async def process_telegram_message(update: dict):
             # Check with and without @ prefix
             usernames_to_check = [username.lower(), f"@{username.lower()}"]
             try:
-                # We fetch all rows that have a telegram_username and check manually 
-                # (or we could use a text search, but since it's a small scale SaaS we can do an ilike or just exact matches)
                 user_response = (
                     supabase_admin.table("user_settings")
                     .select("user_id, telegram_username")
-                    .not_("telegram_username", "is", "null")
+                    .ilike("telegram_username", f"%{username}%")
                     .execute()
                 )
                 if user_response.data:
