@@ -56,7 +56,7 @@ structlog.configure(
 logger = structlog.get_logger(__name__)
 
 # ─── Step 3: Now safe to import modules that call structlog.get_logger() ──────
-from fastapi import FastAPI, Request, HTTPException
+from fastapi import FastAPI, Request, HTTPException, Response
 from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.middleware.cors import CORSMiddleware
 from slowapi import _rate_limit_exceeded_handler
@@ -238,12 +238,15 @@ app.include_router(telegram.router)
 
 # ─── Public routes ─────────────────────────────────────────────────────────────
 
-@app.get(
+@app.api_route(
     "/health",
+    methods=["GET", "HEAD"],
     tags=["Health"],
     description="Extremely lightweight liveness check for uptime monitoring.",
 )
-async def health_check():
+async def health_check(request: Request):
+    if request.method == "HEAD":
+        return Response(status_code=200)
     return {
         "status": "healthy",
         "timestamp": datetime.now(timezone.utc).isoformat()
