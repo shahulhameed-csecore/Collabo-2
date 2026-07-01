@@ -25,7 +25,67 @@ async def bulk_update_status(
     payload: BulkStatusUpdate,
     client=Depends(get_user_supabase_client),
 ):
-    response = client.table("campaigns").update({"status": payload.status.value}).in_("id", payload.campaign_ids).execute()
+    # Fetch current campaigns
+    current_campaigns = client.table("campaigns").select("id, status, user_id, influencer_handle, influencer_name").in_("id", payload.campaign_ids).execute()
+    if not current_campaigns.data:
+        return {"message": "No valid campaigns found"}
+    
+    new_status = payload.status.value
+
+    # RBAC for Brand: Cannot trigger 'content_received'
+    if new_status == "content_received":
+        raise HTTPException(status_code=403, detail="Only influencers can mark content as received via proof upload.")
+
+    # State Machine Rules
+    valid_transitions = {
+        "draft": ["active", "cancelled"],
+        "active": ["cancelled"], 
+        "content_received": ["approved", "rejected", "cancelled"],
+        "approved": ["paid", "cancelled"],
+        "paid": ["cancelled"],
+        "rejected": ["active", "cancelled", "approved", "content_received"], 
+        "cancelled": ["draft", "active"] 
+    }
+
+    valid_ids = []
+    for camp in current_campaigns.data:
+        current_status = camp["status"]
+        if new_status == current_status:
+            continue
+        if new_status in valid_transitions.get(current_status, []):
+            valid_ids.append(camp["id"])
+
+    if not valid_ids:
+        raise HTTPException(status_code=400, detail="No campaigns were in a valid state for this status transition.")
+
+    response = client.table("campaigns").update({"status": new_status}).in_("id", valid_ids).execute()
+    
+    # Send notifications
+    try:
+        from app.api.dependencies import get_service_client
+        from app.services.notifications import create_notification
+        import asyncio
+        
+        service_client = get_service_client()
+        display_status = new_status.replace("_", " ").title()
+        
+        async def notify(camp):
+            inf_name = camp.get("influencer_name") or camp.get("influencer_handle") or "Creator"
+            await create_notification(
+                service_client=service_client,
+                user_id=camp.get("user_id"),
+                title=f"Campaign {display_status}",
+                message=f"The campaign for {inf_name} was moved to {display_status}.",
+                type="info",
+                link_url="/dashboard"
+            )
+            
+        tasks = [notify(c) for c in current_campaigns.data if c["id"] in valid_ids]
+        if tasks:
+            await asyncio.gather(*tasks)
+    except Exception as e:
+        logger.error(f"Failed to create bulk status notifications: {e}")
+
     return {"message": f"Updated {len(response.data)} campaigns"}
 
 @router.delete("/bulk/delete", response_model=dict)
