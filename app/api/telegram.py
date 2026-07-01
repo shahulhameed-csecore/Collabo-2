@@ -22,6 +22,59 @@ if settings.SUPABASE_URL and settings.SUPABASE_SERVICE_ROLE_KEY:
         settings.SUPABASE_SERVICE_ROLE_KEY,
     )
 
+def parse_corrections(text: str) -> dict:
+    """Parses key-value pairs like 'Payment: 15000' or 'Name: Neha' into a dictionary."""
+    corrections = {}
+    lines = text.split('\n')
+    for line in lines:
+        if ':' in line:
+            key, val = line.split(':', 1)
+            key = key.strip().lower()
+            val = val.strip()
+            if not val: continue
+            
+            if 'name' in key: corrections['influencer_name'] = val
+            elif 'handle' in key: corrections['influencer_handle'] = val
+            elif 'platform' in key: corrections['platform'] = val
+            elif 'deliverable' in key: corrections['deliverables'] = val
+            elif 'deadline' in key or 'date' in key: corrections['deadline'] = val
+            elif 'payment' in key or 'amount' in key or 'price' in key:
+                import re
+                nums = re.findall(r'\d+', val.replace(',', ''))
+                if nums: corrections['payment_amount'] = float(nums[0])
+            elif 'note' in key: corrections['special_notes'] = val
+    return corrections
+
+def format_campaign_summary(campaign: dict, is_review: bool = False) -> str:
+    """Helper to format the summary message consistently."""
+    handle = campaign.get('influencer_handle') or 'N/A'
+    plat = campaign.get('platform') or 'N/A'
+    deliv = campaign.get('deliverables') or 'N/A'
+    deadl = campaign.get('deadline') or 'N/A'
+    
+    raw_pay = campaign.get('payment_amount', 0.0)
+    try:
+        pay = float(raw_pay) if raw_pay is not None else 0.0
+    except ValueError:
+        pay = 0.0
+        
+    influencer = handle if handle != 'N/A' else (campaign.get('influencer_name') or 'Unknown')
+    clean_influencer = influencer.replace("*", "").replace("_", "").replace("`", "")
+    
+    prefix = "🤖 *Collabo AI*\n\n⚠️ Some details were unclear to me. I've created a *Draft*.\n\n" if is_review else "🤖 *I've extracted the following details:*\n\n"
+    
+    return (
+        f"{prefix}"
+        f"👤 *Name:* {clean_influencer}\n"
+        f"🔗 *Handle:* {handle}\n"
+        f"📱 *Platform:* {plat}\n"
+        f"📦 *Deliverables:* {deliv}\n"
+        f"⏳ *Deadline:* {deadl}\n"
+        f"💰 *Payment:* ₹{pay:,.2f}\n\n"
+        f"*Is this correct?*\n"
+        f"Reply *Yes* to make it Active, *Draft* to save, or correct any field (e.g., 'Payment: 15000')."
+    )
+
 async def process_telegram_message(update: dict):
     """
     Background task to process the incoming Telegram message.
@@ -108,7 +161,7 @@ async def process_telegram_message(update: dict):
             if len(text_lower) < 20 and text_lower in ["yes", "correct", "y", "yep", "draft", "no", "wrong"]:
                 recent_draft_resp = (
                     supabase_admin.table("campaigns")
-                    .select("id, influencer_name, influencer_handle")
+                    .select("*")
                     .eq("user_id", user_id)
                     .eq("status", "draft")
                     .ilike("special_notes", "%[tg_update:%")
@@ -131,6 +184,34 @@ async def process_telegram_message(update: dict):
                         return
                     elif text_lower in ["no", "wrong"]:
                         await send_telegram_message(chat_id, f"Got it. The campaign for *{clean_name}* is saved as a Draft. Please edit the details manually in your Collabo dashboard.")
+                        return
+
+            # Check for inline corrections
+            if ":" in text_val and len(text_val) < 200:
+                corrections = parse_corrections(text_val)
+                if corrections:
+                    recent_draft_resp = (
+                        supabase_admin.table("campaigns")
+                        .select("*")
+                        .eq("user_id", user_id)
+                        .eq("status", "draft")
+                        .ilike("special_notes", "%[tg_update:%")
+                        .order("created_at", desc=True)
+                        .limit(1)
+                        .execute()
+                    )
+                    
+                    if recent_draft_resp.data:
+                        draft = recent_draft_resp.data[0]
+                        supabase_admin.table("campaigns").update(corrections).eq("id", draft["id"]).execute()
+                        
+                        # Merge corrections into draft dict for immediate display
+                        updated_draft = {**draft, **corrections}
+                        
+                        await send_telegram_message(
+                            chat_id, 
+                            "🤖 *Got it! I've updated the details:*\n\n" + format_campaign_summary(updated_draft).replace("🤖 *I've extracted the following details:*\n\n", "")
+                        )
                         return
 
         # 4. Extract content (Text / Audio / Image)
@@ -232,36 +313,12 @@ async def process_telegram_message(update: dict):
         insert_response = supabase_admin.table("campaigns").insert(campaign_data).execute()
 
         if insert_response.data:
-            logger.info("Campaign inserted successfully into DB", campaign_id=insert_response.data[0].get("id"))
-            influencer = extracted_data.get("influencer_handle") or extracted_data.get("influencer_name") or "Unknown"
+            inserted_campaign = insert_response.data[0]
+            logger.info("Campaign inserted successfully into DB", campaign_id=inserted_campaign.get("id"))
             
-            # Escape markdown for telegram
-            clean_influencer = influencer.replace("*", "").replace("_", "").replace("`", "")
-            
-            # Format the summary message
-            handle = extracted_data.get('influencer_handle') or 'N/A'
-            plat = extracted_data.get('platform') or 'N/A'
-            deliv = extracted_data.get('deliverables') or 'N/A'
-            deadl = extracted_data.get('deadline') or 'N/A'
-            
-            # Ensure payment is formatted properly (it might be None or a string)
-            raw_pay = extracted_data.get('payment_amount', 0.0)
-            try:
-                pay = float(raw_pay) if raw_pay is not None else 0.0
-            except ValueError:
-                pay = 0.0
-                
-            prefix = "🤖 *Collabo AI*\n\n⚠️ Some details were unclear to me. I've created a *Draft*.\n\n" if extracted_data.get("requires_human_review") else "🤖 *I've extracted the following details:*\n\n"
-            summary = (
-                f"{prefix}"
-                f"👤 *Name:* {clean_influencer}\n"
-                f"🔗 *Handle:* {handle}\n"
-                f"📱 *Platform:* {plat}\n"
-                f"📦 *Deliverables:* {deliv}\n"
-                f"⏳ *Deadline:* {deadl}\n"
-                f"💰 *Payment:* ₹{pay:,.2f}\n\n"
-                f"*Is this correct?*\n"
-                f"Reply *Yes* to make it Active, or *Draft* to keep as draft."
+            summary = format_campaign_summary(
+                inserted_campaign, 
+                is_review=extracted_data.get("requires_human_review", False)
             )
             
             success = await send_telegram_message(chat_id, summary)
