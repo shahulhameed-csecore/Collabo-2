@@ -22,6 +22,7 @@ BUG FIXES in this version
 import logging
 import structlog
 import sentry_sdk
+from datetime import datetime, timezone
 
 # ─── Step 1: Configure structlog FIRST ────────────────────────────────────────
 # This MUST happen before any module-level structlog.get_logger() call.
@@ -240,18 +241,12 @@ app.include_router(telegram.router)
 @app.get(
     "/health",
     tags=["Health"],
-    description="Liveness check — also shows scheduler status.",
+    description="Extremely lightweight liveness check for uptime monitoring.",
 )
 async def health_check():
-    job = scheduler.get_job("deadlines_job")
     return {
         "status": "healthy",
-        "service": "Collabo",
-        "environment": settings.ENVIRONMENT,
-        "scheduler": {
-            "running": scheduler.running,
-            "next_reminder_check": str(job.next_run_time) if job else None,
-        },
+        "timestamp": datetime.now(timezone.utc).isoformat()
     }
 
 
