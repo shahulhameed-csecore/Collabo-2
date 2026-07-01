@@ -23,27 +23,46 @@ if settings.SUPABASE_URL and settings.SUPABASE_SERVICE_ROLE_KEY:
         settings.SUPABASE_SERVICE_ROLE_KEY,
     )
 
+import re
+
 def parse_corrections(text: str) -> dict:
-    """Parses key-value pairs like 'Payment: 15000' or 'Name: Neha' into a dictionary."""
+    """Parses natural key-value pairs like 'Payment 15000' or 'name neha' into a dictionary."""
     corrections = {}
     lines = text.split('\n')
+    
+    # Match keyword at the start of a line, optionally followed by a colon, then the value
+    pattern = re.compile(r'^(name|handle|platform|deliverables?|deadline|date|payment|amount|price|fee|notes?)(?:\s*:\s*|\s+)(.+)$', re.IGNORECASE)
+    
     for line in lines:
-        if ':' in line:
-            key, val = line.split(':', 1)
-            key = key.strip().lower()
-            val = val.strip()
+        line = line.strip()
+        if not line: continue
+        
+        match = pattern.match(line)
+        if match:
+            key = match.group(1).lower()
+            val = match.group(2).strip()
             if not val: continue
             
-            if 'name' in key: corrections['influencer_name'] = val
-            elif 'handle' in key: corrections['influencer_handle'] = val
-            elif 'platform' in key: corrections['platform'] = val
-            elif 'deliverable' in key: corrections['deliverables'] = val
-            elif 'deadline' in key or 'date' in key: corrections['deadline'] = val
-            elif 'payment' in key or 'amount' in key or 'price' in key:
-                import re
-                nums = re.findall(r'\d+', val.replace(',', ''))
-                if nums: corrections['payment_amount'] = float(nums[0])
-            elif 'note' in key: corrections['special_notes'] = val
+            if 'name' in key: 
+                corrections['influencer_name'] = val
+            elif 'handle' in key: 
+                # ensure handle starts with @ if missing and no spaces
+                if not val.startswith('@') and ' ' not in val:
+                    val = '@' + val
+                corrections['influencer_handle'] = val
+            elif 'platform' in key: 
+                corrections['platform'] = val
+            elif 'deliverable' in key: 
+                corrections['deliverables'] = val
+            elif 'deadline' in key or 'date' in key: 
+                corrections['deadline'] = val
+            elif 'payment' in key or 'amount' in key or 'price' in key or 'fee' in key:
+                num_match = re.search(r'\d+(?:\.\d+)?', val.replace(',', ''))
+                if num_match:
+                    corrections['payment_amount'] = float(num_match.group(0))
+            elif 'note' in key: 
+                corrections['special_notes'] = val
+
     return corrections
 
 def format_campaign_summary(campaign: dict, is_review: bool = False) -> str:
@@ -188,7 +207,7 @@ async def process_telegram_message(update: dict):
                         return
 
             # Check for inline corrections
-            if ":" in text_val and len(text_val) < 200:
+            if len(text_val) < 200:
                 corrections = parse_corrections(text_val)
                 if corrections:
                     recent_draft_resp = (
