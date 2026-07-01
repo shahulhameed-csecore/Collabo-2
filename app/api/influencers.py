@@ -18,7 +18,7 @@ async def get_influencers(
     except Exception as e:
         import structlog
         structlog.get_logger(__name__).error("influencers_campaigns_fetch_failed", error=str(e))
-        raise HTTPException(status_code=500, detail="Failed to fetch campaigns")
+        campaigns = []
 
     # Group by handle
     influencer_stats = {}
@@ -59,7 +59,7 @@ async def get_influencers(
     except Exception as e:
         import structlog
         structlog.get_logger(__name__).warning("influencers_profiles_fetch_failed", error=str(e))
-        raise HTTPException(status_code=500, detail="Failed to fetch influencer profiles")
+        profiles = []
     
     # Merge profiles into stats
     for p in profiles:
