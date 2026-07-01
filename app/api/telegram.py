@@ -324,6 +324,8 @@ async def process_telegram_message(update: dict):
             success = await send_telegram_message(chat_id, summary)
             logger.info("Sent summary message to user", success=success)
             
+            influencer = inserted_campaign.get("influencer_handle") or inserted_campaign.get("influencer_name") or "Unknown"
+            
             from app.services.notifications import create_notification
             if extracted_data.get("requires_human_review"):
                 await create_notification(
