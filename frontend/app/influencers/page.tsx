@@ -20,12 +20,23 @@ export default function InfluencersPage() {
   const fetchData = async () => {
     try {
       setIsLoading(true);
-      const [infData, campData] = await Promise.all([
+      const [infData, campData] = await Promise.allSettled([
         getInfluencers(),
         getCampaigns()
       ]);
-      setInfluencers(infData);
-      setAllCampaigns(campData);
+      
+      if (infData.status === 'fulfilled') {
+        setInfluencers(infData.value);
+      } else {
+        toast.error('Failed to load influencer metrics');
+        setInfluencers([]);
+      }
+
+      if (campData.status === 'fulfilled') {
+        setAllCampaigns(campData.value);
+      } else {
+        setAllCampaigns([]);
+      }
     } catch (err) {
       toast.error('Failed to load CRM data');
     } finally {
