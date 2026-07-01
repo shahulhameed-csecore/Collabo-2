@@ -11,6 +11,7 @@ export default function InfluencersPage() {
   const [influencers, setInfluencers] = useState<InfluencerProfile[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [platformFilter, setPlatformFilter] = useState('All');
   const [selectedInfluencer, setSelectedInfluencer] = useState<InfluencerProfile | null>(null);
   const [notes, setNotes] = useState('');
   const [isSaving, setIsSaving] = useState(false);
@@ -56,10 +57,14 @@ export default function InfluencersPage() {
     }
   };
 
-  const filtered = influencers.filter(inf => 
-    inf.handle.toLowerCase().includes(search.toLowerCase()) || 
-    (inf.name && inf.name.toLowerCase().includes(search.toLowerCase()))
-  );
+  const filtered = influencers.filter(inf => {
+    const matchesSearch = inf.handle.toLowerCase().includes(search.toLowerCase()) || 
+                          (inf.name && inf.name.toLowerCase().includes(search.toLowerCase()));
+    const matchesPlatform = platformFilter === 'All' || inf.platform === platformFilter;
+    return matchesSearch && matchesPlatform;
+  });
+
+  const platforms = ['All', 'Instagram', 'YouTube', 'TikTok', 'Twitter', 'X', 'LinkedIn'];
 
   return (
     <DashboardLayout>
@@ -75,23 +80,34 @@ export default function InfluencersPage() {
             </h1>
             <p className="text-slate-500 text-sm mt-1">Manage your creator relationships and notes.</p>
           </div>
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
-            <input
-              type="text"
-              placeholder="Search creators..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="pl-9 pr-8 py-2.5 border border-slate-200 dark:border-slate-700/80 rounded-xl bg-white dark:bg-slate-800/50 text-slate-900 dark:text-white focus:outline-none focus:border-emerald-500/50 focus:ring-2 focus:ring-emerald-500/15 text-sm w-full sm:w-60 transition-all"
-            />
-            {search && (
-              <button
-                onClick={() => setSearch('')}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 p-0.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 rounded transition-colors"
-              >
-                <X className="w-3.5 h-3.5" />
-              </button>
-            )}
+          <div className="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto">
+            <select
+              value={platformFilter}
+              onChange={(e) => setPlatformFilter(e.target.value)}
+              className="py-2.5 px-3 border border-slate-200 dark:border-slate-700/80 rounded-xl bg-white dark:bg-slate-800/50 text-slate-900 dark:text-white focus:outline-none focus:border-emerald-500/50 focus:ring-2 focus:ring-emerald-500/15 text-sm w-full sm:w-auto transition-all appearance-none cursor-pointer"
+            >
+              {platforms.map(p => (
+                <option key={p} value={p}>{p === 'All' ? 'All Platforms' : p}</option>
+              ))}
+            </select>
+            <div className="relative w-full sm:w-auto">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+              <input
+                type="text"
+                placeholder="Search creators..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="pl-9 pr-8 py-2.5 border border-slate-200 dark:border-slate-700/80 rounded-xl bg-white dark:bg-slate-800/50 text-slate-900 dark:text-white focus:outline-none focus:border-emerald-500/50 focus:ring-2 focus:ring-emerald-500/15 text-sm w-full sm:w-60 transition-all"
+              />
+              {search && (
+                <button
+                  onClick={() => setSearch('')}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 p-0.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 rounded transition-colors"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
           </div>
         </div>
 
@@ -126,19 +142,20 @@ export default function InfluencersPage() {
                           <Users className="w-8 h-8 text-emerald-400" />
                         </div>
                         <h3 className="text-base font-bold text-slate-900 dark:text-white mb-1.5">
-                          {search ? 'No creators found' : 'No creator relationships yet'}
+                          {(search || platformFilter !== 'All') ? 'No creators found' : 'No creator relationships yet'}
                         </h3>
-                        <p className="text-slate-500 text-sm max-w-sm leading-relaxed">
-                          {search
-                            ? `No creators match "${search}" — try a different name.`
+                        <p className="text-slate-500 text-sm max-w-sm leading-relaxed mb-4">
+                          {(search || platformFilter !== 'All')
+                            ? 'No creators match your current filters. Try adjusting them.'
                             : 'Creator profiles appear automatically as you add campaigns. Start tracking to build your CRM.'}
                         </p>
-                        {search && (
+                        {(search || platformFilter !== 'All') && (
                           <button
-                            onClick={() => setSearch('')}
-                            className="mt-3 text-sm text-emerald-400 hover:text-emerald-300 font-semibold"
+                            onClick={() => { setSearch(''); setPlatformFilter('All'); }}
+                            className="flex items-center gap-2 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-semibold rounded-full px-5 py-2.5 text-sm transition-all border border-slate-200 dark:border-slate-700"
                           >
-                            Clear search
+                            <X className="w-4 h-4" />
+                            Clear Filters
                           </button>
                         )}
                       </div>
@@ -279,21 +296,31 @@ export default function InfluencersPage() {
                     .filter(c => c.influencer_handle === selectedInfluencer.handle)
                     .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
                     .map(camp => (
-                      <div key={camp.id} className="flex items-center justify-between p-3 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-xl hover:border-slate-200 dark:hover:border-slate-700 transition-colors shadow-sm">
+                      <div key={camp.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-3 bg-slate-50/50 dark:bg-slate-800/30 border border-slate-100 dark:border-slate-800/60 rounded-xl hover:border-emerald-500/30 dark:hover:border-emerald-500/30 transition-colors shadow-sm gap-3">
                         <div>
-                          <p className="text-sm font-bold text-slate-900 dark:text-white truncate max-w-[200px]">{camp.deliverables || 'Unnamed Campaign'}</p>
-                          <p className="text-xs text-slate-500">{new Date(camp.created_at).toLocaleDateString()}</p>
+                          <p className="text-sm font-bold text-slate-900 dark:text-white truncate max-w-[250px]">{camp.deliverables || 'Unnamed Campaign'}</p>
+                          <div className="flex items-center gap-2 mt-1">
+                            <p className="text-[10px] font-semibold text-slate-500 bg-white dark:bg-slate-900 px-1.5 py-0.5 rounded shadow-sm border border-slate-100 dark:border-slate-800">{new Date(camp.created_at).toLocaleDateString()}</p>
+                            <span className={`text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-sm border ${
+                              camp.status === 'paid' ? 'bg-slate-100 text-slate-700 border-slate-200' :
+                              camp.status === 'approved' ? 'bg-blue-50 text-blue-700 border-blue-200' :
+                              camp.status === 'draft' ? 'bg-amber-50 text-amber-700 border-amber-200' :
+                              'bg-emerald-50 text-emerald-700 border-emerald-200'
+                            }`}>{camp.status.replace('_', ' ')}</span>
+                          </div>
                         </div>
-                        <div className="text-right">
-                          <p className="text-sm font-bold text-emerald-600 dark:text-emerald-400">
-                            {(camp.payment_amount || 0) > 0 ? `₹${camp.payment_amount?.toLocaleString()}` : 'Gifted'}
+                        <div className="text-left sm:text-right">
+                          <p className="text-sm font-black text-emerald-600 dark:text-emerald-400">
+                            {(camp.payment_amount || 0) > 0 ? `₹${camp.payment_amount?.toLocaleString('en-IN')}` : 'Gifted'}
                           </p>
-                          <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">{camp.status}</p>
                         </div>
                       </div>
                     ))}
                   {allCampaigns.filter(c => c.influencer_handle === selectedInfluencer.handle).length === 0 && (
-                    <p className="text-xs text-slate-500 text-center py-4 bg-slate-50 dark:bg-slate-800/50 rounded-xl">No campaigns found for this creator.</p>
+                    <div className="flex flex-col items-center justify-center py-6 bg-slate-50 dark:bg-slate-800/30 rounded-xl border border-slate-100 dark:border-slate-800/50 border-dashed">
+                      <Star className="w-6 h-6 text-slate-300 dark:text-slate-600 mb-2" />
+                      <p className="text-xs text-slate-500 font-medium">No campaigns found for this creator.</p>
+                    </div>
                   )}
                 </div>
               </div>
