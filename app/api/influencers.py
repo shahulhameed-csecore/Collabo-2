@@ -18,7 +18,7 @@ async def get_influencers(
     except Exception as e:
         import structlog
         structlog.get_logger(__name__).error("influencers_campaigns_fetch_failed", error=str(e))
-        campaigns = []
+        raise HTTPException(status_code=500, detail="Failed to fetch campaigns")
 
     # Group by handle
     influencer_stats = {}
@@ -33,6 +33,7 @@ async def get_influencers(
                 "name": c.get("influencer_name"),
                 "platform": c.get("platform"),
                 "total_campaigns": 0,
+                "resolved_campaigns": 0,
                 "successful_campaigns": 0,
                 "last_collaboration": None,
                 "notes": None
@@ -41,8 +42,11 @@ async def get_influencers(
         stats = influencer_stats[handle]
         stats["total_campaigns"] += 1
         
-        if c.get("status") in ["approved", "paid"]:
-            stats["successful_campaigns"] += 1
+        status = c.get("status")
+        if status in ["approved", "paid", "cancelled"]:
+            stats["resolved_campaigns"] += 1
+            if status in ["approved", "paid"]:
+                stats["successful_campaigns"] += 1
             
         deadline = c.get("deadline")
         if deadline:
@@ -55,7 +59,7 @@ async def get_influencers(
     except Exception as e:
         import structlog
         structlog.get_logger(__name__).warning("influencers_profiles_fetch_failed", error=str(e))
-        profiles = []
+        raise HTTPException(status_code=500, detail="Failed to fetch influencer profiles")
     
     # Merge profiles into stats
     for p in profiles:
@@ -73,6 +77,7 @@ async def get_influencers(
                 "name": p.get("name"),
                 "platform": p.get("platform"),
                 "total_campaigns": 0,
+                "resolved_campaigns": 0,
                 "successful_campaigns": 0,
                 "last_collaboration": None,
                 "notes": p.get("notes")
@@ -81,7 +86,7 @@ async def get_influencers(
     # Format response
     response_data = []
     for stats in influencer_stats.values():
-        success_rate = (stats["successful_campaigns"] / stats["total_campaigns"]) * 100 if stats["total_campaigns"] > 0 else 0.0
+        success_rate = (stats["successful_campaigns"] / stats["resolved_campaigns"]) * 100 if stats["resolved_campaigns"] > 0 else 0.0
         response_data.append(InfluencerResponse(
             handle=stats["handle"],
             name=stats["name"],
