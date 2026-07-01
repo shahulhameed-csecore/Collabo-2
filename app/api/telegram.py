@@ -1,5 +1,6 @@
 import structlog
 import json
+import html
 from fastapi import APIRouter, Request, HTTPException, Response, BackgroundTasks, Header
 from app.core.config import settings
 from app.core.limiter import limiter
@@ -59,20 +60,20 @@ def format_campaign_summary(campaign: dict, is_review: bool = False) -> str:
         pay = 0.0
         
     influencer = handle if handle != 'N/A' else (campaign.get('influencer_name') or 'Unknown')
-    clean_influencer = influencer.replace("*", "").replace("_", "").replace("`", "")
+    clean_influencer = html.escape(influencer)
     
-    prefix = "🤖 *Collabo AI*\n\n⚠️ Some details were unclear to me. I've created a *Draft*.\n\n" if is_review else "🤖 *I've extracted the following details:*\n\n"
+    prefix = "🤖 <b>Collabo AI</b>\n\n⚠️ Some details were unclear to me. I've created a <b>Draft</b>.\n\n" if is_review else "🤖 <b>I've extracted the following details:</b>\n\n"
     
     return (
         f"{prefix}"
-        f"👤 *Name:* {clean_influencer}\n"
-        f"🔗 *Handle:* {handle}\n"
-        f"📱 *Platform:* {plat}\n"
-        f"📦 *Deliverables:* {deliv}\n"
-        f"⏳ *Deadline:* {deadl}\n"
-        f"💰 *Payment:* ₹{pay:,.2f}\n\n"
-        f"*Is this correct?*\n"
-        f"Reply *Yes* to make it Active, *Draft* to save, or correct any field (e.g., 'Payment: 15000')."
+        f"👤 <b>Name:</b> {clean_influencer}\n"
+        f"🔗 <b>Handle:</b> {html.escape(handle)}\n"
+        f"📱 <b>Platform:</b> {html.escape(plat)}\n"
+        f"📦 <b>Deliverables:</b> {html.escape(deliv)}\n"
+        f"⏳ <b>Deadline:</b> {html.escape(deadl)}\n"
+        f"💰 <b>Payment:</b> ₹{pay:,.2f}\n\n"
+        f"<b>Is this correct?</b>\n"
+        f"Reply <b>Yes</b> to make it Active, <b>Draft</b> to save, or correct any field (e.g., 'Payment: 15000')."
     )
 
 async def process_telegram_message(update: dict):
@@ -139,11 +140,11 @@ async def process_telegram_message(update: dict):
         if not user_id:
             logger.warning("No linked Collabo account found for Telegram username", username=username)
             unlinked_msg = (
-                "👋 *Hi! I'm Collabo AI.*\n\n"
+                "👋 <b>Hi! I'm Collabo AI.</b>\n\n"
                 "I noticed your Telegram account isn't linked to Collabo yet.\n\n"
                 "To start tracking campaigns automatically:\n"
-                f"1. Go to your Collabo dashboard 👉 *Settings*.\n"
-                f"2. Save your Telegram username `{('@' + username) if username else 'YOUR_USERNAME'}`.\n\n"
+                f"1. Go to your Collabo dashboard 👉 <b>Settings</b>.\n"
+                f"2. Save your Telegram username <code>{html.escape(('@' + username) if username else 'YOUR_USERNAME')}</code>.\n\n"
                 "Once linked, you can forward me influencer chats or voice notes and I'll do the rest! ✨"
             )
             success = await send_telegram_message(chat_id, unlinked_msg)
@@ -173,17 +174,17 @@ async def process_telegram_message(update: dict):
                 if recent_draft_resp.data:
                     draft = recent_draft_resp.data[0]
                     name = draft.get("influencer_handle") or draft.get("influencer_name") or "Unknown"
-                    clean_name = name.replace("*", "").replace("_", "").replace("`", "")
+                    clean_name = html.escape(name)
                     
                     if text_lower in ["yes", "correct", "y", "yep"]:
                         supabase_admin.table("campaigns").update({"status": "active"}).eq("id", draft["id"]).execute()
-                        await send_telegram_message(chat_id, f"✅ Done! The campaign for *{clean_name}* is now Active.")
+                        await send_telegram_message(chat_id, f"✅ Done! The campaign for <b>{clean_name}</b> is now Active.")
                         return
                     elif text_lower == "draft":
-                        await send_telegram_message(chat_id, f"📝 Saved! The campaign for *{clean_name}* will remain a Draft. You can edit it later in your dashboard.")
+                        await send_telegram_message(chat_id, f"📝 Saved! The campaign for <b>{clean_name}</b> will remain a Draft. You can edit it later in your dashboard.")
                         return
                     elif text_lower in ["no", "wrong"]:
-                        await send_telegram_message(chat_id, f"Got it. The campaign for *{clean_name}* is saved as a Draft. Please edit the details manually in your Collabo dashboard.")
+                        await send_telegram_message(chat_id, f"Got it. The campaign for <b>{clean_name}</b> is saved as a Draft. Please edit the details manually in your Collabo dashboard.")
                         return
 
             # Check for inline corrections
@@ -210,7 +211,7 @@ async def process_telegram_message(update: dict):
                         
                         await send_telegram_message(
                             chat_id, 
-                            "🤖 *Got it! I've updated the details:*\n\n" + format_campaign_summary(updated_draft).replace("🤖 *I've extracted the following details:*\n\n", "")
+                            "🤖 <b>Got it! I've updated the details:</b>\n\n" + format_campaign_summary(updated_draft).replace("🤖 <b>I've extracted the following details:</b>\n\n", "")
                         )
                         return
 
@@ -220,17 +221,17 @@ async def process_telegram_message(update: dict):
         if "text" in message:
             content_for_gemini = message["text"].strip()
             if not content_for_gemini:
-                await send_telegram_message(chat_id, "🤖 *Collabo AI*\n\nPlease send me a text message, screenshot, or voice note.")
+                await send_telegram_message(chat_id, "🤖 <b>Collabo AI</b>\n\nPlease send me a text message, screenshot, or voice note.")
                 return
 
         elif "voice" in message or "audio" in message:
             media = message.get("voice") or message.get("audio")
             file_id = media.get("file_id")
             if not file_id:
-                await send_telegram_message(chat_id, "🤖 *Collabo AI*\n\n❌ Oops! I couldn't download that audio. Please try sending it again.")
+                await send_telegram_message(chat_id, "🤖 <b>Collabo AI</b>\n\n❌ Oops! I couldn't download that audio. Please try sending it again.")
                 return
                 
-            await send_telegram_message(chat_id, "🤖 *Collabo AI*\n\nListening to your voice note... 🎧")
+            await send_telegram_message(chat_id, "🤖 <b>Collabo AI</b>\n\nListening to your voice note... 🎧")
             audio_bytes = await download_telegram_media(file_id, max_bytes=_MAX_MEDIA_BYTES)
             
             if not audio_bytes:
@@ -242,14 +243,14 @@ async def process_telegram_message(update: dict):
             # Telegram sends an array of photo sizes. The last one is the largest.
             photos = message["photo"]
             if not photos:
-                await send_telegram_message(chat_id, "🤖 *Collabo AI*\n\n❌ I couldn't download the image. Please try again.")
+                await send_telegram_message(chat_id, "🤖 <b>Collabo AI</b>\n\n❌ I couldn't download the image. Please try again.")
                 return
                 
             largest_photo = photos[-1]
             file_id = largest_photo.get("file_id")
             caption = message.get("caption", "")
             
-            await send_telegram_message(chat_id, "🤖 *Collabo AI*\n\nReading the screenshot... 📸")
+            await send_telegram_message(chat_id, "🤖 <b>Collabo AI</b>\n\nReading the screenshot... 📸")
             image_bytes = await download_telegram_media(file_id, max_bytes=_MAX_MEDIA_BYTES)
             
             if not image_bytes:
@@ -261,12 +262,12 @@ async def process_telegram_message(update: dict):
                     "caption": caption,
                 }
         else:
-            await send_telegram_message(chat_id, "🤖 *Collabo AI*\n\nI can't read this type of message yet. 😅\nPlease send text, voice notes, or screenshots.")
+            await send_telegram_message(chat_id, "🤖 <b>Collabo AI</b>\n\nI can't read this type of message yet. 😅\nPlease send text, voice notes, or screenshots.")
             return
 
         # 4. Process with Gemini AI
         if "text" in message:
-            await send_telegram_message(chat_id, "🤖 *Collabo AI*\n\nExtracting campaign details... ✨")
+            await send_telegram_message(chat_id, "🤖 <b>Collabo AI</b>\n\nExtracting campaign details... ✨")
         
         file_bytes = b""
         mime_type = "text/plain"
@@ -364,7 +365,7 @@ async def process_telegram_message(update: dict):
                 pass
         
         if 'chat_id' in locals() and chat_id:
-            await send_telegram_message(chat_id, "🤖 *Collabo AI*\n\n❌ Oops, my servers hit a snag while processing that message. Please try again!")
+            await send_telegram_message(chat_id, "🤖 <b>Collabo AI</b>\n\n❌ Oops, my servers hit a snag while processing that message. Please try again!")
 
 @router.post("/telegram")
 @limiter.limit("200/minute")

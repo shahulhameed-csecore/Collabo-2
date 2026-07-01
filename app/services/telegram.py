@@ -19,7 +19,7 @@ async def send_telegram_message(chat_id: int | str, text: str) -> bool:
     payload = {
         "chat_id": chat_id,
         "text": text,
-        "parse_mode": "Markdown",
+        "parse_mode": "HTML",
     }
 
     try:
