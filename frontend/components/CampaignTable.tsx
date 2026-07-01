@@ -8,7 +8,7 @@ import {
   Calendar, DollarSign, AlertCircle, CheckCircle2,
   Clock, XCircle, Plus, Search, Filter,
   Globe, X, Check, ExternalLink, Edit2, FileSpreadsheet, Database,
-  MessageCircle, Download, CheckSquare, Link as LinkIcon, TrendingUp
+  MessageCircle, Download, CheckSquare, Link as LinkIcon, TrendingUp, Loader2
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -90,7 +90,7 @@ function PlatformBadge({ platform }: { platform: string | null }) {
 
 function SkeletonRow() {
   return (
-    <tr className="border-b border-slate-100 dark:border-slate-800/40">
+    <tr className="border-b border-slate-100 dark:border-slate-800/40 animate-pulse">
       <td className="px-4 py-4 w-10"><div className="skeleton w-4 h-4 rounded" /></td>
       {[75, 55, 65, 50, 55, 40].map((w, i) => (
         <td key={i} className="px-4 py-4">
@@ -101,7 +101,7 @@ function SkeletonRow() {
   );
 }
 
-function EmptyState({ onCreateNew, onLoadSampleData, hasFilters }: { onCreateNew: () => void; onLoadSampleData?: () => void; hasFilters: boolean }) {
+function EmptyState({ onCreateNew, onLoadSampleData, hasFilters, onClearFilters }: { onCreateNew: () => void; onLoadSampleData?: () => void; hasFilters: boolean; onClearFilters?: () => void; }) {
   if (hasFilters) {
     return (
       <div className="flex flex-col items-center justify-center py-20 text-center animate-in fade-in zoom-in-95 duration-500">
@@ -112,7 +112,16 @@ function EmptyState({ onCreateNew, onLoadSampleData, hasFilters }: { onCreateNew
           </div>
         </div>
         <h3 className="text-base font-semibold text-slate-900 dark:text-white mb-1">No campaigns match</h3>
-        <p className="text-slate-500 text-sm">Try adjusting your search or filters to find what you're looking for.</p>
+        <p className="text-slate-500 text-sm mb-6">Try adjusting your search or filters to find what you're looking for.</p>
+        {onClearFilters && (
+          <button
+            onClick={onClearFilters}
+            className="flex items-center gap-2 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-semibold rounded-full px-5 py-2.5 text-sm transition-all border border-slate-200 dark:border-slate-700"
+          >
+            <X className="w-4 h-4" />
+            Clear Filters
+          </button>
+        )}
       </div>
     );
   }
@@ -484,8 +493,9 @@ export default function CampaignTable({ campaigns, isLoading, onRefresh, onCreat
       {/* ── Bulk Actions Bar ── */}
       {selectedIds.length > 0 && (
         <div className="flex flex-wrap items-center gap-2 mb-4 p-3 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded-xl shadow-sm animate-slide-down">
-          <span className="text-sm font-semibold text-emerald-800 dark:text-emerald-400 mr-2">
+          <span className="text-sm font-semibold text-emerald-800 dark:text-emerald-400 mr-2 flex items-center gap-2">
             {selectedIds.length} selected
+            {isBulkActioning && <Loader2 className="w-4 h-4 animate-spin" />}
           </span>
           <button
             onClick={() => handleBulkRemind()}
@@ -548,7 +558,11 @@ export default function CampaignTable({ campaigns, isLoading, onRefresh, onCreat
         <EmptyState onCreateNew={onCreateNew} onLoadSampleData={onLoadSampleData} hasFilters={false} />
       )}
       {!isLoading && campaigns.length > 0 && filtered.length === 0 && (
-        <EmptyState onCreateNew={onCreateNew} hasFilters={true} />
+        <EmptyState 
+          onCreateNew={onCreateNew} 
+          hasFilters={true} 
+          onClearFilters={() => setFilters({ search: '', status: 'all', platform: '' })} 
+        />
       )}
 
       {/* ── Table ── */}
