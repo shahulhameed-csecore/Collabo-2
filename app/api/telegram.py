@@ -99,7 +99,41 @@ async def process_telegram_message(update: dict):
 
         logger.info("Matched user account", user_id=user_id)
 
-        # 3. Extract content (Text / Audio / Image)
+        # 3. Handle Quick Replies (Yes, Correct, Draft, No)
+        if "text" in message:
+            text_val = message["text"].strip()
+            text_lower = text_val.lower()
+            
+            # Check for short confirmation intents
+            if len(text_lower) < 20 and text_lower in ["yes", "correct", "y", "yep", "draft", "no", "wrong"]:
+                recent_draft_resp = (
+                    supabase_admin.table("campaigns")
+                    .select("id, influencer_name, influencer_handle")
+                    .eq("user_id", user_id)
+                    .eq("status", "draft")
+                    .ilike("special_notes", "%[tg_update:%")
+                    .order("created_at", desc=True)
+                    .limit(1)
+                    .execute()
+                )
+                
+                if recent_draft_resp.data:
+                    draft = recent_draft_resp.data[0]
+                    name = draft.get("influencer_handle") or draft.get("influencer_name") or "Unknown"
+                    clean_name = name.replace("*", "").replace("_", "").replace("`", "")
+                    
+                    if text_lower in ["yes", "correct", "y", "yep"]:
+                        supabase_admin.table("campaigns").update({"status": "active"}).eq("id", draft["id"]).execute()
+                        await send_telegram_message(chat_id, f"✅ Done! The campaign for *{clean_name}* is now Active.")
+                        return
+                    elif text_lower == "draft":
+                        await send_telegram_message(chat_id, f"📝 Saved! The campaign for *{clean_name}* will remain a Draft. You can edit it later in your dashboard.")
+                        return
+                    elif text_lower in ["no", "wrong"]:
+                        await send_telegram_message(chat_id, f"Got it. The campaign for *{clean_name}* is saved as a Draft. Please edit the details manually in your Collabo dashboard.")
+                        return
+
+        # 4. Extract content (Text / Audio / Image)
         content_for_gemini = None
 
         if "text" in message:
@@ -179,12 +213,6 @@ async def process_telegram_message(update: dict):
             except Exception as e:
                 logger.error("Failed to increment AI count via telegram webhook", error=str(e))
 
-        if extracted_data.get("requires_human_review"):
-            await send_telegram_message(
-                chat_id,
-                "🤖 *Collabo AI*\n\n⚠️ Some details were unclear to me (like the exact price or dates). I've created a *Draft* campaign for you to review in the dashboard.",
-            )
-
         # 5. Insert into Supabase
         campaign_data = {k: v for k, v in extracted_data.items() if k != "requires_human_review"}
 
@@ -210,10 +238,34 @@ async def process_telegram_message(update: dict):
             # Escape markdown for telegram
             clean_influencer = influencer.replace("*", "").replace("_", "").replace("`", "")
             
-            success = await send_telegram_message(
-                chat_id, f"✅ Success! Campaign created for *{clean_influencer}*.\n\nIt is now safely tracked in your Collabo dashboard."
+            # Format the summary message
+            handle = extracted_data.get('influencer_handle') or 'N/A'
+            plat = extracted_data.get('platform') or 'N/A'
+            deliv = extracted_data.get('deliverables') or 'N/A'
+            deadl = extracted_data.get('deadline') or 'N/A'
+            
+            # Ensure payment is formatted properly (it might be None or a string)
+            raw_pay = extracted_data.get('payment_amount', 0.0)
+            try:
+                pay = float(raw_pay) if raw_pay is not None else 0.0
+            except ValueError:
+                pay = 0.0
+                
+            prefix = "🤖 *Collabo AI*\n\n⚠️ Some details were unclear to me. I've created a *Draft*.\n\n" if extracted_data.get("requires_human_review") else "🤖 *I've extracted the following details:*\n\n"
+            summary = (
+                f"{prefix}"
+                f"👤 *Name:* {clean_influencer}\n"
+                f"🔗 *Handle:* {handle}\n"
+                f"📱 *Platform:* {plat}\n"
+                f"📦 *Deliverables:* {deliv}\n"
+                f"⏳ *Deadline:* {deadl}\n"
+                f"💰 *Payment:* ₹{pay:,.2f}\n\n"
+                f"*Is this correct?*\n"
+                f"Reply *Yes* to make it Active, or *Draft* to keep as draft."
             )
-            logger.info("Sent success message to user", success=success)
+            
+            success = await send_telegram_message(chat_id, summary)
+            logger.info("Sent summary message to user", success=success)
             
             from app.services.notifications import create_notification
             if extracted_data.get("requires_human_review"):
