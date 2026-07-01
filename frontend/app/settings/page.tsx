@@ -128,7 +128,9 @@ export default function SettingsPage() {
           {/* ─── SECTION: WhatsApp Integration ─── */}
           <section className="flex flex-col lg:flex-row gap-8 lg:gap-12">
             <div className="lg:w-1/3 flex-shrink-0">
-              <h2 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-wider mb-2">WhatsApp AI Bot</h2>
+              <h2 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-wider mb-2 flex items-center gap-2">
+                <MessageSquare className="w-4 h-4 text-emerald-500" /> WhatsApp AI Bot
+              </h2>
               <p className="text-sm text-slate-500 leading-relaxed">
                 Connect your WhatsApp to forward negotiation chats, voice notes, and screenshots directly to Collabo. Our AI will instantly extract the data and track your campaign.
               </p>
@@ -146,44 +148,49 @@ export default function SettingsPage() {
                       How to connect
                     </h3>
                     
-                    <div className="space-y-5">
-                      <div className="flex gap-4">
-                        <div className="flex-shrink-0 w-7 h-7 rounded-full bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center text-xs font-black text-slate-600 dark:text-slate-300">1</div>
+                    <div className="space-y-0 relative">
+                      {/* Timeline line */}
+                      <div className="absolute left-3.5 top-8 bottom-8 w-0.5 bg-slate-100 dark:bg-slate-800/80 -z-10" />
+                      
+                      {/* Step 1 */}
+                      <div className="flex gap-4 pb-8">
+                        <div className="flex-shrink-0 w-7 h-7 rounded-full bg-white dark:bg-slate-900 border-2 border-emerald-500 shadow-sm shadow-emerald-500/20 flex items-center justify-center text-xs font-black text-emerald-600 dark:text-emerald-400 z-10">1</div>
                         <div className="pt-1">
-                          <p className="text-sm text-slate-700 dark:text-slate-300 font-medium leading-snug mb-1">Save the Bot Number</p>
+                          <p className="text-sm text-slate-900 dark:text-white font-bold leading-snug mb-1">Save the Bot Number</p>
                           <p className="text-xs text-slate-500 leading-relaxed mb-3">Add this official number to your phone's contacts as "Collabo Bot".</p>
-                          <div className="inline-flex items-center gap-0 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden shadow-sm">
-                            <div className="px-4 py-2 bg-slate-100 dark:bg-slate-800/50 border-r border-slate-200 dark:border-slate-800">
+                          <div className="inline-flex items-center gap-0 bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-shadow">
+                            <div className="px-4 py-2.5 bg-slate-50 dark:bg-slate-800/80 border-r border-slate-200 dark:border-slate-800">
                               <code className="text-sm font-mono font-bold text-slate-900 dark:text-emerald-400">{botNumber}</code>
                             </div>
                             <button 
                               onClick={handleCopy}
-                              className="px-4 py-2.5 text-slate-500 hover:text-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-500/10 transition-colors flex items-center gap-2"
+                              className="px-4 py-2.5 text-slate-500 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-500/10 transition-colors flex items-center gap-2 group"
                             >
-                              {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-                              <span className="text-xs font-bold uppercase tracking-wider">{copied ? 'Copied' : 'Copy'}</span>
+                              {copied ? <Check className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4 group-hover:scale-110 transition-transform" />}
+                              <span className={`text-xs font-bold uppercase tracking-wider ${copied ? 'text-emerald-500' : ''}`}>{copied ? 'Copied' : 'Copy'}</span>
                             </button>
                           </div>
                         </div>
                       </div>
 
+                      {/* Step 2 */}
                       <div className="flex gap-4">
-                        <div className="flex-shrink-0 w-7 h-7 rounded-full bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center text-xs font-black text-slate-600 dark:text-slate-300">2</div>
+                        <div className="flex-shrink-0 w-7 h-7 rounded-full bg-white dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-700 flex items-center justify-center text-xs font-black text-slate-400 dark:text-slate-500 z-10">2</div>
                         <div className="pt-1 w-full">
-                          <p className="text-sm text-slate-700 dark:text-slate-300 font-medium leading-snug mb-3">Enter your personal WhatsApp number</p>
+                          <p className="text-sm text-slate-900 dark:text-white font-bold leading-snug mb-3">Enter your WhatsApp number</p>
                           <div className="space-y-2">
                             <div className="relative max-w-sm">
-                              <Phone className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                              <Phone className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 peer-focus:text-emerald-500 transition-colors" />
                               <input
                                 type="tel"
                                 value={whatsappNumber}
                                 onChange={(e) => setWhatsappNumber(e.target.value)}
                                 placeholder="e.g. 9876543210"
                                 disabled={isLoading}
-                                className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 rounded-xl pl-10 pr-4 py-3 text-sm focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all shadow-inner disabled:opacity-50"
+                                className="peer w-full bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700/80 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 rounded-xl pl-10 pr-4 py-3 text-sm focus:outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 transition-all shadow-inner disabled:opacity-50"
                               />
                             </div>
-                            <p className="text-[11px] text-slate-500 flex items-center gap-1">
+                            <p className="text-[11px] text-slate-500 flex items-center gap-1.5 font-medium">
                               <Info className="w-3 h-3 text-emerald-500" />
                               Indian numbers don't need +91. We format it automatically.
                             </p>
@@ -228,7 +235,9 @@ export default function SettingsPage() {
           {/* ─── SECTION: Telegram Integration ─── */}
           <section className="flex flex-col lg:flex-row gap-8 lg:gap-12">
             <div className="lg:w-1/3 flex-shrink-0">
-              <h2 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-wider mb-2">Telegram AI Bot</h2>
+              <h2 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-wider mb-2 flex items-center gap-2">
+                <Send className="w-4 h-4 text-blue-500" /> Telegram AI Bot
+              </h2>
               <p className="text-sm text-slate-500 leading-relaxed">
                 Prefer Telegram? Connect your account to forward messages, voice notes, and media directly to our Telegram Bot. Our AI will automatically track the campaign.
               </p>
@@ -246,37 +255,42 @@ export default function SettingsPage() {
                       How to connect
                     </h3>
                     
-                    <div className="space-y-5">
-                      <div className="flex gap-4">
-                        <div className="flex-shrink-0 w-7 h-7 rounded-full bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center text-xs font-black text-slate-600 dark:text-slate-300">1</div>
+                    <div className="space-y-0 relative">
+                      {/* Timeline line */}
+                      <div className="absolute left-3.5 top-8 bottom-8 w-0.5 bg-slate-100 dark:bg-slate-800/80 -z-10" />
+                      
+                      {/* Step 1 */}
+                      <div className="flex gap-4 pb-8">
+                        <div className="flex-shrink-0 w-7 h-7 rounded-full bg-white dark:bg-slate-900 border-2 border-blue-500 shadow-sm shadow-blue-500/20 flex items-center justify-center text-xs font-black text-blue-600 dark:text-blue-400 z-10">1</div>
                         <div className="pt-1">
-                          <p className="text-sm text-slate-700 dark:text-slate-300 font-medium leading-snug mb-1">Start a chat with our Bot</p>
+                          <p className="text-sm text-slate-900 dark:text-white font-bold leading-snug mb-1">Start a chat with our Bot</p>
                           <p className="text-xs text-slate-500 leading-relaxed mb-3">Search for this bot on Telegram and tap Start.</p>
-                          <div className="inline-flex items-center gap-0 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden shadow-sm">
-                            <div className="px-4 py-2 bg-slate-100 dark:bg-slate-800/50 border-r border-slate-200 dark:border-slate-800">
+                          <div className="inline-flex items-center gap-0 bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-shadow">
+                            <div className="px-4 py-2.5 bg-slate-50 dark:bg-slate-800/80">
                               <code className="text-sm font-mono font-bold text-slate-900 dark:text-blue-400">{telegramBotUsername}</code>
                             </div>
                           </div>
                         </div>
                       </div>
 
+                      {/* Step 2 */}
                       <div className="flex gap-4">
-                        <div className="flex-shrink-0 w-7 h-7 rounded-full bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center text-xs font-black text-slate-600 dark:text-slate-300">2</div>
+                        <div className="flex-shrink-0 w-7 h-7 rounded-full bg-white dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-700 flex items-center justify-center text-xs font-black text-slate-400 dark:text-slate-500 z-10">2</div>
                         <div className="pt-1 w-full">
-                          <p className="text-sm text-slate-700 dark:text-slate-300 font-medium leading-snug mb-3">Enter your Telegram username</p>
+                          <p className="text-sm text-slate-900 dark:text-white font-bold leading-snug mb-3">Enter your Telegram username</p>
                           <div className="space-y-2">
                             <div className="relative max-w-sm">
-                              <Send className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                              <Send className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 peer-focus:text-blue-500 transition-colors" />
                               <input
                                 type="text"
                                 value={telegramUsername}
                                 onChange={(e) => setTelegramUsername(e.target.value)}
                                 placeholder="e.g. @yourusername"
                                 disabled={isLoading}
-                                className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 rounded-xl pl-10 pr-4 py-3 text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all shadow-inner disabled:opacity-50"
+                                className="peer w-full bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700/80 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 rounded-xl pl-10 pr-4 py-3 text-sm focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all shadow-inner disabled:opacity-50"
                               />
                             </div>
-                            <p className="text-[11px] text-slate-500 flex items-center gap-1">
+                            <p className="text-[11px] text-slate-500 flex items-center gap-1.5 font-medium">
                               <Info className="w-3 h-3 text-blue-500" />
                               We use this to verify messages are from you.
                             </p>
@@ -309,7 +323,9 @@ export default function SettingsPage() {
           {/* ─── SECTION: Notifications ─── */}
           <section className="flex flex-col lg:flex-row gap-8 lg:gap-12">
             <div className="lg:w-1/3 flex-shrink-0">
-              <h2 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-wider mb-2">Notifications</h2>
+              <h2 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-wider mb-2 flex items-center gap-2">
+                <Bell className="w-4 h-4 text-rose-500" /> Notifications
+              </h2>
               <p className="text-sm text-slate-500 leading-relaxed">
                 Control how you want to be reminded about upcoming deadlines. We recommend keeping WhatsApp reminders on for the best experience.
               </p>
@@ -320,50 +336,50 @@ export default function SettingsPage() {
                 
                 <div className="p-6 sm:p-8 space-y-6">
                   
-                  <div className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border border-slate-200 dark:border-slate-800/50">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between p-5 bg-white dark:bg-slate-900/50 rounded-2xl border border-slate-200 dark:border-slate-800/80 shadow-sm hover:shadow-md transition-shadow gap-4">
                     <div className="flex items-start gap-4">
-                      <div className="p-2.5 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm shrink-0">
-                        <Mail className="w-5 h-5 text-slate-500 dark:text-slate-400" />
+                      <div className="p-3 bg-slate-50 dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700/50 shadow-sm shrink-0">
+                        <Mail className="w-5 h-5 text-slate-600 dark:text-slate-400" />
                       </div>
                       <div>
-                        <h3 className="text-sm font-bold text-slate-900 dark:text-white mb-1">Email Reminders</h3>
-                        <p className="text-xs text-slate-500 leading-relaxed max-w-sm">
+                        <h3 className="text-sm font-bold text-slate-900 dark:text-white mb-1.5">Email Reminders</h3>
+                        <p className="text-xs text-slate-500 leading-relaxed max-w-sm font-medium">
                           Get an email 48 hours before a deadline, and an alert when a campaign becomes overdue.
                         </p>
                       </div>
                     </div>
                     <button
                       onClick={() => setEmailEnabled(!emailEnabled)}
-                      className={`relative inline-flex h-6 w-11 flex-shrink-0 items-center rounded-full transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500/50 dark:focus:ring-offset-slate-900 ${
+                      className={`relative inline-flex h-7 w-12 flex-shrink-0 items-center rounded-full transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500/50 dark:focus:ring-offset-slate-900 shadow-inner ${
                         emailEnabled ? 'bg-emerald-500' : 'bg-slate-200 dark:bg-slate-700'
                       }`}
                     >
-                      <span className={`inline-block h-5 w-5 transform rounded-full bg-white shadow-sm transition-transform duration-300 ${
-                        emailEnabled ? 'translate-x-[22px]' : 'translate-x-[2px]'
+                      <span className={`inline-block h-5 w-5 transform rounded-full bg-white shadow-md transition-transform duration-300 ${
+                        emailEnabled ? 'translate-x-[26px] shadow-emerald-500/50' : 'translate-x-[2px]'
                       }`} />
                     </button>
                   </div>
 
-                  <div className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border border-slate-200 dark:border-slate-800/50">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between p-5 bg-white dark:bg-slate-900/50 rounded-2xl border border-slate-200 dark:border-slate-800/80 shadow-sm hover:shadow-md transition-shadow gap-4">
                     <div className="flex items-start gap-4">
-                      <div className="p-2.5 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm shrink-0">
+                      <div className="p-3 bg-slate-50 dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700/50 shadow-sm shrink-0">
                         <MessageSquare className="w-5 h-5 text-emerald-500 dark:text-emerald-400" />
                       </div>
                       <div>
-                        <h3 className="text-sm font-bold text-slate-900 dark:text-white mb-1">WhatsApp Reminders</h3>
-                        <p className="text-xs text-slate-500 leading-relaxed max-w-sm">
+                        <h3 className="text-sm font-bold text-slate-900 dark:text-white mb-1.5">WhatsApp Reminders</h3>
+                        <p className="text-xs text-slate-500 leading-relaxed max-w-sm font-medium">
                           Receive instant pings from our bot to your linked number for critical deadlines.
                         </p>
                       </div>
                     </div>
                     <button
                       onClick={() => setWaEnabled(!waEnabled)}
-                      className={`relative inline-flex h-6 w-11 flex-shrink-0 items-center rounded-full transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500/50 dark:focus:ring-offset-slate-900 ${
+                      className={`relative inline-flex h-7 w-12 flex-shrink-0 items-center rounded-full transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500/50 dark:focus:ring-offset-slate-900 shadow-inner ${
                         waEnabled ? 'bg-emerald-500' : 'bg-slate-200 dark:bg-slate-700'
                       }`}
                     >
-                      <span className={`inline-block h-5 w-5 transform rounded-full bg-white shadow-sm transition-transform duration-300 ${
-                        waEnabled ? 'translate-x-[22px]' : 'translate-x-[2px]'
+                      <span className={`inline-block h-5 w-5 transform rounded-full bg-white shadow-md transition-transform duration-300 ${
+                        waEnabled ? 'translate-x-[26px] shadow-emerald-500/50' : 'translate-x-[2px]'
                       }`} />
                     </button>
                   </div>
