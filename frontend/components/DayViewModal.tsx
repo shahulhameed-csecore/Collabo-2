@@ -30,8 +30,14 @@ const getPlatformIcon = (platform: string | undefined) => {
 export default function DayViewModal({ isOpen, onClose, dateStr, campaigns, onSelectCampaign }: DayViewModalProps) {
   if (!isOpen) return null;
 
+  // Parse YYYY-MM-DD string to local midnight to avoid timezone shifts
+  const parseLocalDate = (dStr: string) => {
+    const [y, m, d] = dStr.split('-');
+    return new Date(parseInt(y), parseInt(m) - 1, parseInt(d));
+  };
+
   // Format date like "October 24, 2024"
-  const formattedDate = new Date(dateStr).toLocaleDateString('default', { 
+  const formattedDate = parseLocalDate(dateStr).toLocaleDateString('default', { 
     weekday: 'long', 
     month: 'long', 
     day: 'numeric' 
@@ -86,10 +92,17 @@ export default function DayViewModal({ isOpen, onClose, dateStr, campaigns, onSe
                       <h3 className="font-semibold text-slate-900 dark:text-white group-hover:text-emerald-500 transition-colors">
                         {campaign.influencer_name || campaign.influencer_handle || 'Unknown Influencer'}
                       </h3>
-                      <p className="text-xs text-slate-500 flex items-center gap-1.5 mt-1">
-                        {getPlatformIcon(campaign.platform)}
-                        {campaign.deliverables || 'TBD deliverables'}
-                      </p>
+                      <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3 mt-1">
+                        <p className="text-xs text-slate-500 flex items-center gap-1.5">
+                          {getPlatformIcon(campaign.platform)}
+                          {campaign.deliverables || 'TBD deliverables'}
+                        </p>
+                        {campaign.payment_amount != null && campaign.payment_amount > 0 && (
+                          <p className="text-xs font-medium text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-500/10 px-1.5 py-0.5 rounded">
+                            ₹{campaign.payment_amount.toLocaleString('en-IN')}
+                          </p>
+                        )}
+                      </div>
                     </div>
                   </div>
                   <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded-md border ${STATUS_COLORS[campaign.status] || STATUS_COLORS.draft}`}>

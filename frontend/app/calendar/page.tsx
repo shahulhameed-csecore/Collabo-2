@@ -5,7 +5,7 @@ import DashboardLayout from '@/components/DashboardLayout';
 import { Campaign } from '@/lib/types';
 import api from '@/lib/api';
 import { toast } from 'sonner';
-import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, AlertCircle, Sparkles, Plus, Flag } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, AlertCircle, Sparkles, Plus, Flag, Play, Video, Image as ImageIcon } from 'lucide-react';
 import Link from 'next/link';
 import EditCampaignModal from '@/components/EditCampaignModal';
 import DayViewModal from '@/components/DayViewModal';
@@ -55,6 +55,20 @@ export default function CalendarPage() {
     const targetDateStr = formatDateStr(currentDate.getFullYear(), currentDate.getMonth() + 1, day);
     return campaigns.filter(c => c.deadline === targetDateStr);
   };
+  
+  // Parse YYYY-MM-DD string to local midnight to avoid timezone shifts
+  const parseLocalDate = (dateStr: string) => {
+    const [y, m, d] = dateStr.split('-');
+    return new Date(parseInt(y), parseInt(m) - 1, parseInt(d));
+  };
+
+  const getPlatformIcon = (platform: string | undefined) => {
+    const p = platform?.toLowerCase() || '';
+    if (p.includes('instagram') || p.includes('reel') || p.includes('story')) return <Play className="w-3 h-3 flex-shrink-0" />;
+    if (p.includes('youtube') || p.includes('shorts')) return <Video className="w-3 h-3 flex-shrink-0" />;
+    if (p) return <ImageIcon className="w-3 h-3 flex-shrink-0" />;
+    return null;
+  };
 
   // --- Stats Calculation ---
   const stats = useMemo(() => {
@@ -75,7 +89,7 @@ export default function CalendarPage() {
     campaigns.forEach(c => {
       if (!c.deadline) return;
       
-      const deadlineDate = new Date(c.deadline);
+      const deadlineDate = parseLocalDate(c.deadline);
       deadlineDate.setHours(0, 0, 0, 0);
 
       // Overdue (in the past, and not completed/cancelled)
@@ -261,10 +275,11 @@ export default function CalendarPage() {
                             {events.slice(0, 3).map(event => (
                               <div
                                 key={event.id}
-                                className={`text-[9px] sm:text-[10px] font-bold px-1.5 py-1 sm:px-2 sm:py-1.5 rounded-md sm:rounded-lg truncate border shadow-sm ${STATUS_COLORS[event.status] || STATUS_COLORS.draft}`}
+                                className={`flex items-center gap-1.5 text-[9px] sm:text-[10px] font-bold px-1.5 py-1 sm:px-2 sm:py-1.5 rounded-md sm:rounded-lg truncate border shadow-sm ${STATUS_COLORS[event.status] || STATUS_COLORS.draft}`}
                                 title={`${event.influencer_name || event.influencer_handle} - ${event.status}`}
                               >
-                                {event.influencer_name || event.influencer_handle}
+                                {getPlatformIcon(event.platform)}
+                                <span className="truncate">{event.influencer_name || event.influencer_handle}</span>
                               </div>
                             ))}
                             {events.length > 3 && (
