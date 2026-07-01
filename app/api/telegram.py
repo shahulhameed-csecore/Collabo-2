@@ -26,12 +26,18 @@ if settings.SUPABASE_URL and settings.SUPABASE_SERVICE_ROLE_KEY:
 import re
 
 def parse_corrections(text: str) -> dict:
-    """Parses natural key-value pairs like 'Payment 15000' or 'name neha' into a dictionary."""
+    """Parses natural key-value pairs like 'Payment 15000', 'name: neha', 'influencer handle @neha'"""
     corrections = {}
     lines = text.split('\n')
     
-    # Match keyword at the start of a line, optionally followed by a colon, then the value
-    pattern = re.compile(r'^(name|handle|platform|deliverables?|deadline|date|payment|amount|price|fee|notes?)(?:\s*:\s*|\s+)(.+)$', re.IGNORECASE)
+    # Matches optional words like "influencer", "campaign", "the" before the keyword
+    pattern = re.compile(
+        r'^(?:(?:influencer|campaign|the)\s+)?'
+        r'(name|handle|platform|deliverables?|deadline|date|payment|amount|price|fee|notes?)'
+        r'(?:\s*:\s*|\s*=\s*|\s+is\s+|\s+)'
+        r'(.+)$', 
+        re.IGNORECASE
+    )
     
     for line in lines:
         line = line.strip()
@@ -57,9 +63,11 @@ def parse_corrections(text: str) -> dict:
             elif 'deadline' in key or 'date' in key: 
                 corrections['deadline'] = val
             elif 'payment' in key or 'amount' in key or 'price' in key or 'fee' in key:
-                num_match = re.search(r'\d+(?:\.\d+)?', val.replace(',', ''))
+                num_match = re.search(r'\d+(?:[.,]\d+)?', val)
                 if num_match:
-                    corrections['payment_amount'] = float(num_match.group(0))
+                    # Remove commas for float conversion
+                    clean_num = num_match.group(0).replace(',', '')
+                    corrections['payment_amount'] = float(clean_num)
             elif 'note' in key: 
                 corrections['special_notes'] = val
 
@@ -78,7 +86,12 @@ def format_campaign_summary(campaign: dict, is_review: bool = False) -> str:
     except ValueError:
         pay = 0.0
         
-    influencer = handle if handle != 'N/A' else (campaign.get('influencer_name') or 'Unknown')
+    influencer_name = campaign.get('influencer_name')
+    if not influencer_name or influencer_name == 'Unknown Influencer':
+        influencer = handle if handle != 'N/A' else 'Unknown'
+    else:
+        influencer = influencer_name
+        
     clean_influencer = html.escape(influencer)
     
     prefix = "🤖 <b>Collabo AI</b>\n\n⚠️ Some details were unclear to me. I've created a <b>Draft</b>.\n\n" if is_review else "🤖 <b>I've extracted the following details:</b>\n\n"
@@ -192,7 +205,7 @@ async def process_telegram_message(update: dict):
                 
                 if recent_draft_resp.data:
                     draft = recent_draft_resp.data[0]
-                    name = draft.get("influencer_handle") or draft.get("influencer_name") or "Unknown"
+                    name = draft.get("influencer_name") or draft.get("influencer_handle") or "Unknown"
                     clean_name = html.escape(name)
                     
                     if text_lower in ["yes", "correct", "y", "yep"]:
@@ -318,7 +331,7 @@ async def process_telegram_message(update: dict):
         campaign_data = {k: v for k, v in extracted_data.items() if k != "requires_human_review"}
 
         if not campaign_data.get("influencer_handle"):
-            campaign_data["influencer_handle"] = campaign_data.get("influencer_name") or "Unknown Influencer"
+            campaign_data["influencer_handle"] = "N/A"
         if not campaign_data.get("platform"):
             campaign_data["platform"] = "Others"
 
@@ -344,7 +357,7 @@ async def process_telegram_message(update: dict):
             success = await send_telegram_message(chat_id, summary)
             logger.info("Sent summary message to user", success=success)
             
-            influencer = inserted_campaign.get("influencer_handle") or inserted_campaign.get("influencer_name") or "Unknown"
+            influencer = inserted_campaign.get("influencer_name") or inserted_campaign.get("influencer_handle") or "Unknown"
             
             from app.services.notifications import create_notification
             if extracted_data.get("requires_human_review"):
