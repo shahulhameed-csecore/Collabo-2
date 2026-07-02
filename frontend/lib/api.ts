@@ -186,39 +186,22 @@ export async function deleteCampaign(id: string): Promise<void> {
  * Returns extracted campaign data. May include requires_human_review=true.
  */
 export async function extractFromFile(file: File): Promise<ExtractedData> {
-  const { data: { session } } = await supabase.auth.getSession();
   const formData = new FormData();
   formData.append('file', file);
 
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 150_000); // 150s timeout
-
   try {
-    const res = await fetch('/api/extract', {
-      method: 'POST',
-      body: formData,
-      signal: controller.signal,
-      headers: {
-        ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {})
-      }
+    const res = await api.post<ExtractedData>('/extract/', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+      timeout: 150_000, // 150s timeout for AI extraction
     });
-
-    if (!res.ok) {
-      const errorData = await res.json().catch(() => null);
-      throw new Error(errorData?.detail || 'AI extraction failed.');
-    }
-
-    return await res.json();
-  } catch (err: any) {
-    if (err.name === 'AbortError') {
+    return res.data;
+  } catch (err: unknown) {
+    // If it's a timeout error
+    if (axios.isAxiosError(err) && err.code === 'ECONNABORTED') {
       throw new Error('Request timed out. The file might be too large or the AI is taking too long.');
     }
-    if (err.message === 'Failed to fetch' || err.message === 'NetworkError when attempting to fetch resource.') {
-      throw new Error('Network error. Please check your internet connection.');
-    }
-    throw err;
-  } finally {
-    clearTimeout(timeoutId);
+    // Propagate standard API errors via our helper
+    throw new Error(getApiErrorMessage(err, 'AI extraction failed.'));
   }
 }
 

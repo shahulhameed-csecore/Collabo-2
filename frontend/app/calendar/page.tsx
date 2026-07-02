@@ -9,6 +9,8 @@ import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, AlertCircle, Spark
 import Link from 'next/link';
 import EditCampaignModal from '@/components/EditCampaignModal';
 import DayViewModal from '@/components/DayViewModal';
+import { useCalendarStats } from '@/hooks/useCalendarStats';
+import { getApiErrorMessage } from '@/lib/api';
 
 export default function CalendarPage() {
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
@@ -25,7 +27,7 @@ export default function CalendarPage() {
       const campRes = await api.get<Campaign[]>('/campaigns/');
       setCampaigns(campRes.data);
     } catch (err) {
-      toast.error('Failed to load campaigns');
+      toast.error(getApiErrorMessage(err, 'Failed to load campaigns'));
     }
     setIsLoading(false);
   };
@@ -56,11 +58,7 @@ export default function CalendarPage() {
     return campaigns.filter(c => c.deadline === targetDateStr);
   };
   
-  // Parse YYYY-MM-DD string to local midnight to avoid timezone shifts
-  const parseLocalDate = (dateStr: string) => {
-    const [y, m, d] = dateStr.split('-');
-    return new Date(parseInt(y), parseInt(m) - 1, parseInt(d));
-  };
+  const { stats, parseLocalDate } = useCalendarStats(campaigns, currentDate);
 
   const getPlatformIcon = (platform: string | undefined) => {
     const p = platform?.toLowerCase() || '';
@@ -69,47 +67,6 @@ export default function CalendarPage() {
     if (p) return <ImageIcon className="w-3 h-3 flex-shrink-0" />;
     return null;
   };
-
-  // --- Stats Calculation ---
-  const stats = useMemo(() => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    
-    const sevenDaysFromNow = new Date(today);
-    sevenDaysFromNow.setDate(today.getDate() + 7);
-
-    let thisWeek = 0;
-    let overdue = 0;
-    let thisMonth = 0;
-
-    const y = currentDate.getFullYear();
-    const m = currentDate.getMonth() + 1; // 1-indexed for string building
-    const monthPrefix = `${y}-${String(m).padStart(2, '0')}`;
-
-    campaigns.forEach(c => {
-      if (!c.deadline) return;
-      
-      const deadlineDate = parseLocalDate(c.deadline);
-      deadlineDate.setHours(0, 0, 0, 0);
-
-      // Overdue (in the past, and not completed/cancelled)
-      if (deadlineDate < today && !['approved', 'paid', 'cancelled'].includes(c.status)) {
-        overdue++;
-      }
-
-      // This week (today <= deadline <= today + 7)
-      if (deadlineDate >= today && deadlineDate <= sevenDaysFromNow && !['approved', 'paid', 'cancelled'].includes(c.status)) {
-        thisWeek++;
-      }
-
-      // This viewed month
-      if (c.deadline.startsWith(monthPrefix)) {
-        thisMonth++;
-      }
-    });
-
-    return { thisWeek, overdue, thisMonth };
-  }, [campaigns, currentDate]);
 
   const STATUS_COLORS: Record<string, string> = {
     draft: 'bg-amber-100 text-amber-800 border-amber-200 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-800',
