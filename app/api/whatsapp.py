@@ -282,17 +282,6 @@ async def process_whatsapp_message(sender_id: str, message: dict):
 
     except Exception as e:
         logger.error("WhatsApp processing error", error=str(e), exc_info=True)
-        # Log to DB so we can see it!
-        if supabase_admin:
-            try:
-                supabase_admin.table("campaigns").insert({
-                    "status": "draft",
-                    "special_notes": f"CRASH: {str(e)}",
-                    "influencer_name": "DEBUG CRASH",
-                    "user_id": user_id if 'user_id' in locals() else None
-                }).execute()
-            except:
-                pass
         
         await send_whatsapp_message(
             sender_id, "🤖 *Collabo AI*\n\n❌ Oops, my servers hit a snag while processing that message. Please try again!"

@@ -65,23 +65,32 @@ Extract the following details accurately:
 If you are uncertain about any field, leave it as null. If multiple critical fields (handle, deliverables, deadline) are missing, set requires_human_review to true.
 """
 
-def compress_image(image_bytes: bytes, max_size_kb: int = 250) -> bytes:
-    """Compresses an image to be under max_size_kb and max 512x512."""
+def compress_image(image_bytes: bytes, max_size_kb: int = 500, max_dim: int = 1600) -> bytes:
+    """Compresses an image to be under max_size_kb and max dimensions while keeping text readable."""
     try:
+        # If already small enough and standard format, avoid re-compressing
+        if len(image_bytes) < max_size_kb * 1024:
+            try:
+                img_test = Image.open(io.BytesIO(image_bytes))
+                if max(img_test.size) <= max_dim and img_test.format in ('JPEG', 'PNG', 'WEBP'):
+                    return image_bytes
+            except Exception:
+                pass
+
         img = Image.open(io.BytesIO(image_bytes))
         # Convert to RGB if needed (e.g. RGBA or HEIC)
         if img.mode != "RGB":
             img = img.convert("RGB")
         
-        # Resize to max 512x512 while maintaining aspect ratio
-        img.thumbnail((512, 512), Image.Resampling.LANCZOS)
+        # Resize to max dimensions while maintaining aspect ratio
+        img.thumbnail((max_dim, max_dim), Image.Resampling.LANCZOS)
         
         quality = 85
         out_io = io.BytesIO()
         img.save(out_io, format="JPEG", quality=quality, optimize=True)
         
         # Aggressive compression if still too large
-        while len(out_io.getvalue()) > max_size_kb * 1024 and quality > 10:
+        while len(out_io.getvalue()) > max_size_kb * 1024 and quality > 20:
             quality -= 10
             out_io = io.BytesIO()
             img.save(out_io, format="JPEG", quality=quality, optimize=True)
