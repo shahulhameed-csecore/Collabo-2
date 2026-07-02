@@ -311,6 +311,9 @@ async def process_telegram_message(update: dict):
         if not campaign_data.get("platform"):
             campaign_data["platform"] = "Others"
 
+        if campaign_data.get("deadline") == "":
+            campaign_data["deadline"] = None
+
         campaign_data["user_id"] = user_id
         campaign_data["status"] = "draft"
 

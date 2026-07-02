@@ -38,11 +38,11 @@ async def extract_data(
     except Exception as e:
         logger.error("extract_endpoint_failed", error=str(e), user_id=user.user.id if hasattr(user, 'user') else None)
         return {
-            "influencer_name": None,
-            "influencer_handle": None,
-            "platform": None,
-            "deliverables": None,
-            "deadline": None,
+            "influencer_name": "",
+            "influencer_handle": "",
+            "platform": "",
+            "deliverables": "",
+            "deadline": "",
             "payment_amount": 0.0,
             "special_notes": f"AI Extraction failed ({str(e)}). Please enter details manually.",
             "status": "draft",
