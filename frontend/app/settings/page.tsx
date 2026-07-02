@@ -89,6 +89,24 @@ export default function SettingsPage() {
     }
   };
 
+  const handleUnlinkTG = async () => {
+    setIsSavingTG(true);
+    try {
+      await saveWhatsAppNumber({
+        whatsapp_number: whatsappNumber,
+        telegram_username: "", // Empty string to unset it
+        email_reminders_enabled: emailEnabled,
+        whatsapp_reminders_enabled: waEnabled
+      });
+      setTelegramUsername('');
+      toast.success('Telegram account unlinked successfully!');
+    } catch (error) {
+      toast.error(getApiErrorMessage(error, 'Failed to unlink Telegram account.'));
+    } finally {
+      setIsSavingTG(false);
+    }
+  };
+
   const handleSaveReminders = async () => {
     setIsSavingReminders(true);
     try {
@@ -322,7 +340,16 @@ export default function SettingsPage() {
                     </div>
                   </div>
 
-                  <div className="pt-4 border-t border-slate-100 dark:border-slate-800/60 flex justify-end">
+                  <div className="pt-4 border-t border-slate-100 dark:border-slate-800/60 flex justify-end gap-3">
+                    {telegramUsername && (
+                      <button
+                        onClick={handleUnlinkTG}
+                        disabled={isSavingTG || isLoading}
+                        className="inline-flex items-center gap-2 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-500/10 active:scale-95 font-bold rounded-xl px-5 py-2.5 text-sm transition-all disabled:opacity-50 disabled:pointer-events-none"
+                      >
+                        Unlink
+                      </button>
+                    )}
                     <button
                       onClick={handleSaveTG}
                       disabled={isSavingTG || isLoading}
