@@ -37,6 +37,7 @@ export default function OnboardingTour({ isReady = true }: OnboardingTourProps) 
     }
   };
 
+  const steps: Step[] = [
     {
       target: 'body',
       content: 'Welcome to Collabo! Let\'s take a quick tour to help you manage your micro-influencer campaigns effortlessly.',
