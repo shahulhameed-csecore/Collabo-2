@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Joyride, EventData, STATUS, Step } from 'react-joyride';
 import { useTheme } from 'next-themes';
+import { createClient } from '@/lib/supabase';
 
 interface OnboardingTourProps {
   isReady?: boolean;
@@ -10,13 +11,24 @@ interface OnboardingTourProps {
 
 export default function OnboardingTour({ isReady = true }: OnboardingTourProps) {
   const [run, setRun] = useState(false);
+  const [userId, setUserId] = useState<string | null>(null);
   const { resolvedTheme } = useTheme();
 
   useEffect(() => {
-    if (!isReady) return;
+    const supabase = createClient();
+    supabase.auth.getUser().then(({ data }) => {
+      if (data.user) {
+        setUserId(data.user.id);
+      }
+    });
+  }, []);
+
+  useEffect(() => {
+    if (!isReady || !userId) return;
     
     // Check if user has already completed or skipped the tour
-    const tourCompleted = localStorage.getItem('collabo_tour_completed');
+    const tourKey = `collabo_tour_completed_${userId}`;
+    const tourCompleted = localStorage.getItem(tourKey);
     if (!tourCompleted) {
       // Delay slightly to ensure DOM elements are fully painted and hydrated
       const timer = setTimeout(() => {
@@ -24,7 +36,7 @@ export default function OnboardingTour({ isReady = true }: OnboardingTourProps) 
       }, 800);
       return () => clearTimeout(timer);
     }
-  }, [isReady]);
+  }, [isReady, userId]);
 
   const handleJoyrideCallback = (data: EventData) => {
     const { status } = data;
@@ -32,7 +44,9 @@ export default function OnboardingTour({ isReady = true }: OnboardingTourProps) 
 
     if (finishedStatuses.includes(status)) {
       // Save to localStorage so it doesn't show again
-      localStorage.setItem('collabo_tour_completed', 'true');
+      if (userId) {
+        localStorage.setItem(`collabo_tour_completed_${userId}`, 'true');
+      }
       setRun(false);
     }
   };

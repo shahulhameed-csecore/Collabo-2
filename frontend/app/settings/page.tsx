@@ -455,7 +455,11 @@ export default function SettingsPage() {
                     </div>
                     <button
                       onClick={() => {
-                        localStorage.removeItem('collabo_tour_completed');
+                        Object.keys(localStorage).forEach(key => {
+                          if (key.startsWith('collabo_tour_completed')) {
+                            localStorage.removeItem(key);
+                          }
+                        });
                         window.location.href = '/dashboard';
                       }}
                       className="inline-flex items-center justify-center whitespace-nowrap rounded-xl text-sm font-bold transition-colors disabled:pointer-events-none disabled:opacity-50 border border-slate-200 dark:border-slate-700/50 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white h-10 px-4 py-2"
