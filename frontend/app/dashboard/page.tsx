@@ -277,7 +277,7 @@ export default function DashboardPage() {
 
   return (
     <DashboardLayout onNewCampaign={() => setIsModalOpen(true)}>
-      <OnboardingTour />
+      <OnboardingTour isReady={!isLoading} />
       {/* ── Page header ── */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
         <div>

@@ -4,17 +4,27 @@ import { useState, useEffect } from 'react';
 import { Joyride, EventData, STATUS, Step } from 'react-joyride';
 import { useTheme } from 'next-themes';
 
-export default function OnboardingTour() {
+interface OnboardingTourProps {
+  isReady?: boolean;
+}
+
+export default function OnboardingTour({ isReady = true }: OnboardingTourProps) {
   const [run, setRun] = useState(false);
   const { resolvedTheme } = useTheme();
 
   useEffect(() => {
+    if (!isReady) return;
+    
     // Check if user has already completed or skipped the tour
     const tourCompleted = localStorage.getItem('collabo_tour_completed');
     if (!tourCompleted) {
-      setRun(true);
+      // Delay slightly to ensure DOM elements are fully painted and hydrated
+      const timer = setTimeout(() => {
+        setRun(true);
+      }, 800);
+      return () => clearTimeout(timer);
     }
-  }, []);
+  }, [isReady]);
 
   const handleJoyrideCallback = (data: EventData) => {
     const { status } = data;
@@ -27,12 +37,11 @@ export default function OnboardingTour() {
     }
   };
 
-  const steps: Step[] = [
     {
       target: 'body',
       content: 'Welcome to Collabo! Let\'s take a quick tour to help you manage your micro-influencer campaigns effortlessly.',
       placement: 'center',
-      skipBeacon: true,
+      disableBeacon: true,
     },
     {
       target: '#new-campaign-header-btn',
@@ -40,13 +49,18 @@ export default function OnboardingTour() {
       placement: 'bottom',
     },
     {
-      target: '#tour-csv-export',
-      content: 'Export your filtered campaigns into a clean CSV file with a single click.',
+      target: '#stat-total',
+      content: 'Dashboard Stats: Track your active campaigns, upcoming deadlines, and total spend at a glance.',
       placement: 'bottom',
     },
     {
+      target: '#tour-ai-insight',
+      content: 'AI Extraction: Forward your negotiation screenshots to our WhatsApp bot, and we\'ll instantly extract the details for you!',
+      placement: 'right',
+    },
+    {
       target: '#tour-nav-settings',
-      content: 'Make sure to visit Settings to configure your reminder preferences.',
+      content: 'Sidebar Navigation: Access your calendar, influencer CRM, and settings. Don\'t forget to connect your WhatsApp!',
       placement: 'right',
     }
   ];
