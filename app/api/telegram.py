@@ -150,9 +150,8 @@ async def process_telegram_message(update: dict):
                 if resp.data and resp.data[0].get("deadline"):
                     cur = resp.data[0].get("deadline")
                     try:
-                        from dateutil.parser import parse as parse_date
-                        from datetime import timedelta
-                        dt = parse_date(cur)
+                        from datetime import datetime, timedelta
+                        dt = datetime.fromisoformat(cur)
                         new_dt = dt + timedelta(days=7)
                         supabase_admin.table("campaigns").update({"deadline": new_dt.date().isoformat()}).eq("id", camp_id).eq("user_id", user_id).execute()
                         await send_telegram_message(chat_id, f"📅 <b>Deadline Extended!</b>\n\nNew deadline is: <b>{new_dt.date().isoformat()}</b>")
