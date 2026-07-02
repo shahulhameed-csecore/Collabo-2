@@ -226,10 +226,10 @@ async def process_telegram_message(update: dict):
                         if unparsed_date:
                             summary_msg = f"⚠️ I couldn't understand the date '<b>{html.escape(unparsed_date)}</b>'. Please use a format like '15 July' or 'YYYY-MM-DD'.\n\n" + summary_msg
                             
-                        await send_telegram_message(
-                            chat_id, 
-                            summary_msg
-                        )
+                        await send_telegram_message(chat_id, summary_msg)
+                        return
+                    else:
+                        await send_telegram_message(chat_id, "❌ I couldn't find a recent draft to update. The campaign might already be Active or Deleted. Please send a new message to extract.")
                         return
 
         # 4. Extract content (Text / Audio / Image)
