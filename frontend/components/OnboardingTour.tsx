@@ -46,7 +46,7 @@ export default function OnboardingTour({ isReady = true }: OnboardingTourProps) 
     },
     {
       target: '#new-campaign-header-btn',
-      content: 'Click here to create a new campaign. Log the details to start tracking!',
+      content: 'Click here to create a new campaign. Log the details, set deadlines, and start tracking!',
       placement: 'bottom',
     },
     {
@@ -55,14 +55,39 @@ export default function OnboardingTour({ isReady = true }: OnboardingTourProps) 
       placement: 'bottom',
     },
     {
-      target: '#tour-ai-insight',
-      content: 'AI Extraction: Forward your negotiation screenshots to our WhatsApp bot, and we\'ll instantly extract the details for you!',
+      target: '#tour-nav-dashboard',
+      content: 'Your Dashboard: The central hub for all your ongoing campaigns and quick actions.',
+      placement: 'right',
+    },
+    {
+      target: '#tour-nav-calendar',
+      content: 'Calendar Overview: Visually track all your deadlines and publishing dates in one place.',
+      placement: 'right',
+    },
+    {
+      target: '#tour-nav-influencers',
+      content: 'Influencers CRM: Automatically builds a database of all creators you work with.',
+      placement: 'right',
+    },
+    {
+      target: '#tour-nav-analytics',
+      content: 'Analytics: Measure your ROI, track spending trends, and see which platforms perform best.',
       placement: 'right',
     },
     {
       target: '#tour-nav-settings',
-      content: 'Sidebar Navigation: Access your calendar, influencer CRM, and settings. Don\'t forget to connect your WhatsApp!',
+      content: 'Settings: Connect your WhatsApp or Telegram to receive instant AI alerts and reminders.',
       placement: 'right',
+    },
+    {
+      target: '#tour-nav-billing',
+      content: 'Billing & Upgrade: Manage your subscription to unlock premium features and unlimited campaigns.',
+      placement: 'right',
+    },
+    {
+      target: '#tour-ai-insight',
+      content: 'AI Extraction: Just forward a negotiation screenshot to our bot, and we\'ll do the rest! You\'re all set to go.',
+      placement: 'top',
     }
   ];
 

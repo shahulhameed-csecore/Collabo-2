@@ -226,7 +226,7 @@ export default function DashboardLayout({ children, onNewCampaign }: DashboardLa
             soon={soon}
             isActive={pathname === href || (href !== '/dashboard' && pathname.startsWith(href))}
             onClick={() => setSidebarOpen(false)}
-            id={href === '/settings' ? 'tour-nav-settings' : undefined}
+            id={`tour-nav-${href.replace('/', '') || 'dashboard'}`}
           />
         ))}
       </nav>
