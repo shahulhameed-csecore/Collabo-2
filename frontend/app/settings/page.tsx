@@ -123,6 +123,28 @@ export default function SettingsPage() {
           </div>
         </div>
 
+        {isLoading ? (
+          <div className="space-y-12 animate-pulse">
+            <section className="flex flex-col lg:flex-row gap-8 lg:gap-12">
+              <div className="lg:w-1/3 space-y-3">
+                <div className="h-5 w-40 bg-slate-200 dark:bg-slate-800 rounded-lg"></div>
+                <div className="h-16 w-full bg-slate-100 dark:bg-slate-800/50 rounded-xl"></div>
+              </div>
+              <div className="lg:w-2/3">
+                <div className="h-64 w-full bg-slate-100 dark:bg-slate-800/50 rounded-3xl"></div>
+              </div>
+            </section>
+            <section className="flex flex-col lg:flex-row gap-8 lg:gap-12">
+              <div className="lg:w-1/3 space-y-3">
+                <div className="h-5 w-40 bg-slate-200 dark:bg-slate-800 rounded-lg"></div>
+                <div className="h-16 w-full bg-slate-100 dark:bg-slate-800/50 rounded-xl"></div>
+              </div>
+              <div className="lg:w-2/3">
+                <div className="h-48 w-full bg-slate-100 dark:bg-slate-800/50 rounded-3xl"></div>
+              </div>
+            </section>
+          </div>
+        ) : (
         <div className="space-y-12">
           
           {/* ─── SECTION: WhatsApp Integration ─── */}
@@ -403,6 +425,7 @@ export default function SettingsPage() {
           </section>
 
         </div>
+        )}
       </div>
     </DashboardLayout>
   );

@@ -6,6 +6,7 @@ import { getInfluencers, InfluencerProfile, updateInfluencerProfile, getCampaign
 import type { Campaign } from '@/lib/types';
 import { toast } from 'sonner';
 import { Users, Search, Save, X, Star } from 'lucide-react';
+import Link from 'next/link';
 
 export default function InfluencersPage() {
   const [influencers, setInfluencers] = useState<InfluencerProfile[]>([]);
@@ -160,7 +161,7 @@ export default function InfluencersPage() {
                             ? 'No creators match your current filters. Try adjusting them.'
                             : 'Creator profiles appear automatically as you add campaigns. Start tracking to build your CRM.'}
                         </p>
-                        {(search || platformFilter !== 'All') && (
+                        {(search || platformFilter !== 'All') ? (
                           <button
                             onClick={() => { setSearch(''); setPlatformFilter('All'); }}
                             className="flex items-center gap-2 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-semibold rounded-full px-5 py-2.5 text-sm transition-all border border-slate-200 dark:border-slate-700"
@@ -168,6 +169,13 @@ export default function InfluencersPage() {
                             <X className="w-4 h-4" />
                             Clear Filters
                           </button>
+                        ) : (
+                          <Link
+                            href="/dashboard"
+                            className="flex items-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-xl px-5 py-2.5 text-sm transition-all shadow-lg shadow-emerald-500/20 active:scale-95"
+                          >
+                            Go to Dashboard
+                          </Link>
                         )}
                       </div>
                     </td>
