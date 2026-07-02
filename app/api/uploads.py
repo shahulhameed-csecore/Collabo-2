@@ -21,6 +21,19 @@ ALLOWED_MIME_TYPES = {
 MAX_IMAGE_SIZE = 5 * 1024 * 1024 # 5MB
 MAX_VIDEO_SIZE = 50 * 1024 * 1024 # 50MB
 
+def get_proof_received_email_html(inf_name: str) -> str:
+    return f"""<!DOCTYPE html>
+<html lang="en">
+<body style="font-family:system-ui,-apple-system,sans-serif;background:#0f172a;margin:0;padding:40px 16px;">
+  <div style="max-width:600px;margin:0 auto;background:#1e293b;border-radius:16px;padding:32px;color:#e2e8f0;border:1px solid #334155;">
+    <h1 style="color:#34d399;margin-top:0;">🎉 Proof Received!</h1>
+    <p>The influencer <strong style="color:#fbbf24;">{inf_name}</strong> just uploaded their proof of posting.</p>
+    <p>Please log in to review and approve the content.</p>
+    <a href="https://collabo-2.vercel.app/dashboard" style="display:inline-block;background:#10b981;color:#ffffff;text-decoration:none;font-weight:bold;padding:12px 24px;border-radius:8px;margin-top:16px;">View Dashboard →</a>
+  </div>
+</body>
+</html>"""
+
 def get_service_client():
     if not settings.SUPABASE_SERVICE_ROLE_KEY:
         raise HTTPException(status_code=500, detail="Supabase service role key not configured.")
@@ -65,17 +78,7 @@ async def notify_owner_of_proof(user_id: str, inf_name: str):
         email = await _get_user_email(service_client, user_id)
         if email:
             subject = f"🎉 Proof Received for {inf_name}"
-            html = f"""<!DOCTYPE html>
-<html lang="en">
-<body style="font-family:system-ui,-apple-system,sans-serif;background:#0f172a;margin:0;padding:40px 16px;">
-  <div style="max-width:600px;margin:0 auto;background:#1e293b;border-radius:16px;padding:32px;color:#e2e8f0;border:1px solid #334155;">
-    <h1 style="color:#34d399;margin-top:0;">🎉 Proof Received!</h1>
-    <p>The influencer <strong style="color:#fbbf24;">{inf_name}</strong> just uploaded their proof of posting.</p>
-    <p>Please log in to review and approve the content.</p>
-    <a href="https://collabo-2.vercel.app/dashboard" style="display:inline-block;background:#10b981;color:#ffffff;text-decoration:none;font-weight:bold;padding:12px 24px;border-radius:8px;margin-top:16px;">View Dashboard →</a>
-  </div>
-</body>
-</html>"""
+            html = get_proof_received_email_html(inf_name)
             await _send_email(email, subject, html)
 
 @router.post("/{token}/upload-proof")
@@ -157,5 +160,5 @@ async def upload_proof(
         return {"message": "Proof uploaded successfully.", "proof_url": public_url}
         
     except Exception as e:
-        logger.error(f"Failed to upload proof: {str(e)}")
+        logger.exception("Failed to upload proof")
         raise HTTPException(status_code=500, detail="Failed to upload file.")
