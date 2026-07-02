@@ -479,7 +479,7 @@ async def _fetch_campaigns_with_settings(supabase_admin, log) -> list[dict]:
         try:
             settings_resp = await asyncio.to_thread(
                 lambda: supabase_admin.table("user_settings")
-                .select("user_id, whatsapp_number, email_reminders_enabled, whatsapp_reminders_enabled")
+                .select("user_id, whatsapp_number, telegram_chat_id, email_reminders_enabled, whatsapp_reminders_enabled")
                 .in_("user_id", user_ids)
                 .execute()
             )
@@ -591,12 +591,14 @@ async def check_deadlines_job() -> dict:
             user_settings = campaign.get("user_settings") or {}
 
             whatsapp_num: Optional[str] = user_settings.get("whatsapp_number")
+            telegram_chat_id: Optional[int] = user_settings.get("telegram_chat_id")
             email_enabled: bool = bool(user_settings.get("email_reminders_enabled", True))
             wa_enabled: bool = bool(user_settings.get("whatsapp_reminders_enabled", True))
 
             clog.debug(
                 "reminders.user_settings",
                 has_whatsapp=bool(whatsapp_num),
+                has_telegram=bool(telegram_chat_id),
                 email_enabled=email_enabled,
                 wa_enabled=wa_enabled,
                 settings_row_found=bool(user_settings),
@@ -671,11 +673,21 @@ async def check_deadlines_job() -> dict:
                         "reminders.48h_email_skipped",
                         email_enabled=email_enabled,
                         has_user_id=bool(user_id),
-                    )
-
                 # Always mark flag — even if no channels are configured,
                 # so we don't flood logs on every job run.
                 _mark_flag(supabase, campaign_id, "reminder_48h_sent", clog)
+                # Send Telegram (if configured, we use the same WA toggle for TG or just send if chat_id exists)
+                if telegram_chat_id:
+                    from app.services.telegram import send_telegram_message
+                    msg = f"⏰ <b>Action Required</b>\n\nYour campaign with <b>{inf_name}</b> is due in less than <b>48 hours</b> ({deadline_ist_str}).\n\nPlease follow up to ensure deliverables are ready."
+                    markup = {
+                        "inline_keyboard": [
+                            [{"text": "✅ Mark Completed", "callback_data": f"camp_done:{campaign_id}"}],
+                            [{"text": "📅 Extend +7 Days", "callback_data": f"camp_ext:{campaign_id}"}]
+                        ]
+                    }
+                    await send_telegram_message(telegram_chat_id, msg, reply_markup=markup)
+
                 reminded += 1
 
                 from app.services.notifications import create_notification
@@ -729,6 +741,18 @@ async def check_deadlines_job() -> dict:
                         email_ok = await _send_email(user_email, subject, html)
 
                 _mark_flag(supabase, campaign_id, "overdue_alert_sent", clog)
+                # Send Telegram
+                if telegram_chat_id:
+                    from app.services.telegram import send_telegram_message
+                    msg = f"⚠️ <b>Overdue Campaign</b>\n\nYour campaign with <b>{inf_name}</b> was due on <b>{deadline_ist_str}</b> and is now past due.\n\nPlease check in with them!"
+                    markup = {
+                        "inline_keyboard": [
+                            [{"text": "✅ Mark Completed", "callback_data": f"camp_done:{campaign_id}"}],
+                            [{"text": "📅 Extend +7 Days", "callback_data": f"camp_ext:{campaign_id}"}]
+                        ]
+                    }
+                    await send_telegram_message(telegram_chat_id, msg, reply_markup=markup)
+                    
                 overdue_count += 1
 
                 from app.services.notifications import create_notification

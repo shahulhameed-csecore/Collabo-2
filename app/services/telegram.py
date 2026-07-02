@@ -7,9 +7,10 @@ logger = structlog.get_logger(__name__)
 # Default max bytes for media downloads (16 MB) — can be overridden per call
 _DEFAULT_MAX_MEDIA_BYTES = 16 * 1024 * 1024
 
-async def send_telegram_message(chat_id: int | str, text: str) -> bool:
+async def send_telegram_message(chat_id: int | str, text: str, reply_markup: dict | None = None) -> bool:
     """
     Sends a text message using the Telegram Bot API.
+    Optionally accepts a reply_markup dict (for inline keyboards).
     """
     if not settings.TELEGRAM_BOT_TOKEN:
         logger.error("Telegram credentials missing (TELEGRAM_BOT_TOKEN).")
@@ -21,6 +22,8 @@ async def send_telegram_message(chat_id: int | str, text: str) -> bool:
         "text": text,
         "parse_mode": "HTML",
     }
+    if reply_markup:
+        payload["reply_markup"] = reply_markup
 
     try:
         async with httpx.AsyncClient() as client:
@@ -35,6 +38,28 @@ async def send_telegram_message(chat_id: int | str, text: str) -> bool:
             return True
     except Exception as e:
         logger.error("Exception sending Telegram message", error=str(e), exc_info=True)
+        return False
+
+async def answer_callback_query(callback_query_id: str, text: str = "") -> bool:
+    """
+    Answers a callback query (when a user presses an inline button).
+    This removes the loading state from the button in the Telegram app.
+    """
+    if not settings.TELEGRAM_BOT_TOKEN:
+        return False
+        
+    url = f"https://api.telegram.org/bot{settings.TELEGRAM_BOT_TOKEN}/answerCallbackQuery"
+    payload = {
+        "callback_query_id": callback_query_id,
+        "text": text
+    }
+    
+    try:
+        async with httpx.AsyncClient() as client:
+            res = await client.post(url, json=payload, timeout=5.0)
+            return res.status_code == 200
+    except Exception as e:
+        logger.error("Exception answering callback query", error=str(e))
         return False
 
 async def download_telegram_media(

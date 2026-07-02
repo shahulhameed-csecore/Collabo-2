@@ -102,7 +102,60 @@ async def process_telegram_message(update: dict):
 
         logger.info("Matched user account", user_id=user_id)
 
-        # 3. Handle Quick Replies (Yes, Correct, Draft, No)
+        # 2b. Store the chat_id so we can send proactive reminders later
+        try:
+            supabase_admin.table("user_settings").update({
+                "telegram_chat_id": chat_id
+            }).eq("user_id", user_id).execute()
+        except Exception as e:
+            logger.error("Failed to update telegram_chat_id", error=str(e))
+
+        # 3. Handle Callback Queries (Inline Keyboards)
+        if "callback_query" in update:
+            cb = update["callback_query"]
+            cb_id = cb.get("id")
+            cb_data = cb.get("data", "")
+            
+            # Acknowledge immediately to remove loading icon
+            from app.services.telegram import answer_callback_query
+            await answer_callback_query(cb_id)
+
+            if cb_data.startswith("camp_del:"):
+                camp_id = cb_data.split(":")[1]
+                supabase_admin.table("campaigns").delete().eq("id", camp_id).eq("user_id", user_id).execute()
+                await send_telegram_message(chat_id, "🗑️ <b>Campaign Deleted</b>\n\nI've removed that draft from your account.")
+                return
+            elif cb_data.startswith("camp_act:"):
+                camp_id = cb_data.split(":")[1]
+                supabase_admin.table("campaigns").update({"status": "active"}).eq("id", camp_id).eq("user_id", user_id).execute()
+                await send_telegram_message(chat_id, "✅ <b>Campaign Activated!</b>\n\nIt will now show up on your dashboard and calendar.")
+                return
+            elif cb_data.startswith("camp_done:"):
+                camp_id = cb_data.split(":")[1]
+                supabase_admin.table("campaigns").update({"status": "completed"}).eq("id", camp_id).eq("user_id", user_id).execute()
+                await send_telegram_message(chat_id, "🎉 <b>Awesome!</b>\n\nI've marked that campaign as <b>Completed</b>.")
+                return
+            elif cb_data.startswith("camp_ext:"):
+                camp_id = cb_data.split(":")[1]
+                # Fetch campaign to get current deadline
+                resp = supabase_admin.table("campaigns").select("deadline").eq("id", camp_id).eq("user_id", user_id).execute()
+                if resp.data and resp.data[0].get("deadline"):
+                    cur = resp.data[0].get("deadline")
+                    try:
+                        from dateutil.parser import parse as parse_date
+                        from datetime import timedelta
+                        dt = parse_date(cur)
+                        new_dt = dt + timedelta(days=7)
+                        supabase_admin.table("campaigns").update({"deadline": new_dt.date().isoformat()}).eq("id", camp_id).eq("user_id", user_id).execute()
+                        await send_telegram_message(chat_id, f"📅 <b>Deadline Extended!</b>\n\nNew deadline is: <b>{new_dt.date().isoformat()}</b>")
+                    except Exception as e:
+                        logger.error("Failed to parse deadline to extend", error=str(e))
+                        await send_telegram_message(chat_id, "❌ Couldn't parse the current deadline to extend it. Please update it in the dashboard.")
+                else:
+                    await send_telegram_message(chat_id, "❌ Couldn't find a deadline to extend.")
+                return
+
+        # 4. Handle Quick Replies (Yes, Correct, Draft, No)
         if "text" in message:
             text_val = message["text"].strip()
             text_lower = text_val.lower()
@@ -270,15 +323,26 @@ async def process_telegram_message(update: dict):
 
         if insert_response.data:
             inserted_campaign = insert_response.data[0]
-            logger.info("Campaign inserted successfully into DB", campaign_id=inserted_campaign.get("id"))
+            camp_id = inserted_campaign.get("id")
+            logger.info("Campaign inserted successfully into DB", campaign_id=camp_id)
             
             summary = format_campaign_summary(
                 inserted_campaign, 
                 is_review=extracted_data.get("requires_human_review", False)
             )
             
-            success = await send_telegram_message(chat_id, summary)
-            logger.info("Sent summary message to user", success=success)
+            # Create interactive inline keyboard for the draft campaign
+            reply_markup = {
+                "inline_keyboard": [
+                    [
+                        {"text": "✅ Save as Active", "callback_data": f"camp_act:{camp_id}"},
+                        {"text": "🗑️ Delete", "callback_data": f"camp_del:{camp_id}"}
+                    ]
+                ]
+            }
+            
+            success = await send_telegram_message(chat_id, summary, reply_markup=reply_markup)
+            logger.info("Sent summary message to user with buttons", success=success)
             
             influencer = inserted_campaign.get("influencer_name") or inserted_campaign.get("influencer_handle") or "Unknown"
             
