@@ -5,6 +5,7 @@ from pydantic import BaseModel
 from app.schemas.campaign import CampaignCreate, CampaignUpdate, CampaignStatusUpdate, CampaignResponse, CampaignStatus
 from app.api.dependencies import get_current_user, get_user_supabase_client, AuthenticatedUser
 from app.core.limiter import limiter
+from app.core.utils import handle_db_error, get_valid_transitions
 from fastapi import Request
 
 logger = structlog.get_logger(__name__)
@@ -37,15 +38,7 @@ async def bulk_update_status(
         raise HTTPException(status_code=403, detail="Only influencers can mark content as received via proof upload.")
 
     # State Machine Rules
-    valid_transitions = {
-        "draft": ["active", "cancelled"],
-        "active": ["cancelled"], 
-        "content_received": ["approved", "rejected", "cancelled"],
-        "approved": ["paid", "cancelled"],
-        "paid": ["cancelled"],
-        "rejected": ["active", "cancelled", "approved", "content_received"], 
-        "cancelled": ["draft", "active"] 
-    }
+    valid_transitions = get_valid_transitions()
 
     valid_ids = []
     for camp in current_campaigns.data:
@@ -148,18 +141,7 @@ async def create_campaign(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error("Campaign creation failed", error=type(e).__name__, detail=str(e), user_id=user.user.id)
-        error_msg = str(e).lower()
-        if "violates unique constraint" in error_msg and "short_code" in error_msg:
-            raise HTTPException(status_code=400, detail="A tracking code conflict occurred. Please try again.")
-        if "foreign key" in error_msg:
-            raise HTTPException(status_code=400, detail="Invalid data reference. Make sure the linked data exists.")
-        if "not-null" in error_msg:
-            raise HTTPException(status_code=400, detail="Please fill in all required fields.")
-        if "violates" in error_msg:
-            raise HTTPException(status_code=400, detail="The provided data is invalid. Please double-check your inputs.")
-        raise HTTPException(status_code=500, detail="We couldn't create your campaign. Please try again or contact support if the issue persists.")
-
+        handle_db_error(e, logger, "Campaign creation failed", user.user.id)
 
 @router.put("/{id}", response_model=CampaignResponse)
 @limiter.limit("20/minute")
@@ -205,15 +187,7 @@ async def update_campaign_status(
         raise HTTPException(status_code=403, detail="Only influencers can mark content as received via proof upload.")
 
     # State Machine Rules
-    valid_transitions = {
-        "draft": ["active", "cancelled"],
-        "active": ["cancelled"], # 'content_received' happens via file upload only
-        "content_received": ["approved", "rejected", "cancelled"],
-        "approved": ["paid", "cancelled"],
-        "paid": ["cancelled"],
-        "rejected": ["active", "cancelled", "approved", "content_received"], # allow restoring to active, or direct approval
-        "cancelled": ["draft", "active"] # allow restoring from cancelled
-    }
+    valid_transitions = get_valid_transitions()
 
     if new_status != current_status and new_status not in valid_transitions.get(current_status, []):
         raise HTTPException(status_code=400, detail=f"Invalid transition from {current_status} to {new_status}")
