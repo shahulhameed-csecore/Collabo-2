@@ -16,13 +16,13 @@ register_heif_opener()
 logger = structlog.get_logger(__name__)
 
 class ExtractionResult(BaseModel):
-    influencer_name: str | None = Field(description="Name of the influencer")
-    influencer_handle: str | None = Field(description="Social media handle (e.g. @username)")
-    platform: str | None = Field(description="Platform like Instagram, YouTube, etc.")
-    deliverables: str | None = Field(description="What needs to be delivered (e.g. 1 Reel, 2 Stories)")
-    deadline: str | None = Field(description="Deadline in YYYY-MM-DD format if present")
+    influencer_name: str = Field(default="", description="Name of the influencer")
+    influencer_handle: str = Field(default="", description="Social media handle (e.g. @username)")
+    platform: str = Field(default="", description="Platform like Instagram, YouTube, etc.")
+    deliverables: str = Field(default="", description="What needs to be delivered (e.g. 1 Reel, 2 Stories)")
+    deadline: str = Field(default="", description="Deadline in YYYY-MM-DD format if present")
     payment_amount: float = Field(default=0.0, description="Payment amount in INR")
-    special_notes: str | None = Field(description="Any other important details or requirements")
+    special_notes: str = Field(default="", description="Any other important details or requirements")
     status: str = Field(default="draft", description="Current status")
     requires_human_review: bool = Field(default=False, description="True if extraction is uncertain or partial")
 
@@ -62,7 +62,7 @@ Extract the following details accurately:
 - payment_amount: Payment amount in INR (float). Convert words/slang to numbers.
 - special_notes: Any other important details (barter deal, strict guidelines, tags to use, shoutout mentions).
 
-If you are uncertain about any field, leave it as null. If multiple critical fields (handle, deliverables, deadline) are missing, set requires_human_review to true.
+If you are uncertain about any field, leave it as an empty string (""). If multiple critical fields (handle, deliverables, deadline) are missing or empty, set requires_human_review to true.
 """
 
 def compress_image(image_bytes: bytes, max_size_kb: int = 500, max_dim: int = 1600) -> bytes:
@@ -220,11 +220,11 @@ async def extract_campaign_data(file_bytes: bytes, filename: str, mime_type: str
         
         # Complete fallback: Never crash, always return usable JSON
         return ExtractionResult(
-            influencer_name=None,
-            influencer_handle=None,
-            platform=None,
-            deliverables=None,
-            deadline=None,
+            influencer_name="",
+            influencer_handle="",
+            platform="",
+            deliverables="",
+            deadline="",
             payment_amount=0.0,
             special_notes=error_msg,
             status="draft",
