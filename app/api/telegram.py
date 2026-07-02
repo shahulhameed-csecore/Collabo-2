@@ -36,12 +36,20 @@ async def process_telegram_message(update: dict):
             return
 
         update_id = update.get("update_id")
-        message = update.get("message") or update.get("channel_post")
-        if not message:
-            return # Ignore non-message updates (e.g., inline queries, callback queries)
-            
-        chat_id = message.get("chat", {}).get("id")
-        sender = message.get("from", {})
+        
+        is_callback = "callback_query" in update
+        if is_callback:
+            cb = update["callback_query"]
+            message = cb.get("message", {})
+            sender = cb.get("from", {})
+            chat_id = message.get("chat", {}).get("id") or sender.get("id")
+        else:
+            message = update.get("message") or update.get("channel_post")
+            if not message:
+                return # Ignore non-message updates (e.g., inline queries)
+            chat_id = message.get("chat", {}).get("id")
+            sender = message.get("from", {})
+
         username = sender.get("username")
         
         if not chat_id:
@@ -154,6 +162,7 @@ async def process_telegram_message(update: dict):
                 else:
                     await send_telegram_message(chat_id, "❌ Couldn't find a deadline to extend.")
                 return
+            return # Ensure we stop processing for all callback queries
 
         # 4. Handle Quick Replies (Yes, Correct, Draft, No)
         if "text" in message:
