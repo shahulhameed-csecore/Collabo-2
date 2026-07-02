@@ -673,6 +673,8 @@ async def check_deadlines_job() -> dict:
                         "reminders.48h_email_skipped",
                         email_enabled=email_enabled,
                         has_user_id=bool(user_id),
+                    )
+
                 # Always mark flag — even if no channels are configured,
                 # so we don't flood logs on every job run.
                 _mark_flag(supabase, campaign_id, "reminder_48h_sent", clog)
