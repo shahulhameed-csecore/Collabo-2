@@ -7,6 +7,7 @@ from app.core.config import settings
 from app.core.limiter import limiter
 from supabase import create_client
 from app.services.gemini import extract_campaign_data
+from app.core.utils import parse_corrections, format_campaign_summary_wa
 from app.services.whatsapp import send_whatsapp_message, download_whatsapp_media
 
 logger = structlog.get_logger(__name__)
@@ -112,6 +113,9 @@ async def process_whatsapp_message(sender_id: str, message: dict):
             base = clean_sender[1:]
             possible_numbers.extend([base, f"+1{base}"])
             
+        if len(clean_sender) == 10:
+            possible_numbers.extend([f"91{clean_sender}", f"+91{clean_sender}"])
+            
         possible_numbers = list(set(possible_numbers)) # Remove duplicates
 
         user_response = (
@@ -138,12 +142,78 @@ async def process_whatsapp_message(sender_id: str, message: dict):
         user_id = user_response.data[0]["user_id"]
         logger.info("Matched user account", user_id=user_id)
 
-        # 3. Extract content (Text / Audio / Image)
         msg_type = message.get("type")
         content_for_gemini = None
 
+        # 3. Handle Quick Replies (Yes, Draft, No) & Corrections
         if msg_type == "text":
-            content_for_gemini = message.get("text", {}).get("body", "").strip()
+            text_val = message.get("text", {}).get("body", "").strip()
+            text_lower = text_val.lower()
+            
+            # Check for short confirmation intents
+            if len(text_lower) < 20 and text_lower in ["yes", "correct", "y", "yep", "draft", "no", "wrong"]:
+                recent_draft_resp = (
+                    supabase_admin.table("campaigns")
+                    .select("*")
+                    .eq("user_id", user_id)
+                    .eq("status", "draft")
+                    .ilike("special_notes", "%[wa_msg:%")
+                    .order("created_at", desc=True)
+                    .limit(1)
+                    .execute()
+                )
+                
+                if recent_draft_resp.data:
+                    draft = recent_draft_resp.data[0]
+                    name = draft.get("influencer_name") or draft.get("influencer_handle") or "Unknown"
+                    
+                    if text_lower in ["yes", "correct", "y", "yep"]:
+                        supabase_admin.table("campaigns").update({"status": "active"}).eq("id", draft["id"]).execute()
+                        await send_whatsapp_message(sender_id, f"✅ Done! The campaign for *{name}* is now Active.")
+                        return
+                    elif text_lower == "draft":
+                        await send_whatsapp_message(sender_id, f"📝 Saved! The campaign for *{name}* will remain a Draft. You can edit it later in your dashboard.")
+                        return
+                    elif text_lower in ["no", "wrong"]:
+                        await send_whatsapp_message(sender_id, f"Got it. The campaign for *{name}* is saved as a Draft. Please edit the details manually in your Collabo dashboard.")
+                        return
+
+            # Check for inline corrections
+            if len(text_val) < 200:
+                corrections, unparsed_date = parse_corrections(text_val)
+                if corrections or unparsed_date:
+                    recent_draft_resp = (
+                        supabase_admin.table("campaigns")
+                        .select("*")
+                        .eq("user_id", user_id)
+                        .eq("status", "draft")
+                        .ilike("special_notes", "%[wa_msg:%")
+                        .order("created_at", desc=True)
+                        .limit(1)
+                        .execute()
+                    )
+                    
+                    if recent_draft_resp.data:
+                        draft = recent_draft_resp.data[0]
+                        if corrections:
+                            supabase_admin.table("campaigns").update(corrections).eq("id", draft["id"]).execute()
+                        
+                        updated_draft = {**draft, **corrections}
+                        base_summary = format_campaign_summary_wa(updated_draft)
+                        base_summary = base_summary.replace("🤖 *I've extracted the following details:*\n\n", "")
+                        base_summary = base_summary.replace("🤖 *Collabo AI*\n\n⚠️ Some details were unclear to me. I've created a *Draft*.\n\n", "")
+                        summary_msg = "🤖 *Got it! I've updated the details:*\n\n" + base_summary
+                        
+                        if unparsed_date:
+                            summary_msg = f"⚠️ I couldn't understand the date '*{unparsed_date}*'. Please use a format like '15 July' or 'YYYY-MM-DD'.\n\n" + summary_msg
+                            
+                        await send_whatsapp_message(sender_id, summary_msg)
+                        return
+                    else:
+                        await send_whatsapp_message(sender_id, "❌ I couldn't find a recent draft to update. The campaign might already be Active or Deleted. Please send a new message to extract.")
+                        return
+                        
+            content_for_gemini = text_val
             if not content_for_gemini:
                 await send_whatsapp_message(
                     sender_id,
@@ -223,17 +293,11 @@ async def process_whatsapp_message(sender_id: str, message: dict):
             except Exception as e:
                 logger.error("Failed to increment AI count via whatsapp webhook", error=str(e))
 
-        if extracted_data.get("requires_human_review"):
-            await send_whatsapp_message(
-                sender_id,
-                "🤖 *Collabo AI*\n\n⚠️ Some details were unclear to me (like the exact price or dates). I've created a *Draft* campaign for you to review in the dashboard.",
-            )
-
         # 5. Insert into Supabase
         campaign_data = {k: v for k, v in extracted_data.items() if k != "requires_human_review"}
 
         if not campaign_data.get("influencer_handle"):
-            campaign_data["influencer_handle"] = campaign_data.get("influencer_name") or "Unknown Influencer"
+            campaign_data["influencer_handle"] = "N/A"
         if not campaign_data.get("platform"):
             campaign_data["platform"] = "Others"
 
@@ -241,7 +305,10 @@ async def process_whatsapp_message(sender_id: str, message: dict):
             campaign_data["deadline"] = None
 
         campaign_data["user_id"] = user_id
-        campaign_data["status"] = "draft"
+        
+        extracted_status = campaign_data.get("status")
+        if extracted_status not in ["active", "draft", "completed", "cancelled"]:
+            campaign_data["status"] = "draft"
 
         # Embed message ID in special_notes for idempotency tracking
         if message_id:
@@ -251,13 +318,18 @@ async def process_whatsapp_message(sender_id: str, message: dict):
         insert_response = supabase_admin.table("campaigns").insert(campaign_data).execute()
 
         if insert_response.data:
-            logger.info("Campaign inserted successfully into DB", campaign_id=insert_response.data[0].get("id"))
-            influencer = extracted_data.get("influencer_handle") or extracted_data.get("influencer_name") or "Unknown"
-            success = await send_whatsapp_message(
-                sender_id, f"✅ Success! Campaign created for *{influencer}*.\n\nIt is now safely tracked in your Collabo dashboard."
-            )
-            logger.info("Sent success message to user", success=success)
+            inserted_campaign = insert_response.data[0]
+            logger.info("Campaign inserted successfully into DB", campaign_id=inserted_campaign.get("id"))
             
+            summary = format_campaign_summary_wa(
+                inserted_campaign, 
+                is_review=extracted_data.get("requires_human_review", False)
+            )
+            
+            success = await send_whatsapp_message(sender_id, summary)
+            logger.info("Sent summary message to user", success=success)
+            
+            influencer = inserted_campaign.get("influencer_name") or inserted_campaign.get("influencer_handle") or "Unknown"
             from app.services.notifications import create_notification
             if extracted_data.get("requires_human_review"):
                 await create_notification(
@@ -285,11 +357,22 @@ async def process_whatsapp_message(sender_id: str, message: dict):
 
     except Exception as e:
         logger.error("WhatsApp processing error", error=str(e), exc_info=True)
+        # Log to DB so we can see it!
+        if supabase_admin:
+            try:
+                supabase_admin.table("campaigns").insert({
+                    "status": "draft",
+                    "special_notes": f"CRASH: {str(e)}",
+                    "influencer_name": "DEBUG CRASH WA",
+                    "user_id": user_id if 'user_id' in locals() else None
+                }).execute()
+            except:
+                pass
         
-        await send_whatsapp_message(
-            sender_id, "🤖 *Collabo AI*\n\n❌ Oops, my servers hit a snag while processing that message. Please try again!"
-        )
-
+        if 'sender_id' in locals() and sender_id:
+            await send_whatsapp_message(
+                sender_id, "🤖 *Collabo AI*\n\n❌ Oops, my servers hit a snag while processing that message. Please try again!"
+            )
 
 @router.post("/whatsapp")
 @limiter.limit("200/minute")

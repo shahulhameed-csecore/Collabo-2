@@ -159,6 +159,40 @@ def format_campaign_summary(campaign: dict, is_review: bool = False) -> str:
         f"Reply <b>Yes</b> to make it Active, <b>Draft</b> to save, or correct any field (e.g., 'Payment: 15000')."
     )
 
+def format_campaign_summary_wa(campaign: dict, is_review: bool = False) -> str:
+    """Helper to format the summary message consistently for WhatsApp using *bold* instead of HTML."""
+    handle = campaign.get('influencer_handle') or 'N/A'
+    plat = campaign.get('platform') or 'N/A'
+    deliv = campaign.get('deliverables') or 'N/A'
+    deadl = campaign.get('deadline') or 'N/A'
+    
+    raw_pay = campaign.get('payment_amount', 0.0)
+    try:
+        pay = float(raw_pay) if raw_pay is not None else 0.0
+    except ValueError:
+        pay = 0.0
+        
+    influencer_name = campaign.get('influencer_name')
+    if not influencer_name or influencer_name == 'Unknown Influencer':
+        influencer = handle if handle != 'N/A' else 'Unknown'
+    else:
+        influencer = influencer_name
+        
+    # No HTML escaping needed for WhatsApp, just basic string replacement
+    prefix = "🤖 *Collabo AI*\n\n⚠️ Some details were unclear to me. I've created a *Draft*.\n\n" if is_review else "🤖 *I've extracted the following details:*\n\n"
+    
+    return (
+        f"{prefix}"
+        f"👤 *Name:* {influencer}\n"
+        f"🔗 *Handle:* {handle}\n"
+        f"📱 *Platform:* {plat}\n"
+        f"📦 *Deliverables:* {deliv}\n"
+        f"⏳ *Deadline:* {deadl}\n"
+        f"💰 *Payment:* ₹{pay:,.2f}\n\n"
+        f"*Is this correct?*\n"
+        f"Reply *Yes* to make it Active, *Draft* to save, or correct any field (e.g., 'Payment: 15000')."
+    )
+
 def get_valid_transitions() -> dict[str, list[str]]:
     """Defines the valid state transitions for campaigns."""
     return {
