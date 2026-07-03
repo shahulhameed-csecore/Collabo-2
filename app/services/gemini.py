@@ -172,13 +172,22 @@ async def _call_gemini_with_fallback(client: genai.Client, contents: list) -> Ex
 async def extract_campaign_data(file_bytes: bytes, filename: str, mime_type: str) -> dict:
     """Main extraction pipeline with two-stage fallback."""
     try:
-        api_key = os.getenv("GEMINI_API_KEY")
-        if not api_key:
+        from app.core.config import settings
+        
+        api_key_1 = settings.GEMINI_API_KEY_1 or settings.GEMINI_API_KEY or os.getenv("GEMINI_API_KEY_1") or os.getenv("GEMINI_API_KEY")
+        api_key_2 = settings.GEMINI_API_KEY_2 or os.getenv("GEMINI_API_KEY_2")
+        
+        keys_to_try = []
+        if api_key_1:
+            keys_to_try.append(("Key 1", api_key_1))
+        if api_key_2:
+            keys_to_try.append(("Key 2", api_key_2))
+            
+        if not keys_to_try:
             logger.error("gemini_api_key_missing")
             # We don't raise here, we want to return the fallback response
             raise ValueError("GEMINI_API_KEY is not configured on the server")
             
-        client = genai.Client(api_key=api_key)
         contents = []
         text_fallback = ""
         has_images = False
@@ -213,27 +222,53 @@ async def extract_campaign_data(file_bytes: bytes, filename: str, mime_type: str
             text_fallback = file_bytes.decode('utf-8', errors='ignore')
             contents.append(text_fallback)
 
-        try:
-            # Stage 1: Attempt extraction with all contents (images + text)
-            result = await _call_gemini_with_fallback(client, contents)
+        last_error = None
+        for key_name, api_key in keys_to_try:
+            logger.info(f"attempting_gemini_extraction_with_{key_name.lower().replace(' ', '_')}")
+            client = genai.Client(api_key=api_key)
             
-            # Post-process to ensure requires_human_review is true if critical fields are missing
-            if (not result.influencer_handle and not result.influencer_name) or not result.deadline or not result.deliverables:
-                result.requires_human_review = True
+            try:
+                # Stage 1: Attempt extraction with all contents (images + text)
+                result = await _call_gemini_with_fallback(client, contents)
                 
-            return result.model_dump()
-        except Exception as e:
-            logger.warning("gemini_stage1_failed", error=str(e))
-            # Stage 2 Fallback: If it had images, try text-only
-            if has_images and text_fallback.strip():
-                logger.info("gemini_stage2_fallback_triggered")
-                fallback_result = await _call_gemini_with_fallback(client, [text_fallback])
-                fallback_dict = fallback_result.model_dump()
-                fallback_dict["requires_human_review"] = True
-                fallback_dict["special_notes"] = (fallback_dict.get("special_notes") or "") + "\n(Note: Image extraction failed. Partial data extracted from text.)"
-                return fallback_dict
-            else:
-                raise e
+                # Post-process to ensure requires_human_review is true if critical fields are missing
+                if (not result.influencer_handle and not result.influencer_name) or not result.deadline or not result.deliverables:
+                    result.requires_human_review = True
+                    
+                return result.model_dump()
+            except Exception as e:
+                logger.warning("gemini_stage1_failed", key=key_name, error=str(e))
+                last_error = e
+                err_str = str(e).lower()
+                
+                # If quota error, switch to next key immediately
+                if "429" in err_str or "quota" in err_str or "resource_exhausted" in err_str:
+                    logger.warning("quota_exhausted_switching_keys", key=key_name)
+                    continue
+                
+                # Stage 2 Fallback: If it had images, try text-only
+                if has_images and text_fallback.strip():
+                    logger.info("gemini_stage2_fallback_triggered", key=key_name)
+                    try:
+                        fallback_result = await _call_gemini_with_fallback(client, [text_fallback])
+                        fallback_dict = fallback_result.model_dump()
+                        fallback_dict["requires_human_review"] = True
+                        fallback_dict["special_notes"] = (fallback_dict.get("special_notes") or "") + f"\n(Note: Image extraction failed on {key_name}. Partial data extracted from text.)"
+                        return fallback_dict
+                    except Exception as e2:
+                        logger.warning("gemini_stage2_failed", key=key_name, error=str(e2))
+                        last_error = e2
+                        err2_str = str(e2).lower()
+                        if "429" in err2_str or "quota" in err2_str or "resource_exhausted" in err2_str:
+                            logger.warning("quota_exhausted_stage2_switching_keys", key=key_name)
+                            continue
+                else:
+                    # If we don't have a text fallback and it's not a quota error,
+                    # we can still try the next key just in case it was a transient error specific to that endpoint/key.
+                    pass
+        
+        # If we reach here, all keys and stages failed
+        raise last_error or ValueError("All Gemini API keys failed")
 
     except Exception as e:
         logger.error("gemini_extraction_failed_completely", error=str(e), exc_info=True)
