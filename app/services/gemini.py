@@ -2,7 +2,7 @@ import io
 import os
 import structlog
 from pydantic import BaseModel, Field
-from tenacity import retry, wait_exponential, stop_after_attempt
+from tenacity import retry, wait_exponential, stop_after_attempt, retry_if_exception
 import asyncio
 from pypdf import PdfReader
 from PIL import Image
@@ -134,13 +134,21 @@ def parse_pdf(file_bytes: bytes) -> tuple[str, list[bytes]]:
         logger.error("pdf_parsing_failed", error=str(e))
         return "", []
 
-@retry(wait=wait_exponential(multiplier=1, min=2, max=10), stop=stop_after_attempt(4))
-async def _call_gemini(client: genai.Client, contents: list) -> ExtractionResult:
+def is_retryable_error(exception: Exception) -> bool:
+    err_str = str(exception).lower()
+    if "429" in err_str or "quota" in err_str or "resource_exhausted" in err_str:
+        return False
+    if "404" in err_str or "not_found" in err_str:
+        return False
+    return True
+
+@retry(wait=wait_exponential(multiplier=1, min=2, max=10), stop=stop_after_attempt(4), retry=retry_if_exception(is_retryable_error))
+async def _call_gemini(client: genai.Client, contents: list, model: str = 'gemini-3.5-flash') -> ExtractionResult:
     """Makes the actual API call with retries and timeout."""
     # Using asyncio.wait_for to enforce 120s timeout per attempt
     response = await asyncio.wait_for(
         client.aio.models.generate_content(
-            model='gemini-2.5-flash',
+            model=model,
             contents=contents,
             config=types.GenerateContentConfig(
                 system_instruction=get_system_prompt(),
@@ -152,6 +160,14 @@ async def _call_gemini(client: genai.Client, contents: list) -> ExtractionResult
         timeout=120.0
     )
     return ExtractionResult.model_validate_json(response.text)
+
+async def _call_gemini_with_fallback(client: genai.Client, contents: list) -> ExtractionResult:
+    """Attempts extraction with 3.5-flash, falls back to 2.5-flash on failure/quota."""
+    try:
+        return await _call_gemini(client, contents, model='gemini-3.5-flash')
+    except Exception as e:
+        logger.warning("gemini_3_5_flash_failed_falling_back", error=str(e))
+        return await _call_gemini(client, contents, model='gemini-2.5-flash')
 
 async def extract_campaign_data(file_bytes: bytes, filename: str, mime_type: str) -> dict:
     """Main extraction pipeline with two-stage fallback."""
@@ -199,7 +215,7 @@ async def extract_campaign_data(file_bytes: bytes, filename: str, mime_type: str
 
         try:
             # Stage 1: Attempt extraction with all contents (images + text)
-            result = await _call_gemini(client, contents)
+            result = await _call_gemini_with_fallback(client, contents)
             
             # Post-process to ensure requires_human_review is true if critical fields are missing
             if (not result.influencer_handle and not result.influencer_name) or not result.deadline or not result.deliverables:
@@ -211,7 +227,7 @@ async def extract_campaign_data(file_bytes: bytes, filename: str, mime_type: str
             # Stage 2 Fallback: If it had images, try text-only
             if has_images and text_fallback.strip():
                 logger.info("gemini_stage2_fallback_triggered")
-                fallback_result = await _call_gemini(client, [text_fallback])
+                fallback_result = await _call_gemini_with_fallback(client, [text_fallback])
                 fallback_dict = fallback_result.model_dump()
                 fallback_dict["requires_human_review"] = True
                 fallback_dict["special_notes"] = (fallback_dict.get("special_notes") or "") + "\n(Note: Image extraction failed. Partial data extracted from text.)"
