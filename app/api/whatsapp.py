@@ -298,6 +298,7 @@ async def meta_whatsapp_webhook(request: Request, background_tasks: BackgroundTa
     Receives incoming WhatsApp messages via Meta Cloud API.
     Always returns 200 OK quickly; heavy work is offloaded to a background task.
     """
+    print("WEBHOOK REACHED")
     payload_bytes = await request.body()
     signature_header = request.headers.get("X-Hub-Signature-256", "")
     
