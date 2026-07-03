@@ -334,7 +334,10 @@ async def process_telegram_message(update: dict):
             campaign_data["deadline"] = None
 
         campaign_data["user_id"] = user_id
-        campaign_data["status"] = "draft"
+        
+        extracted_status = campaign_data.get("status")
+        if extracted_status not in ["active", "draft", "completed", "cancelled"]:
+            campaign_data["status"] = "draft"
 
         # Embed update ID in special_notes for idempotency tracking
         if update_id:
