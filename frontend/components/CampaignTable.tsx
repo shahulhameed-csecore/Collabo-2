@@ -33,6 +33,17 @@ import {
 } from '@/components/CampaignTableUtils';
 
 // ─── Main Component ───────────────────────────────────────────────────────────
+const formatCSVDate = (dateStr?: string | null) => {
+  if (!dateStr) return '""';
+  try {
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return '""';
+    return `"${d.toISOString().split('T')[0]}"`;
+  } catch {
+    return '""';
+  }
+};
+
 export default function CampaignTable({ campaigns, isLoading, onRefresh, onCreateNew, onEdit, onLoadSampleData, onClearSampleData }: CampaignTableProps) {
   const [filters, setFilters] = useState<FilterState>({ search: '', status: 'all', platform: '' });
   const [sortKey, setSortKey] = useState<keyof Campaign>('created_at');
@@ -138,10 +149,10 @@ export default function CampaignTable({ campaigns, isLoading, onRefresh, onCreat
       `"${c.influencer_handle || ''}"`,
       `"${c.platform || ''}"`,
       `"${(c.deliverables || '').replace(/"/g, '""')}"`,
-      c.deadline || '',
+      formatCSVDate(c.deadline),
       c.payment_amount || 0,
-      c.status,
-      c.created_at
+      `"${c.status}"`,
+      formatCSVDate(c.created_at)
     ]);
 
     const csvContent = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
@@ -216,10 +227,10 @@ export default function CampaignTable({ campaigns, isLoading, onRefresh, onCreat
       `"${c.influencer_handle || ''}"`,
       `"${c.platform || ''}"`,
       `"${(c.deliverables || '').replace(/"/g, '""')}"`,
-      c.deadline || '',
+      formatCSVDate(c.deadline),
       c.payment_amount || 0,
-      c.status,
-      c.created_at
+      `"${c.status}"`,
+      formatCSVDate(c.created_at)
     ]);
 
     const csvContent = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
