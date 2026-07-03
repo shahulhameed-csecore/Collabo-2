@@ -42,11 +42,15 @@ async def get_influencers(
                 "resolved_campaigns": 0,
                 "successful_campaigns": 0,
                 "last_collaboration": None,
-                "notes": None
+                "notes": None,
+                "names_set": set()
             }
         
         stats = influencer_stats[group_key]
         stats["total_campaigns"] += 1
+        
+        if name and str(name).strip() and str(name).strip().lower() != "unknown":
+            stats["names_set"].add(str(name).strip())
         
         status = c.get("status")
         if status in ["approved", "paid", "cancelled"]:
@@ -92,6 +96,9 @@ async def get_influencers(
     # Format response
     response_data = []
     for stats in influencer_stats.values():
+        if "names_set" in stats and stats["names_set"]:
+            stats["name"] = " / ".join(sorted(stats["names_set"]))
+            
         success_rate = (stats["successful_campaigns"] / stats["resolved_campaigns"]) * 100 if stats["resolved_campaigns"] > 0 else 0.0
         response_data.append(InfluencerResponse(
             handle=stats["handle"],
