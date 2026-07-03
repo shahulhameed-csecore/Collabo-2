@@ -218,7 +218,9 @@ export default function InfluencersPage() {
                               <p className="font-semibold text-slate-900 dark:text-white text-sm group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
                                 {inf.name || 'Unknown'}
                               </p>
-                              <p className="text-xs text-slate-400">{inf.handle}</p>
+                              <p className="text-xs text-slate-400">
+                                {inf.handle.startsWith('[name]:') || inf.handle.startsWith('[id]:') ? 'N/A' : inf.handle}
+                              </p>
                             </div>
                           </div>
                         </td>
@@ -281,8 +283,10 @@ export default function InfluencersPage() {
                   {(selectedInfluencer.name || selectedInfluencer.handle).slice(0,2).toUpperCase()}
                 </div>
                 <div>
-                  <h2 className="text-xl font-bold text-slate-900 dark:text-white">{selectedInfluencer.name || selectedInfluencer.handle}</h2>
-                  <p className="text-emerald-600 dark:text-emerald-400 font-medium text-sm">{selectedInfluencer.handle}</p>
+                  <h2 className="text-xl font-bold text-slate-900 dark:text-white">{selectedInfluencer.name || 'Unknown'}</h2>
+                  <p className="text-emerald-600 dark:text-emerald-400 font-medium text-sm">
+                    {selectedInfluencer.handle.startsWith('[name]:') || selectedInfluencer.handle.startsWith('[id]:') ? 'N/A' : selectedInfluencer.handle}
+                  </p>
                 </div>
               </div>
               <button 

@@ -20,17 +20,23 @@ async def get_influencers(
         structlog.get_logger(__name__).error("influencers_campaigns_fetch_failed", error=str(e))
         campaigns = []
 
-    # Group by handle
+    # Group by handle or fallback to name/id
     influencer_stats = {}
     for c in campaigns:
-        handle = c.get("influencer_handle")
-        if not handle:
-            continue
+        raw_handle = c.get("influencer_handle")
+        name = c.get("influencer_name")
         
-        if handle not in influencer_stats:
-            influencer_stats[handle] = {
-                "handle": handle,
-                "name": c.get("influencer_name"),
+        if raw_handle and str(raw_handle).strip() and str(raw_handle).strip().lower() != "n/a":
+            group_key = str(raw_handle).strip()
+        elif name and str(name).strip() and str(name).strip().lower() != "unknown":
+            group_key = f"[name]:{str(name).strip()}"
+        else:
+            group_key = f"[id]:{c.get('id')}"
+        
+        if group_key not in influencer_stats:
+            influencer_stats[group_key] = {
+                "handle": group_key,
+                "name": name,
                 "platform": c.get("platform"),
                 "total_campaigns": 0,
                 "resolved_campaigns": 0,
@@ -39,7 +45,7 @@ async def get_influencers(
                 "notes": None
             }
         
-        stats = influencer_stats[handle]
+        stats = influencer_stats[group_key]
         stats["total_campaigns"] += 1
         
         status = c.get("status")
