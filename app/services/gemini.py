@@ -140,7 +140,7 @@ async def _call_gemini(client: genai.Client, contents: list) -> ExtractionResult
     # Using asyncio.wait_for to enforce 120s timeout per attempt
     response = await asyncio.wait_for(
         client.aio.models.generate_content(
-            model='gemini-2.5-flash',
+            model='gemini-1.5-flash',
             contents=contents,
             config=types.GenerateContentConfig(
                 system_instruction=get_system_prompt(),
@@ -222,8 +222,12 @@ async def extract_campaign_data(file_bytes: bytes, filename: str, mime_type: str
     except Exception as e:
         logger.error("gemini_extraction_failed_completely", error=str(e), exc_info=True)
         
-        # Detect if it was an audio failure vs image/text failure
         error_msg = f"AI Extraction failed ({str(e)}). Please enter details manually."
+        
+        # Check for Google API Quota limits (429 RESOURCE_EXHAUSTED)
+        if "429" in str(e) or "quota" in str(e).lower() or "resource_exhausted" in str(e).lower():
+            error_msg = "Google AI Quota exceeded (Rate limit). Please try again in 1 minute."
+            
         if mime_type and mime_type.startswith("audio/"):
             error_msg = "Voice note transcription failed or was unclear. Please send text or a screenshot instead."
         
