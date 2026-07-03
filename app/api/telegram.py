@@ -220,7 +220,10 @@ async def process_telegram_message(update: dict):
                         # Merge corrections into draft dict for immediate display
                         updated_draft = {**draft, **corrections}
                         
-                        summary_msg = "🤖 <b>Got it! I've updated the details:</b>\n\n" + format_campaign_summary(updated_draft).replace("🤖 <b>I've extracted the following details:</b>\n\n", "")
+                        base_summary = format_campaign_summary(updated_draft)
+                        base_summary = base_summary.replace("🤖 <b>I've extracted the following details:</b>\n\n", "")
+                        base_summary = base_summary.replace("🤖 <b>Collabo AI</b>\n\n⚠️ Some details were unclear to me. I've created a <b>Draft</b>.\n\n", "")
+                        summary_msg = "🤖 <b>Got it! I've updated the details:</b>\n\n" + base_summary
                         
                         if unparsed_date:
                             summary_msg = f"⚠️ I couldn't understand the date '<b>{html.escape(unparsed_date)}</b>'. Please use a format like '15 July' or 'YYYY-MM-DD'.\n\n" + summary_msg

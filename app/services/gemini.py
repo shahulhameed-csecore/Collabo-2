@@ -41,11 +41,11 @@ CRITICAL CONTEXT:
 - Today's Date is: {date_str} ({day_str}). Use this to calculate exact relative deadlines!
   - 'aaj' / 'today' = {date_str}
   - 'kal' / 'tomorrow' = Add 1 day
-  - 'parso' / 'day after' = Add 2 days
+  - 'parso' / 'day after' / 'parson' = Add 2 days
   - 'next week' = Add 7 days
 
 SLANG & TERMINOLOGY DICTIONARY:
-- 'k', 'hazaar', 'hazari' = thousand (e.g., '10k' or '10 hazaar' = 10000.0)
+- 'k', 'k', 'hazaar', 'hazari' = thousand (e.g., '10k' or '10 hazaar' = 10000.0, '15k' = 15000.0)
 - 'peti', 'lakh', 'lac' = hundred thousand (e.g., '2 peti' or '1.5 lakh' = 150000.0)
 - 'khoka', 'koka', 'cr', 'crore' = ten million (e.g., '1 cr' = 10000000.0)
 - 'barter', 'collab' (without money), 'freebie' = Set payment_amount to 0.0 and note 'Barter deal' in special_notes
@@ -58,11 +58,14 @@ Extract the following details accurately:
 - influencer_handle: Social media handle (e.g., @username). If not explicitly stated with @, infer from the name if obvious.
 - platform: Platform like Instagram, YouTube, etc. 
 - deliverables: What needs to be delivered (e.g. 1 Reel, 2 Stories). Translate Hinglish like 'do reel' to '2 Reels'.
-- deadline: Deadline in YYYY-MM-DD format if present. If uncertain, leave null.
+- deadline: Deadline in YYYY-MM-DD format if present. If uncertain, leave null or empty string.
 - payment_amount: Payment amount in INR (float). Convert words/slang to numbers.
 - special_notes: Any other important details (barter deal, strict guidelines, tags to use, shoutout mentions).
 
-If you are uncertain about any field, leave it as an empty string (""). If multiple critical fields (handle, deliverables, deadline) are missing or empty, set requires_human_review to true.
+INSTRUCTIONS FOR MISSING DATA:
+If you are uncertain about any field, leave it as an empty string ("") or 0.0 for payment. DO NOT guess if there is no context.
+If multiple critical fields (handle, deliverables, deadline) are missing or empty, set requires_human_review to true.
+Even if messy or short, extract whatever is available.
 """
 
 def compress_image(image_bytes: bytes, max_size_kb: int = 500, max_dim: int = 1600) -> bytes:
@@ -193,7 +196,7 @@ async def extract_campaign_data(file_bytes: bytes, filename: str, mime_type: str
             result = await _call_gemini(client, contents)
             
             # Post-process to ensure requires_human_review is true if critical fields are missing
-            if not result.influencer_handle or not result.deadline or not result.deliverables:
+            if (not result.influencer_handle and not result.influencer_name) or not result.deadline or not result.deliverables:
                 result.requires_human_review = True
                 
             return result.model_dump()

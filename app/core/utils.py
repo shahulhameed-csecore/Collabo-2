@@ -5,6 +5,10 @@ from datetime import datetime, timedelta
 def parse_date_string(date_str: str) -> str | None:
     """Parses natural language dates into YYYY-MM-DD."""
     date_str = date_str.strip().lower()
+    
+    # Remove common conversational time words to simplify parsing
+    date_str = re.sub(r'\b(shaam|subah|morning|evening|night|raat|ko|in the|at|by|on)\b', '', date_str).strip()
+    
     today = datetime.now()
     
     # 1. Hinglish and relative words
@@ -72,11 +76,12 @@ def parse_corrections(text: str) -> tuple[dict, str | None]:
     unparsed_date_msg = None
     lines = text.split('\n')
     
-    # Matches optional words like "influencer", "campaign", "the" before the keyword
+    # Matches optional words like "change", "set", "influencer", "campaign", "the" before the keyword
     pattern = re.compile(
-        r'^(?:(?:influencer|campaign|the)\s+)?'
+        r'^(?:(?:change|set|update|make)\s+)?'
+        r'(?:(?:influencer|campaign|the)\s+)?'
         r'(name|handle|platform|deliverables?|deadline|date|payment|amount|price|fee|notes?)'
-        r'(?:\s*:\s*|\s*=\s*|\s+is\s+|\s+)'
+        r'(?:\s*:\s*|\s*=\s*|\s+is\s+|\s+to\s+|\s+)'
         r'(.+)$', 
         re.IGNORECASE
     )
