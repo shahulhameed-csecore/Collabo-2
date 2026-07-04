@@ -28,10 +28,10 @@ export const viewport: Viewport = {
 
 export const metadata: Metadata = {
   // metadataBase is REQUIRED on Vercel: it converts relative paths like
-  // '/logo-full.png' into absolute URLs ('https://collabo-2.vercel.app/logo-full.png')
+  // '/logo-full.png' into absolute URLs ('https://mycollabo.online/logo-full.png')
   // for Open Graph and Twitter card previews. Without it, social scrapers
   // get a relative URL and show no image.
-  metadataBase: new URL('https://collabo-2.vercel.app'),
+  metadataBase: new URL(process.env.NEXT_PUBLIC_BASE_URL || 'https://mycollabo.online'),
 
   title: {
     template: 'Collabo — %s',
@@ -43,7 +43,7 @@ export const metadata: Metadata = {
     'influencer marketing', 'campaign management', 'D2C brands',
     'India', 'micro-influencer', 'WhatsApp bot', 'AI extraction',
   ],
-  authors: [{ name: 'Collabo', url: 'https://collabo-2.vercel.app' }],
+  authors: [{ name: 'Collabo', url: process.env.NEXT_PUBLIC_BASE_URL || 'https://mycollabo.online' }],
 
   icons: {
     icon: [{ url: '/logo-icon.png', type: 'image/png' }],
@@ -55,7 +55,7 @@ export const metadata: Metadata = {
     title: 'Collabo — AI-powered Influencer Campaign Management',
     description:
       'Forward WhatsApp negotiations to our AI bot. Instantly extract campaign data and track deadlines in your dashboard.',
-    url: 'https://collabo-2.vercel.app',
+    url: process.env.NEXT_PUBLIC_BASE_URL || 'https://mycollabo.online',
     siteName: 'Collabo',
     type: 'website',
     locale: 'en_IN',

@@ -197,18 +197,31 @@ export default function SettingsPage() {
                         <div className="flex-shrink-0 w-7 h-7 rounded-full bg-white dark:bg-slate-900 border-2 border-emerald-500 shadow-sm shadow-emerald-500/20 flex items-center justify-center text-xs font-black text-emerald-600 dark:text-emerald-400 z-10">1</div>
                         <div className="pt-1">
                           <p className="text-sm text-slate-900 dark:text-white font-bold leading-snug mb-1">Save the Bot Number</p>
-                          <p className="text-xs text-slate-500 leading-relaxed mb-3">Add this official number to your phone's contacts as "Collabo Bot".</p>
-                          <div className="inline-flex items-center gap-0 bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-shadow">
-                            <div className="px-4 py-2.5 bg-slate-50 dark:bg-slate-800/80 border-r border-slate-200 dark:border-slate-800">
-                              <code className="text-sm font-mono font-bold text-slate-900 dark:text-emerald-400">{botNumber}</code>
+                          <p className="text-xs text-slate-500 leading-relaxed mb-3">Add this official number to your phone's contacts as "Collabo Bot" or scan the QR code.</p>
+                          
+                          <div className="flex flex-col sm:flex-row gap-6 items-start">
+                            <div className="inline-flex flex-col gap-3">
+                              <div className="inline-flex items-center gap-0 bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-shadow">
+                                <div className="px-4 py-2.5 bg-slate-50 dark:bg-slate-800/80 border-r border-slate-200 dark:border-slate-800">
+                                  <code className="text-sm font-mono font-bold text-slate-900 dark:text-emerald-400">{botNumber}</code>
+                                </div>
+                                <button 
+                                  onClick={handleCopy}
+                                  className="px-4 py-2.5 text-slate-500 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-500/10 transition-colors flex items-center gap-2 group"
+                                >
+                                  {copied ? <Check className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4 group-hover:scale-110 transition-transform" />}
+                                  <span className={`text-xs font-bold uppercase tracking-wider ${copied ? 'text-emerald-500' : ''}`}>{copied ? 'Copied' : 'Copy'}</span>
+                                </button>
+                              </div>
+                              <a href={`https://wa.me/${botNumber.replace(/[^0-9]/g, '')}`} target="_blank" rel="noopener noreferrer" className="text-xs font-bold text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 dark:hover:text-emerald-300 flex items-center gap-1">
+                                Click here to open WhatsApp &rarr;
+                              </a>
                             </div>
-                            <button 
-                              onClick={handleCopy}
-                              className="px-4 py-2.5 text-slate-500 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-500/10 transition-colors flex items-center gap-2 group"
-                            >
-                              {copied ? <Check className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4 group-hover:scale-110 transition-transform" />}
-                              <span className={`text-xs font-bold uppercase tracking-wider ${copied ? 'text-emerald-500' : ''}`}>{copied ? 'Copied' : 'Copy'}</span>
-                            </button>
+
+                            <div className="flex flex-col items-center p-3 bg-white dark:bg-slate-900/50 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm hidden sm:flex">
+                              <p className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">Scan to Chat</p>
+                              <img src="/whatsapp-qr.png" alt="WhatsApp QR Code" className="w-24 h-24 rounded-lg object-contain bg-white p-1" />
+                            </div>
                           </div>
                         </div>
                       </div>
