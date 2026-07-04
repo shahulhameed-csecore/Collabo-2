@@ -17,9 +17,9 @@ export default function GlobalError({
           <div className="w-16 h-16 bg-rose-50 dark:bg-rose-500/10 rounded-full flex items-center justify-center mx-auto mb-6 border border-rose-100 dark:border-rose-500/20">
             <AlertCircle className="w-8 h-8 text-rose-500" />
           </div>
-          <h1 className="text-2xl font-bold mb-2">Something went wrong!</h1>
+          <h1 className="text-2xl font-bold mb-2">We ran into a slight issue!</h1>
           <p className="text-slate-500 dark:text-slate-400 text-sm mb-8">
-            A critical error occurred while rendering this page. Our team has been notified.
+            Don't worry, your data is safe. A temporary error occurred while rendering this page, and our engineering team has been notified.
           </p>
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
             <button

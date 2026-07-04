@@ -70,9 +70,15 @@ export default function SubmitProofPage() {
         body: formData,
       });
 
-      const data = await res.json();
+      let data;
+      try {
+        data = await res.json();
+      } catch (parseError) {
+        throw new Error('Server returned an unexpected response. Please try again later.');
+      }
+
       if (!res.ok) {
-        throw new Error(data.detail || 'Upload failed');
+        throw new Error(data?.detail || 'Upload failed');
       }
 
       setSuccess(true);

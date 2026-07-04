@@ -19,7 +19,6 @@ interface CampaignTableProps {
   onCreateNew: () => void;
   onEdit?: (campaign: Campaign) => void;
   onLoadSampleData?: () => void;
-  onClearSampleData?: () => void;
 }
 
 import {
@@ -44,7 +43,7 @@ const formatCSVDate = (dateStr?: string | null) => {
   }
 };
 
-export default function CampaignTable({ campaigns, isLoading, onRefresh, onCreateNew, onEdit, onLoadSampleData, onClearSampleData }: CampaignTableProps) {
+export default function CampaignTable({ campaigns, isLoading, onRefresh, onCreateNew, onEdit, onLoadSampleData }: CampaignTableProps) {
   const [filters, setFilters] = useState<FilterState>({ search: '', status: 'all', platform: '' });
   const [sortKey, setSortKey] = useState<keyof Campaign>('created_at');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
@@ -426,14 +425,6 @@ export default function CampaignTable({ campaigns, isLoading, onRefresh, onCreat
             Showing <span className="text-slate-900 dark:text-white font-medium">{filtered.length}</span> of {campaigns.length} campaigns
             {hasFilters && <span className="text-emerald-500/70"> (filtered)</span>}
           </p>
-          {onClearSampleData && campaigns.some(c => c.influencer_name?.includes('Sample')) && (
-            <button 
-              onClick={onClearSampleData}
-              className="text-xs text-rose-500 hover:text-rose-600 dark:text-rose-400 dark:hover:text-rose-300 font-medium underline"
-            >
-              Clear Sample Data
-            </button>
-          )}
         </div>
       )}
 

@@ -169,9 +169,20 @@ export default function DashboardLayout({ children, onNewCampaign }: DashboardLa
     ? customUsername.slice(0, 2).toUpperCase()
     : (user?.email?.slice(0, 2).toUpperCase() ?? 'IT');
   
-  // Clean, dynamic check: defaults to Pro during testing phase, otherwise checks DB tier
-  const isPro        = IS_TESTING_PHASE || subscription?.tier === 'pro' || subscription?.tier === 'Pro';
-  const displayTier  = isPro ? 'PRO' : 'FREE';
+  // Evaluate Trial Status
+  const now = new Date();
+  const trialEndsAt = subscription?.trial_ends_at ? new Date(subscription.trial_ends_at) : null;
+  const isTrialActive = trialEndsAt ? trialEndsAt > now : false;
+  const rawTier = subscription?.tier?.toLowerCase() || 'free';
+  
+  let isPro = IS_TESTING_PHASE || rawTier === 'pro';
+  if (rawTier === 'pro' && trialEndsAt && trialEndsAt < now) {
+    // Trial expired, effectively downgrade to free
+    isPro = false;
+  }
+  
+  const displayTier = isPro ? 'PRO' : 'FREE';
+  const daysLeftInTrial = isTrialActive ? Math.ceil((trialEndsAt!.getTime() - now.getTime()) / (1000 * 3600 * 24)) : 0;
 
   const getGreeting = () => {
     const h = new Date().getHours();
@@ -184,11 +195,19 @@ export default function DashboardLayout({ children, onNewCampaign }: DashboardLa
       {/* Logo row */}
       <div className="flex items-center gap-3 px-5 py-[18px] border-b border-slate-200 dark:border-slate-800/50 flex-shrink-0">
         <Logo variant="full" size={24} href="/dashboard" />
-        <div className="flex items-center gap-1 ml-auto px-2 py-1 rounded-lg bg-emerald-500/8 border border-emerald-500/15">
-          <Sparkles className="w-2.5 h-2.5 text-emerald-400" />
-          <p className="text-[9px] font-bold text-emerald-400 tracking-wide">{displayTier}</p>
+        <div className={`flex items-center gap-1 ml-auto px-2 py-1 rounded-lg border ${isPro ? 'bg-emerald-500/8 border-emerald-500/15' : 'bg-amber-500/8 border-amber-500/15'}`}>
+          <Sparkles className={`w-2.5 h-2.5 ${isPro ? 'text-emerald-400' : 'text-amber-400'}`} />
+          <p className={`text-[9px] font-bold tracking-wide ${isPro ? 'text-emerald-400' : 'text-amber-400'}`}>{displayTier}</p>
         </div>
       </div>
+
+      {/* Trial Expiry Banner */}
+      {isTrialActive && (
+        <div className="mx-3 mt-3 px-3 py-2 bg-gradient-to-r from-emerald-500/10 to-teal-500/5 border border-emerald-500/20 rounded-lg flex items-center justify-between">
+          <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">Free Trial</span>
+          <span className="text-[10px] font-semibold text-emerald-500 dark:text-emerald-300">{daysLeftInTrial} days left</span>
+        </div>
+      )}
 
       {/* New Campaign CTA */}
       {onNewCampaign && (

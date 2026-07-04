@@ -111,9 +111,9 @@ export function ProfileDropdown({
           <div
             className={`
               z-[60]
-              fixed top-[60px] left-4 right-4 rounded-2xl animate-slide-down origin-top
-              sm:absolute sm:top-[calc(100%+8px)] sm:bottom-auto sm:left-auto sm:right-0 
-              sm:w-72 sm:origin-top-right
+              absolute top-[calc(100%+8px)] right-0 origin-top-right
+              w-[calc(100vw-32px)] max-w-[280px] sm:w-72
+              animate-slide-down
               bg-white dark:bg-slate-900
               border border-slate-200 dark:border-slate-800/80
               shadow-2xl shadow-slate-900/10 dark:shadow-black/60

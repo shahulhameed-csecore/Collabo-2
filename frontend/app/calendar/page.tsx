@@ -211,18 +211,18 @@ export default function CalendarPage() {
                       {/* Today indicator border */}
                       {isToday && <div className="absolute top-0 left-0 w-full h-1 bg-emerald-500" />}
 
-                      <div className="flex flex-col sm:flex-row items-center sm:justify-between mb-1 sm:mb-2 gap-0.5 sm:gap-0">
-                        <span className={`text-[10px] sm:text-sm font-bold w-5 h-5 sm:w-7 sm:h-7 flex items-center justify-center rounded-full ${isToday ? 'bg-emerald-500 text-white shadow-md shadow-emerald-500/30' : 'text-slate-700 dark:text-slate-300'}`}>
+                      <div className="flex items-start justify-between mb-1 sm:mb-2">
+                        <span className={`text-[10px] sm:text-sm font-bold w-5 h-5 sm:w-7 sm:h-7 flex items-center justify-center flex-shrink-0 rounded-full ${isToday ? 'bg-emerald-500 text-white shadow-md shadow-emerald-500/30' : 'text-slate-700 dark:text-slate-300'}`}>
                           {day}
                         </span>
                         {events.length > 0 && (
-                          <span className="text-[9px] sm:text-[10px] font-bold text-slate-400 dark:text-slate-500 sm:bg-slate-100 sm:dark:bg-slate-800 px-0 sm:px-1.5 py-0 sm:py-0.5 rounded-full">
+                          <span className="text-[9px] sm:text-[10px] font-bold text-slate-400 dark:text-slate-500 bg-slate-100 dark:bg-slate-800/50 px-1 py-0.5 rounded-full flex-shrink-0">
                             {events.length}
                           </span>
                         )}
                       </div>
 
-                      <div className="flex flex-wrap sm:flex-col gap-1 items-start justify-center sm:justify-start sm:space-y-1">
+                      <div className="flex flex-wrap sm:flex-col gap-1 sm:gap-1.5 items-start justify-start">
                         {isLoading ? (
                           Array.from({ length: 2 }).map((_, i) => (
                             <div key={`skel-${i}`} className="h-1.5 w-1.5 sm:h-6 bg-slate-200 dark:bg-slate-700 rounded-full sm:rounded animate-pulse sm:w-full" />

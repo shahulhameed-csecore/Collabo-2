@@ -150,9 +150,8 @@ export function NotificationDropdown() {
         )}
       </button>
 
-      {/* Dropdown */}
       {isOpen && (
-        <div className="fixed top-[60px] left-4 right-4 sm:absolute sm:top-full sm:left-auto sm:-right-4 sm:mt-2 sm:w-96 bg-white/80 dark:bg-slate-900/80 backdrop-blur-2xl border border-slate-200 dark:border-slate-800/80 rounded-2xl shadow-2xl shadow-slate-900/10 dark:shadow-black/40 z-[60] overflow-hidden animate-slide-down origin-top sm:origin-top-right">
+        <div className="absolute top-[calc(100%+12px)] right-[-44px] sm:-right-4 w-[calc(100vw-32px)] max-w-[320px] sm:w-96 sm:max-w-none bg-white/95 dark:bg-slate-900/95 backdrop-blur-3xl border border-slate-200 dark:border-slate-800/80 rounded-2xl shadow-2xl shadow-slate-900/10 dark:shadow-black/40 z-[60] overflow-hidden animate-slide-down origin-top-right">
           {/* Header */}
           <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 dark:border-slate-800/80 bg-slate-50/50 dark:bg-slate-800/20">
             <h3 className="font-bold text-slate-900 dark:text-white flex items-center gap-2">

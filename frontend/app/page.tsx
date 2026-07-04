@@ -93,7 +93,7 @@ export default function LandingPage() {
               href="/signup"
               className="btn-primary text-sm h-9 px-5 py-0 rounded-xl"
             >
-              Start Free Trial
+              Start 30-Day Trial
               <ArrowRight className="w-3.5 h-3.5" />
             </Link>
           </div>
@@ -133,7 +133,7 @@ export default function LandingPage() {
                 onClick={() => setMobileMenuOpen(false)}
                 className="btn-primary mt-2 text-sm text-center"
               >
-                Start Free Trial
+                Start 30-Day Trial
                 <ArrowRight className="w-3.5 h-3.5" />
               </Link>
             </nav>
@@ -304,59 +304,8 @@ export default function LandingPage() {
               {/* Right: Illustration card */}
               <div className="relative lg:block">
                 <div className="absolute inset-0 bg-emerald-500/15 blur-[80px] rounded-full pointer-events-none" />
-                <div className="relative bg-slate-950/80 border border-slate-800/80 rounded-3xl p-6 shadow-2xl backdrop-blur-sm space-y-5 gradient-border">
-
-                  {/* Chat bubble */}
-                  <div className="flex items-start gap-3">
-                    <div className="w-9 h-9 rounded-full bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center text-white font-bold text-xs flex-shrink-0 shadow-md shadow-emerald-500/30">
-                      CR
-                    </div>
-                    <div className="bg-slate-800/80 rounded-2xl rounded-tl-sm p-4 text-sm text-slate-200 border border-slate-700/50 max-w-[280px]">
-                      "Hey! Yes, ₹15,000 works for 1 Reel and 2 Stories. Can post by Friday."
-                    </div>
-                  </div>
-
-                  {/* AI indicator */}
-                  <div className="flex items-center gap-2 px-3 py-2 bg-amber-500/8 border border-amber-500/20 rounded-xl">
-                    <Sparkles className="w-3.5 h-3.5 text-amber-400 animate-pulse" />
-                    <span className="text-xs text-amber-400 font-semibold">AI extracting campaign details...</span>
-                  </div>
-
-                  {/* Campaign card */}
-                  <div className="bg-slate-900 border border-emerald-500/40 rounded-2xl p-5 shadow-[0_0_30px_rgba(16,185,129,0.12)] relative overflow-hidden">
-                    <div className="absolute top-0 right-0 w-28 h-28 bg-emerald-500/10 blur-2xl" />
-                    <div className="flex justify-between items-center mb-4 relative">
-                      <span className="text-white font-bold">Campaign Ready ✓</span>
-                      <span className="bg-gradient-to-r from-emerald-500 to-teal-500 text-white text-xs px-3 py-1 rounded-full font-bold shadow-sm">
-                        Active
-                      </span>
-                    </div>
-                    <div className="space-y-2.5 text-sm relative">
-                      {[
-                        { label: 'Deliverables', value: '1 Reel, 2 Stories', vColor: 'text-white' },
-                        { label: 'Budget', value: '₹15,000', vColor: 'text-emerald-400' },
-                        { label: 'Deadline', value: 'Friday, Jun 30', vColor: 'text-white' },
-                        { label: 'Platform', value: 'Instagram', vColor: 'text-pink-400' },
-                      ].map(({ label, value, vColor }) => (
-                        <div key={label} className="flex justify-between border-b border-slate-800/60 pb-2 last:border-0 last:pb-0">
-                          <span className="text-slate-500">{label}</span>
-                          <span className={`font-semibold ${vColor}`}>{value}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Bottom stats */}
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="bg-slate-800/50 rounded-xl p-3 border border-slate-700/30 text-center">
-                      <p className="text-emerald-400 font-extrabold text-lg">₹4.2L</p>
-                      <p className="text-slate-600 text-xs mt-0.5">Monthly Budget</p>
-                    </div>
-                    <div className="bg-slate-800/50 rounded-xl p-3 border border-slate-700/30 text-center">
-                      <p className="text-blue-400 font-extrabold text-lg">94%</p>
-                      <p className="text-slate-600 text-xs mt-0.5">On-time Rate</p>
-                    </div>
-                  </div>
+                <div className="relative rounded-3xl overflow-hidden shadow-2xl border border-slate-700/60 gradient-border">
+                  <img src="/images/ai-extraction.png" alt="AI Extraction Feature" className="w-full h-auto object-cover" />
                 </div>
               </div>
             </div>
@@ -385,7 +334,7 @@ export default function LandingPage() {
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5">
               {[
                 {
-                  quote: 'We were managing 50+ influencers on Excel and it was a nightmare. Collabo completely upgraded our tracking. It\'s just magic.',
+                  quote: 'We were drowning in WhatsApp chats and messy spreadsheets. Collabo turned our chaos into a clean, trackable dashboard instantly.',
                   author: 'Rahul S.',
                   role: 'Founder, Minimalist',
                   initials: 'RS',
@@ -393,7 +342,7 @@ export default function LandingPage() {
                   rating: 5,
                 },
                 {
-                  quote: 'Collabo saved us 15 hours a week. Instead of chasing influencers for deliverables, the automated reminders do the heavy lifting. Highly recommended.',
+                  quote: 'The automated reminders alone saved us from missing 3 critical launch deadlines this month. An essential tool for our marketing team.',
                   author: 'Priya M.',
                   role: 'Marketing Head, GLOW',
                   initials: 'PM',
@@ -401,7 +350,7 @@ export default function LandingPage() {
                   rating: 5,
                 },
                 {
-                  quote: 'As a bootstrap D2C brand, every rupee counts. Switching to Collabo helped us scale creator collabs by 3x at a fraction of the cost.',
+                  quote: 'As a bootstrap D2C brand, every rupee counts. Switching to Collabo helped us scale creator collabs by 3x at a fraction of the cost of an agency.',
                   author: 'Arjun K.',
                   role: 'Co-Founder, KetoInd',
                   initials: 'AK',
@@ -461,7 +410,7 @@ export default function LandingPage() {
                   price: '₹299',
                   period: '/month',
                   features: ['Unlimited campaigns', 'AI extraction', 'WhatsApp reminders', 'Analytics', 'PDF reports', 'Priority support'],
-                  cta: 'Start 14-Day Trial',
+                  cta: 'Start 30-Day Trial',
                   href: '/signup',
                   highlight: true,
                 },
@@ -539,7 +488,7 @@ export default function LandingPage() {
             </p>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
               <Link href="/signup" className="btn-primary text-base w-full sm:w-auto shadow-2xl shadow-emerald-500/25 glow-emerald">
-                Start Your Free Trial
+                Start 30-Day Free Trial
                 <ArrowRight className="w-4 h-4" />
               </Link>
               <Link href="/pricing" className="w-full sm:w-auto inline-flex items-center justify-center gap-2 h-12 px-7 rounded-xl text-sm font-semibold text-slate-300 border border-slate-700 hover:border-slate-600 hover:text-white hover:bg-slate-800/50 transition-all">
@@ -547,7 +496,7 @@ export default function LandingPage() {
               </Link>
             </div>
             <p className="mt-6 text-xs text-slate-600">
-              14-day free trial · ₹299/month after · Cancel anytime
+              30-day free trial · ₹299/month after · Cancel anytime
             </p>
           </div>
         </section>

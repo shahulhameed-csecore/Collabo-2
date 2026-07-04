@@ -310,8 +310,13 @@ export async function bulkDeleteCampaigns(campaign_ids: string[]): Promise<void>
   await api.delete('/campaigns/bulk/delete', { data: { campaign_ids } });
 }
 
-export async function bulkRemindCampaigns(campaign_ids: string[]): Promise<void> {
-  await api.post('/campaigns/bulk/remind', { campaign_ids });
+export async function bulkRemindCampaigns(campaignIds: string[]): Promise<void> {
+  await api.post('/campaigns/bulk/remind', { campaign_ids: campaignIds });
+}
+
+export async function loadSampleDataApi(): Promise<Campaign[]> {
+  const res = await api.post<Campaign[]>('/campaigns/sample-data');
+  return res.data;
 }
 
 export interface InfluencerProfile {

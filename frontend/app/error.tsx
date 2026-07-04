@@ -14,9 +14,9 @@ export default function ErrorBoundary({
       <div className="w-16 h-16 bg-rose-50 dark:bg-rose-500/10 rounded-full flex items-center justify-center mb-6 border border-rose-100 dark:border-rose-500/20">
         <AlertCircle className="w-8 h-8 text-rose-500" />
       </div>
-      <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-2">Something went wrong</h2>
+      <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-2">We ran into a slight issue</h2>
       <p className="text-slate-500 max-w-md mb-8">
-        We encountered an error while loading this component. Please try again.
+        Don't worry, your data is safe. Our system encountered a temporary error while loading this page. Please try refreshing.
       </p>
       <button
         onClick={() => reset()}

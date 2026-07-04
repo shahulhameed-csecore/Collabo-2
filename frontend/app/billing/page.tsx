@@ -32,6 +32,13 @@ export default function BillingPage() {
   const campaignsUsed = usage?.campaigns_this_month || 0;
   const usagePercentage = isPro ? 0 : Math.min(100, Math.round((campaignsUsed / 5) * 100));
 
+  // Trial Logic
+  const trialEndsAt = usage?.trial_ends_at ? new Date(usage.trial_ends_at) : null;
+  const now = new Date();
+  const isTrialActive = trialEndsAt && trialEndsAt > now;
+  const isTrialExpired = trialEndsAt && trialEndsAt <= now;
+  const daysLeftInTrial = isTrialActive ? Math.ceil((trialEndsAt!.getTime() - now.getTime()) / (1000 * 3600 * 24)) : 0;
+
   const handleUpgrade = () => {
     if (IS_TESTING_PHASE) {
       toast.info('Payments are currently disabled during the testing phase.');
@@ -71,14 +78,28 @@ export default function BillingPage() {
                 <div>
                   <div className="flex items-center justify-between mb-4">
                     <h3 className="font-semibold text-slate-700 dark:text-slate-300">Active Plan</h3>
-                    <span className="bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border border-slate-200 dark:border-slate-700">
-                      {activePlan}
-                    </span>
+                    <div className="flex flex-col items-end gap-1">
+                      <span className="bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border border-slate-200 dark:border-slate-700">
+                        {activePlan}
+                      </span>
+                      {isTrialActive && (
+                        <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400">
+                          Trial: {daysLeftInTrial} days left
+                        </span>
+                      )}
+                      {isTrialExpired && !isPro && (
+                        <span className="text-[10px] font-bold text-rose-500">
+                          Trial Expired
+                        </span>
+                      )}
+                    </div>
                   </div>
                   <p className="text-sm text-slate-500 mb-6 leading-relaxed">
-                    {activePlan.includes('PRO') 
-                      ? "You are currently on the Pro plan with unlimited campaigns, deep analytics, and CRM."
-                      : "You're currently on the free plan. Upgrade to unlock unlimited campaigns, deep analytics, and CRM."}
+                    {isTrialActive 
+                      ? "You are currently on a free trial of the Pro plan. Upgrade to maintain access after your trial expires."
+                      : (isPro 
+                          ? "You are currently on the Pro plan with unlimited campaigns, deep analytics, and CRM."
+                          : "You're currently on the free plan. Upgrade to unlock unlimited campaigns, deep analytics, and CRM.")}
                   </p>
                 </div>
                 {!isPro && (
