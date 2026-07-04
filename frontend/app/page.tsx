@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase';
@@ -15,32 +15,18 @@ import {
   Sparkles,
   Zap,
   Star,
-  TrendingUp,
-  Clock,
-  Users,
   BarChart3,
   Menu,
   X,
   ChevronRight,
-  Bell,
-  FileText,
-  DollarSign,
   Check,
+  Wand2,
+  BellRing,
+  Link as LinkIcon
 } from 'lucide-react';
+import Image from 'next/image';
 
-import {
-  AnimatedCounter,
-  FeatureBadge,
-  DashboardMockup,
-  HeroSection,
-  SocialProofSection
-} from '@/components/landing/LandingComponents';
-
-/* ─────────────────────────────────────────────────────────────────────────────
-   Main Landing Page
-   ───────────────────────────────────────────────────────────────────────────── */
 export default function LandingPage() {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const router = useRouter();
@@ -49,7 +35,6 @@ export default function LandingPage() {
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
       if (data?.user) {
-        setIsAuthenticated(true);
         router.push('/dashboard');
       }
     });
@@ -61,47 +46,46 @@ export default function LandingPage() {
 
   return (
     <div className="min-h-screen bg-[#020617] text-slate-200 font-sans selection:bg-emerald-500/30 selection:text-emerald-200 overflow-x-hidden">
-
       {/* ── Navbar ─────────────────────────────────────────────────────────── */}
       <header className={`fixed top-0 w-full z-50 transition-all duration-300 ${
         scrolled
-          ? 'border-b border-white/8 bg-[#020617]/90 backdrop-blur-xl shadow-lg shadow-black/20'
+          ? 'border-b border-white/5 bg-[#020617]/70 backdrop-blur-2xl shadow-2xl shadow-black/50'
           : 'border-b border-transparent bg-transparent'
       }`}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-          <Logo variant="full" size={28} href="/" />
+          <Logo variant="full" size={26} href="/" />
 
           {/* Desktop nav */}
           <nav className="hidden md:flex items-center gap-8">
-            <Link href="/pricing" className="text-sm font-medium text-slate-400 hover:text-white transition-colors link-underline">
-              Pricing
-            </Link>
-            <Link href="#features" className="text-sm font-medium text-slate-400 hover:text-white transition-colors link-underline">
+            <Link href="#features" className="text-[13px] font-semibold text-slate-400 hover:text-white transition-colors">
               Features
             </Link>
-            <Link href="#testimonials" className="text-sm font-medium text-slate-400 hover:text-white transition-colors link-underline">
-              Testimonials
+            <Link href="#workflow" className="text-[13px] font-semibold text-slate-400 hover:text-white transition-colors">
+              Workflow
+            </Link>
+            <Link href="#pricing" className="text-[13px] font-semibold text-slate-400 hover:text-white transition-colors">
+              Pricing
             </Link>
           </nav>
 
           {/* Desktop CTAs */}
-          <div className="hidden md:flex items-center gap-3">
-            <Link href="/login" className="text-sm font-medium text-slate-300 hover:text-white transition-colors px-4 py-2 rounded-xl hover:bg-slate-800/60">
+          <div className="hidden md:flex items-center gap-4">
+            <Link href="/login" className="text-[13px] font-semibold text-slate-300 hover:text-white transition-colors">
               Log in
             </Link>
             <Link
               href="/signup"
-              className="btn-primary text-sm h-9 px-5 py-0 rounded-xl"
+              className="group relative inline-flex items-center justify-center gap-2 text-[13px] font-bold text-white bg-white/5 border border-white/10 px-4 py-2 rounded-lg overflow-hidden transition-all hover:bg-white/10 hover:border-white/20"
             >
+              <div className="absolute inset-0 bg-gradient-to-r from-emerald-500/20 to-teal-500/20 opacity-0 group-hover:opacity-100 transition-opacity" />
               Start 30-Day Trial
-              <ArrowRight className="w-3.5 h-3.5" />
             </Link>
           </div>
 
           {/* Mobile menu button */}
           <button
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="md:hidden p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800/60 transition-all"
+            className="md:hidden p-2 rounded-xl text-slate-400 hover:text-white transition-all"
             aria-label="Toggle menu"
           >
             {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
@@ -110,32 +94,32 @@ export default function LandingPage() {
 
         {/* Mobile menu */}
         {mobileMenuOpen && (
-          <div className="md:hidden glass-premium border-t border-white/5 animate-slide-down">
-            <nav className="max-w-7xl mx-auto px-4 py-4 flex flex-col gap-1">
+          <div className="md:hidden glass-premium border-t border-white/5 animate-slide-down pb-4">
+            <nav className="flex flex-col">
               {[
-                { href: '/pricing', label: 'Pricing' },
                 { href: '#features', label: 'Features' },
-                { href: '#testimonials', label: 'Testimonials' },
+                { href: '#workflow', label: 'Workflow' },
+                { href: '#pricing', label: 'Pricing' },
                 { href: '/login', label: 'Log in' },
               ].map(({ href, label }) => (
                 <Link
                   key={href}
                   href={href}
                   onClick={() => setMobileMenuOpen(false)}
-                  className="flex items-center gap-2 px-4 py-3 rounded-xl text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-800/60 transition-all"
+                  className="px-6 py-4 border-b border-white/5 text-sm font-medium text-slate-300 hover:text-white"
                 >
-                  <ChevronRight className="w-3.5 h-3.5 text-slate-600" />
                   {label}
                 </Link>
               ))}
-              <Link
-                href="/signup"
-                onClick={() => setMobileMenuOpen(false)}
-                className="btn-primary mt-2 text-sm text-center"
-              >
-                Start 30-Day Trial
-                <ArrowRight className="w-3.5 h-3.5" />
-              </Link>
+              <div className="px-6 pt-4">
+                <Link
+                  href="/signup"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="w-full flex justify-center py-3 bg-white/5 border border-white/10 rounded-lg text-sm font-bold text-white"
+                >
+                  Start 30-Day Trial
+                </Link>
+              </div>
             </nav>
           </div>
         )}
@@ -143,247 +127,213 @@ export default function LandingPage() {
 
       <main>
         {/* ── Hero Section ───────────────────────────────────────────────── */}
-        <HeroSection />
+        <section className="relative pt-32 pb-20 lg:pt-48 lg:pb-32 overflow-hidden">
+          {/* Vercel-style glow background */}
+          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-[1000px] h-[500px] bg-gradient-to-b from-emerald-500/20 via-teal-900/10 to-transparent blur-[100px] pointer-events-none" />
+          <div className="noise-overlay absolute inset-0 opacity-[0.03]" />
 
-        {/* ── Social Proof Numbers ───────────────────────────────────────── */}
-        <SocialProofSection />
+          <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 relative text-center">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[11px] font-bold uppercase tracking-widest mb-8 animate-fade-in-up">
+              <Sparkles className="w-3.5 h-3.5" />
+              Collabo 2.0 is Live
+            </div>
 
-        {/* ── Trust Logos ────────────────────────────────────────────────── */}
-        <section className="py-10 bg-[#020617]">
-          <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-            <p className="text-xs font-semibold text-slate-600 uppercase tracking-widest mb-6">Trusted by fast-growing brands</p>
-            <div className="flex flex-wrap justify-center items-center gap-8 sm:gap-14 opacity-30 grayscale hover:opacity-40 transition-opacity duration-500">
-              <span className="text-lg font-bold font-serif">Minimalist.</span>
-              <span className="text-lg font-black italic">FITNESS+</span>
-              <span className="text-lg font-bold tracking-tighter">GLOW</span>
-              <span className="text-lg font-light tracking-widest">NATURE</span>
-              <span className="text-lg font-bold">KetoInd</span>
+            <h1 className="text-5xl sm:text-7xl lg:text-[80px] font-bold text-white tracking-tighter mb-8 leading-[1.05] text-balance animate-fade-in-up stagger-1">
+              Influencer marketing,{' '}
+              <br className="hidden sm:block" />
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-teal-600">
+                engineered for speed.
+              </span>
+            </h1>
+
+            <p className="text-lg sm:text-xl text-slate-400 max-w-2xl mx-auto mb-10 leading-relaxed animate-fade-in-up stagger-2 text-balance font-medium">
+              Turn messy WhatsApp negotiations into structured campaigns instantly. Track deliverables, automate reminders, and measure ROI—without ever opening a spreadsheet.
+            </p>
+
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-6 animate-fade-in-up stagger-3">
+              <Link href="/signup" className="group relative inline-flex items-center justify-center gap-2 h-12 px-8 rounded-full bg-white text-[#020617] font-bold text-sm transition-all hover:scale-105 hover:shadow-[0_0_40px_rgba(255,255,255,0.3)]">
+                Start 30-Day Free Trial
+                <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+              </Link>
+            </div>
+            
+            <p className="text-[11px] font-medium text-slate-500 uppercase tracking-widest animate-fade-in-up stagger-4">
+              No credit card required
+            </p>
+          </div>
+
+          {/* Dashboard Preview Overlay */}
+          <div className="max-w-6xl mx-auto mt-20 px-4 sm:px-6 lg:px-8 relative animate-fade-in-up stagger-5 perspective-[2000px]">
+            <div className="relative rounded-2xl border border-white/10 bg-slate-900/80 shadow-[0_0_100px_rgba(16,185,129,0.1)] overflow-hidden" 
+                 style={{ transform: 'rotateX(8deg) translateY(-20px)', transformStyle: 'preserve-3d' }}>
+              <div className="absolute inset-0 bg-gradient-to-t from-[#020617] via-transparent to-transparent z-10 h-full" />
+              <img src="/images/dashboard.png" alt="Collabo Dashboard" className="w-full h-auto object-cover opacity-90 block" />
             </div>
           </div>
         </section>
 
-        {/* ── How It Works ───────────────────────────────────────────────── */}
-        <section id="features" className="py-24 relative overflow-hidden">
-          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-lg h-px bg-gradient-to-r from-transparent via-emerald-500/30 to-transparent" />
+        {/* ── Social Proof Logos ─────────────────────────────────────────── */}
+        <section className="py-12 border-y border-white/5 bg-slate-900/20">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+            <p className="text-[11px] font-bold text-slate-500 uppercase tracking-[0.2em] mb-8">Trusted by scaling D2C brands</p>
+            <div className="flex flex-wrap justify-center items-center gap-10 sm:gap-16 opacity-40 grayscale hover:opacity-60 transition-opacity duration-500">
+              <span className="text-xl font-bold font-serif tracking-tight">Minimalist.</span>
+              <span className="text-xl font-black italic tracking-tighter">FITNESS+</span>
+              <span className="text-xl font-bold tracking-widest">GLOW</span>
+              <span className="text-xl font-light tracking-[0.3em]">NATURE</span>
+              <span className="text-xl font-extrabold tracking-tighter">KetoInd</span>
+            </div>
+          </div>
+        </section>
 
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        {/* ── Bento Grid Features ────────────────────────────────────────── */}
+        <section id="features" className="py-32 relative">
+          <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="text-center mb-16">
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/8 border border-blue-500/20 text-blue-400 text-xs font-semibold uppercase tracking-wider mb-4">
-                <BarChart3 className="w-3.5 h-3.5" />
-                Simple Process
-              </div>
-              <h2 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-white mb-4 text-balance">
-                How Collabo Works
+              <h2 className="text-3xl sm:text-5xl font-bold text-white tracking-tight mb-4">
+                Everything you need. <br className="hidden sm:block" />
+                <span className="text-slate-500">Nothing you don't.</span>
               </h2>
-              <p className="text-slate-400 max-w-xl mx-auto text-base sm:text-lg">
-                From messy DMs to structured campaigns in three simple steps.
-              </p>
             </div>
 
-            <div className="grid md:grid-cols-3 gap-5 lg:gap-8 relative">
-              {/* Connector line */}
-              <div className="hidden md:block absolute top-14 left-1/3 right-1/3 h-px bg-gradient-to-r from-emerald-500/20 via-emerald-500/40 to-emerald-500/20 -translate-y-1" />
-
-              {[
-                {
-                  num: '01',
-                  icon: MessageSquare,
-                  title: 'Negotiate Normally',
-                  desc: 'Chat with creators on WhatsApp, DMs, or email — just like you always do. No new tools for creators.',
-                  accent: 'emerald',
-                  delay: '',
-                },
-                {
-                  num: '02',
-                  icon: LayoutDashboard,
-                  title: 'Log in Seconds',
-                  desc: 'Paste your chat or upload a screenshot. Our AI auto-fills deliverables, budget, and deadlines instantly.',
-                  accent: 'blue',
-                  delay: 'stagger-2',
-                },
-                {
-                  num: '03',
-                  icon: CheckCircle,
-                  title: 'Track Everything',
-                  desc: 'Approve content, track payments, get deadline reminders — your entire creator pipeline, organized.',
-                  accent: 'purple',
-                  delay: 'stagger-4',
-                },
-              ].map((step, i) => {
-                const colors = {
-                  emerald: { icon: 'text-emerald-400', bg: 'bg-emerald-500/10', border: 'border-emerald-500/20', hover: 'hover:border-emerald-500/40 hover:shadow-emerald-500/10', num: 'text-emerald-500/40' },
-                  blue:    { icon: 'text-blue-400',    bg: 'bg-blue-500/10',    border: 'border-blue-500/20',    hover: 'hover:border-blue-500/40 hover:shadow-blue-500/10',    num: 'text-blue-500/40' },
-                  purple:  { icon: 'text-purple-400',  bg: 'bg-purple-500/10',  border: 'border-purple-500/20',  hover: 'hover:border-purple-500/40 hover:shadow-purple-500/10',  num: 'text-purple-500/40' },
-                }[step.accent];
-
-                return (
-                  <div key={i} className={`group relative bg-slate-900/60 border ${colors!.border} ${colors!.hover} rounded-2xl p-7 transition-all duration-300 hover:shadow-2xl hover:-translate-y-1.5 card-hover ${step.delay} animate-fade-in-up`}>
-                    <span className={`absolute top-5 right-5 text-5xl font-black ${colors!.num} leading-none`}>{step.num}</span>
-                    <div className={`w-12 h-12 ${colors!.bg} border ${colors!.border} rounded-2xl flex items-center justify-center mb-5 group-hover:scale-110 transition-transform duration-200`}>
-                      <step.icon className={`w-6 h-6 ${colors!.icon}`} />
-                    </div>
-                    <h3 className="text-lg font-bold text-white mb-3">{step.title}</h3>
-                    <p className="text-slate-400 text-sm leading-relaxed">{step.desc}</p>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 auto-rows-[minmax(180px,auto)]">
+              {/* Feature 1 (Large) */}
+              <div className="bento-card md:col-span-2 md:row-span-2 p-8 flex flex-col justify-between group">
+                <div className="mb-8">
+                  <div className="w-10 h-10 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center mb-4">
+                    <Wand2 className="w-5 h-5 text-emerald-400" />
                   </div>
-                );
-              })}
+                  <h3 className="text-xl font-bold text-white mb-2">AI Campaign Extraction</h3>
+                  <p className="text-slate-400 text-sm max-w-sm">
+                    Dump your messy chat logs or screenshots. Our AI instantly parses deliverables, budgets, and deadlines into a structured database.
+                  </p>
+                </div>
+                <div className="relative h-48 rounded-xl overflow-hidden border border-white/5">
+                  <img src="/images/ai-extraction.png" alt="AI Extraction" className="w-full h-full object-cover object-left-top opacity-80 group-hover:opacity-100 transition-opacity" />
+                </div>
+              </div>
+
+              {/* Feature 2 (Small) */}
+              <div className="bento-card p-6 flex flex-col justify-center">
+                <div className="w-10 h-10 rounded-lg bg-blue-500/10 border border-blue-500/20 flex items-center justify-center mb-4">
+                  <BellRing className="w-5 h-5 text-blue-400" />
+                </div>
+                <h3 className="text-lg font-bold text-white mb-2">Auto Reminders</h3>
+                <p className="text-slate-400 text-sm leading-relaxed">
+                  Never chase an influencer again. Automated WhatsApp and Email reminders 48hrs before deadlines.
+                </p>
+              </div>
+
+              {/* Feature 3 (Small) */}
+              <div className="bento-card p-6 flex flex-col justify-center">
+                <div className="w-10 h-10 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-center mb-4">
+                  <LinkIcon className="w-5 h-5 text-amber-400" />
+                </div>
+                <h3 className="text-lg font-bold text-white mb-2">Magic Links</h3>
+                <p className="text-slate-400 text-sm leading-relaxed">
+                  Creators submit proof of work via a secure link. No account creation required for them.
+                </p>
+              </div>
+
+              {/* Feature 4 (Small) */}
+              <div className="bento-card p-6 flex flex-col justify-center">
+                <div className="w-10 h-10 rounded-lg bg-purple-500/10 border border-purple-500/20 flex items-center justify-center mb-4">
+                  <Smartphone className="w-5 h-5 text-purple-400" />
+                </div>
+                <h3 className="text-lg font-bold text-white mb-2">WhatsApp Sync</h3>
+                <p className="text-slate-400 text-sm leading-relaxed">
+                  Forward chats directly to our bot. Campaigns are created instantly in your dashboard.
+                </p>
+              </div>
+
+              {/* Feature 5 (Wide) */}
+              <div className="bento-card md:col-span-2 p-6 flex items-center gap-8">
+                <div className="flex-1">
+                  <div className="w-10 h-10 rounded-lg bg-rose-500/10 border border-rose-500/20 flex items-center justify-center mb-4">
+                    <BarChart3 className="w-5 h-5 text-rose-400" />
+                  </div>
+                  <h3 className="text-lg font-bold text-white mb-2">Real-Time Analytics</h3>
+                  <p className="text-slate-400 text-sm leading-relaxed">
+                    Track ROI, monitor spending across platforms, and measure on-time delivery rates instantly.
+                  </p>
+                </div>
+                <div className="hidden sm:block flex-1 border-l border-white/5 pl-8">
+                   <div className="space-y-3">
+                     <div className="flex justify-between items-end">
+                       <span className="text-xs text-slate-500">Monthly Spend</span>
+                       <span className="text-lg font-bold text-emerald-400">₹4.2L</span>
+                     </div>
+                     <div className="h-1.5 w-full bg-slate-800 rounded-full overflow-hidden">
+                       <div className="h-full bg-emerald-500 w-[70%]" />
+                     </div>
+                   </div>
+                </div>
+              </div>
             </div>
           </div>
         </section>
 
-        {/* ── Features / Benefits ────────────────────────────────────────── */}
-        <section className="py-24 bg-slate-900/25 border-y border-white/5 relative overflow-hidden">
-          <div className="absolute top-1/2 left-0 -translate-y-1/2 w-80 h-80 bg-emerald-500/5 rounded-full blur-[80px]" />
-
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="grid lg:grid-cols-2 gap-12 lg:gap-20 items-center">
-
-              {/* Left: Feature list */}
-              <div>
-                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/8 border border-emerald-500/20 text-emerald-400 text-xs font-semibold uppercase tracking-wider mb-6">
-                  <Sparkles className="w-3.5 h-3.5" />
-                  Why Collabo
+        {/* ── Workflow Steps ─────────────────────────────────────────────── */}
+        <section id="workflow" className="py-24 border-y border-white/5 bg-slate-900/20">
+          <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="text-center mb-16">
+              <h2 className="text-3xl sm:text-4xl font-bold text-white tracking-tight">
+                From DM to Done in seconds.
+              </h2>
+            </div>
+            
+            <div className="grid md:grid-cols-3 gap-8 relative">
+              <div className="hidden md:block absolute top-6 left-[15%] right-[15%] h-[1px] bg-gradient-to-r from-emerald-500/0 via-emerald-500/30 to-emerald-500/0" />
+              
+              {[
+                { step: '01', title: 'Negotiate', desc: 'Chat on WhatsApp or DMs as usual. Forward the final deal to Collabo.' },
+                { step: '02', title: 'Extract', desc: 'Collabo AI reads the chat and logs deliverables, budget, and deadlines.' },
+                { step: '03', title: 'Track', desc: 'The system auto-reminds the creator and marks the campaign complete upon proof.' }
+              ].map((s, i) => (
+                <div key={i} className="relative z-10 flex flex-col items-center text-center">
+                  <div className="w-12 h-12 rounded-full bg-[#020617] border border-emerald-500/30 flex items-center justify-center mb-6 shadow-[0_0_20px_rgba(16,185,129,0.15)]">
+                    <span className="text-sm font-bold text-emerald-400">{s.step}</span>
+                  </div>
+                  <h3 className="text-lg font-bold text-white mb-2">{s.title}</h3>
+                  <p className="text-slate-400 text-sm max-w-[250px] leading-relaxed">{s.desc}</p>
                 </div>
-                <h2 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-white mb-5 leading-tight text-balance">
-                  Scale your influencer marketing,{' '}
-                  <span className="gradient-text">without the headcount.</span>
-                </h2>
-                <p className="text-slate-400 text-base mb-10 leading-relaxed">
-                  Collabo acts as your automated campaign manager, so you can focus on building relationships instead of drowning in spreadsheets.
-                </p>
-
-                <div className="space-y-7">
-                  {[
-                    {
-                      icon: CheckCircle,
-                      title: 'Never Miss a Deliverable',
-                      desc: 'Automated email and WhatsApp reminders ensure creators post on time. Get notified 48 hours before any deadline.',
-                      color: 'emerald',
-                    },
-                    {
-                      icon: Zap,
-                      title: 'Save 10+ Hours a Week',
-                      desc: 'Stop manually updating Google Sheets. Our platform auto-tracks payments, statuses, and organizes deliverables for you.',
-                      color: 'blue',
-                    },
-                    {
-                      icon: Shield,
-                      title: 'Enterprise-Grade Security',
-                      desc: 'Your campaign data is protected with Supabase Row-Level Security. Only you and your team can access your private campaigns.',
-                      color: 'purple',
-                    },
-                    {
-                      icon: BarChart3,
-                      title: 'Real-Time Analytics',
-                      desc: 'Track ROI, success rates, platform performance, and spending trends across all your campaigns at a glance.',
-                      color: 'amber',
-                    },
-                  ].map((feature, i) => {
-                    const c = {
-                      emerald: { bg: 'bg-emerald-500/10', border: 'border-emerald-500/20', icon: 'text-emerald-400' },
-                      blue:    { bg: 'bg-blue-500/10',    border: 'border-blue-500/20',    icon: 'text-blue-400' },
-                      purple:  { bg: 'bg-purple-500/10',  border: 'border-purple-500/20',  icon: 'text-purple-400' },
-                      amber:   { bg: 'bg-amber-500/10',   border: 'border-amber-500/20',   icon: 'text-amber-400' },
-                    }[feature.color];
-
-                    return (
-                      <div key={i} className="flex gap-4 items-start group">
-                        <div className={`mt-0.5 flex-shrink-0 p-2.5 rounded-xl ${c!.bg} border ${c!.border} group-hover:scale-110 transition-transform duration-200`}>
-                          <feature.icon className={`w-5 h-5 ${c!.icon}`} />
-                        </div>
-                        <div>
-                          <h4 className="text-base font-bold text-white mb-1.5">{feature.title}</h4>
-                          <p className="text-slate-400 text-sm leading-relaxed">{feature.desc}</p>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Right: Illustration card */}
-              <div className="relative lg:block">
-                <div className="absolute inset-0 bg-emerald-500/15 blur-[80px] rounded-full pointer-events-none" />
-                <div className="relative rounded-3xl overflow-hidden shadow-2xl border border-slate-700/60 gradient-border">
-                  <img src="/images/ai-extraction.png" alt="AI Extraction Feature" className="w-full h-auto object-cover" />
-                </div>
-              </div>
+              ))}
             </div>
           </div>
         </section>
 
         {/* ── Testimonials ───────────────────────────────────────────────── */}
-        <section id="testimonials" className="py-24 relative overflow-hidden bg-[#020617]">
-          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-3xl h-px bg-gradient-to-r from-transparent via-emerald-500/30 to-transparent" />
-          <div className="absolute bottom-0 right-0 w-96 h-96 bg-purple-500/5 rounded-full blur-[100px]" />
-
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="text-center mb-16">
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/8 border border-amber-500/20 text-amber-400 text-xs font-semibold uppercase tracking-wider mb-4">
-                <Star className="w-3.5 h-3.5 fill-amber-400" />
-                Social Proof
-              </div>
-              <h2 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-white mb-4 text-balance">
-                Trusted by Indian Founders
+        <section className="py-32 relative">
+          <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="mb-16">
+              <h2 className="text-3xl sm:text-4xl font-bold text-white tracking-tight">
+                Built for operators.
               </h2>
-              <p className="text-slate-400 text-base sm:text-lg max-w-xl mx-auto">
-                See how D2C brands are scaling their influencer marketing with Collabo.
-              </p>
             </div>
 
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5">
+            <div className="grid md:grid-cols-3 gap-4">
               {[
                 {
                   quote: 'We were drowning in WhatsApp chats and messy spreadsheets. Collabo turned our chaos into a clean, trackable dashboard instantly.',
                   author: 'Rahul S.',
                   role: 'Founder, Minimalist',
-                  initials: 'RS',
-                  gradient: 'from-emerald-400 to-teal-500',
-                  rating: 5,
                 },
                 {
                   quote: 'The automated reminders alone saved us from missing 3 critical launch deadlines this month. An essential tool for our marketing team.',
                   author: 'Priya M.',
                   role: 'Marketing Head, GLOW',
-                  initials: 'PM',
-                  gradient: 'from-blue-400 to-purple-500',
-                  rating: 5,
                 },
                 {
                   quote: 'As a bootstrap D2C brand, every rupee counts. Switching to Collabo helped us scale creator collabs by 3x at a fraction of the cost of an agency.',
                   author: 'Arjun K.',
                   role: 'Co-Founder, KetoInd',
-                  initials: 'AK',
-                  gradient: 'from-amber-400 to-orange-500',
-                  rating: 5,
                 },
               ].map((t, i) => (
-                <div
-                  key={i}
-                  className="group bg-slate-900/50 border border-slate-800 hover:border-emerald-500/25 rounded-2xl p-7 transition-all duration-300 hover:shadow-2xl hover:shadow-emerald-500/5 hover:-translate-y-1 flex flex-col justify-between backdrop-blur-sm"
-                >
+                <div key={i} className="bento-card p-8 flex flex-col justify-between">
+                  <p className="text-slate-300 text-sm leading-relaxed mb-8">"{t.quote}"</p>
                   <div>
-                    {/* Stars */}
-                    <div className="flex gap-1 mb-5">
-                      {Array.from({ length: t.rating }).map((_, j) => (
-                        <Star key={j} className="w-4 h-4 text-amber-400 fill-amber-400" />
-                      ))}
-                    </div>
-                    {/* Quote */}
-                    <div className="relative mb-6">
-                      <span className="absolute -top-2 -left-1 text-4xl text-emerald-500/20 font-serif leading-none">"</span>
-                      <p className="text-slate-300 text-sm leading-relaxed pl-3">{t.quote}</p>
-                    </div>
-                  </div>
-                  {/* Author */}
-                  <div className="flex items-center gap-3 border-t border-slate-800 pt-5 mt-auto">
-                    <div className={`w-10 h-10 rounded-full bg-gradient-to-br ${t.gradient} flex items-center justify-center flex-shrink-0 shadow-md ring-2 ring-white/5`}>
-                      <span className="text-xs font-bold text-white">{t.initials}</span>
-                    </div>
-                    <div>
-                      <p className="text-white font-semibold text-sm">{t.author}</p>
-                      <p className="text-slate-500 text-xs">{t.role}</p>
-                    </div>
+                    <p className="text-white font-bold text-sm">{t.author}</p>
+                    <p className="text-slate-500 text-[11px] uppercase tracking-widest mt-1">{t.role}</p>
                   </div>
                 </div>
               ))}
@@ -391,194 +341,73 @@ export default function LandingPage() {
           </div>
         </section>
 
-        {/* ── Pricing Snippet / CTA ──────────────────────────────────────── */}
-        <section className="py-20 bg-slate-900/25 border-y border-white/5">
-          <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="grid md:grid-cols-3 gap-5">
-              {[
-                {
-                  plan: 'Free',
-                  price: '₹0',
-                  period: 'forever',
-                  features: ['5 campaigns/month', 'Basic tracking', 'Email reminders', 'CSV export'],
-                  cta: 'Get Started Free',
-                  href: '/signup',
-                  highlight: false,
-                },
-                {
-                  plan: 'Pro',
-                  price: '₹299',
-                  period: '/month',
-                  features: ['Unlimited campaigns', 'AI extraction', 'WhatsApp reminders', 'Analytics', 'PDF reports', 'Priority support'],
-                  cta: 'Start 30-Day Trial',
-                  href: '/signup',
-                  highlight: true,
-                },
-                {
-                  plan: 'Team',
-                  price: '₹799',
-                  period: '/month',
-                  features: ['Everything in Pro', '5 team members', 'Shared campaigns', 'Admin controls', 'API access'],
-                  cta: 'Contact Sales',
-                  href: 'mailto:support@mycollabo.online',
-                  highlight: false,
-                },
-              ].map((plan, i) => (
-                <div
-                  key={i}
-                  className={`relative rounded-2xl p-6 flex flex-col ${
-                    plan.highlight
-                      ? 'bg-gradient-to-b from-emerald-500/15 to-slate-900/80 border border-emerald-500/30 shadow-xl shadow-emerald-500/10'
-                      : 'bg-slate-900/60 border border-slate-800'
-                  }`}
-                >
-                  {plan.highlight && (
-                    <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                      <span className="bg-gradient-to-r from-emerald-500 to-teal-500 text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg">
-                        Most Popular
-                      </span>
-                    </div>
-                  )}
-                  <h3 className="text-base font-bold text-slate-300 mb-2">{plan.plan}</h3>
-                  <div className="flex items-baseline gap-1 mb-5">
-                    <span className="text-3xl font-extrabold text-white">{plan.price}</span>
-                    <span className="text-slate-500 text-sm">{plan.period}</span>
-                  </div>
-                  <ul className="space-y-2.5 mb-6 flex-1">
-                    {plan.features.map((f, j) => (
-                      <li key={j} className="flex items-center gap-2 text-sm text-slate-400">
-                        <Check className={`w-4 h-4 flex-shrink-0 ${plan.highlight ? 'text-emerald-400' : 'text-slate-600'}`} />
-                        {f}
-                      </li>
-                    ))}
-                  </ul>
-                  <Link
-                    href={plan.href}
-                    className={`w-full text-center py-2.5 rounded-xl text-sm font-bold transition-all duration-200 ${
-                      plan.highlight
-                        ? 'btn-primary'
-                        : 'border border-slate-700 text-slate-300 hover:text-white hover:border-slate-600 hover:bg-slate-800/60'
-                    }`}
-                  >
-                    {plan.cta}
-                  </Link>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
+        {/* ── Pricing & CTA ──────────────────────────────────────────────── */}
+        <section id="pricing" className="py-24 relative overflow-hidden">
+          <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="relative rounded-[2rem] border border-emerald-500/20 bg-[#020617] p-10 sm:p-16 text-center shadow-[0_0_100px_rgba(16,185,129,0.1)] overflow-hidden">
+              <div className="absolute inset-0 bg-gradient-to-b from-emerald-500/5 to-transparent pointer-events-none" />
+              
+              <h2 className="text-3xl sm:text-4xl font-bold text-white tracking-tight mb-4 relative z-10">
+                Start your 30-Day Free Trial
+              </h2>
+              <p className="text-slate-400 mb-10 max-w-lg mx-auto relative z-10">
+                Get full access to AI Extraction, WhatsApp Sync, and Unlimited Campaigns. Only ₹299/month after. Cancel anytime.
+              </p>
 
-        {/* ── Final CTA ──────────────────────────────────────────────────── */}
-        <section className="py-28 relative overflow-hidden">
-          <div className="absolute inset-0 bg-emerald-950/10" />
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[400px] bg-emerald-500/15 rounded-full blur-[100px] pointer-events-none" />
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] h-[300px] bg-teal-500/8 rounded-full blur-[80px] pointer-events-none" />
-
-          <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 relative text-center">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/8 border border-emerald-500/20 text-emerald-400 text-xs font-semibold uppercase tracking-wider mb-6">
-              <Zap className="w-3.5 h-3.5" />
-              Start Today
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-4 relative z-10">
+                <Link href="/signup" className="w-full sm:w-auto inline-flex items-center justify-center gap-2 h-12 px-8 rounded-xl bg-emerald-500 text-[#020617] font-bold text-sm transition-all hover:bg-emerald-400 hover:shadow-[0_0_30px_rgba(16,185,129,0.3)]">
+                  Start Free Trial
+                </Link>
+                <Link href="/login" className="w-full sm:w-auto inline-flex items-center justify-center gap-2 h-12 px-8 rounded-xl bg-white/5 text-white font-bold text-sm border border-white/10 hover:bg-white/10 transition-all">
+                  Sign In
+                </Link>
+              </div>
             </div>
-            <h2 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold text-white mb-5 tracking-tight text-balance leading-[1.08]">
-              Ready to bring order{' '}
-              <span className="gradient-text">to the chaos?</span>
-            </h2>
-            <p className="text-lg text-slate-400 mb-10 max-w-xl mx-auto">
-              Join hundreds of D2C brands automating their influencer marketing with Collabo. Start free today.
-            </p>
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
-              <Link href="/signup" className="btn-primary text-base w-full sm:w-auto shadow-2xl shadow-emerald-500/25 glow-emerald">
-                Start 30-Day Free Trial
-                <ArrowRight className="w-4 h-4" />
-              </Link>
-              <Link href="/pricing" className="w-full sm:w-auto inline-flex items-center justify-center gap-2 h-12 px-7 rounded-xl text-sm font-semibold text-slate-300 border border-slate-700 hover:border-slate-600 hover:text-white hover:bg-slate-800/50 transition-all">
-                View Pricing
-              </Link>
-            </div>
-            <p className="mt-6 text-xs text-slate-600">
-              30-day free trial · ₹299/month after · Cancel anytime
-            </p>
           </div>
         </section>
       </main>
 
       {/* ── Footer ─────────────────────────────────────────────────────────── */}
-      <footer className="border-t border-white/5 bg-[#020617] py-16">
+      <footer className="border-t border-white/5 bg-[#020617] pt-16 pb-8">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-10 mb-12">
-            {/* Brand */}
-            <div className="col-span-2 md:col-span-1">
+          <div className="flex flex-col md:flex-row justify-between items-start gap-10 mb-16">
+            <div>
               <Logo variant="full" size={24} href="/" className="mb-4" />
-              <p className="text-sm text-slate-500 leading-relaxed max-w-[220px]">
-                The modern influencer campaign management platform for Indian D2C brands.
+              <p className="text-xs text-slate-500 max-w-xs">
+                The modern influencer campaign management platform.
               </p>
             </div>
-
-            {/* Product */}
-            <div>
-              <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">Product</p>
-              <ul className="space-y-2.5">
-                {[
-                  { href: '#features', label: 'Features' },
-                  { href: '/pricing', label: 'Pricing' },
-                  { href: '/dashboard', label: 'Dashboard' },
-                  { href: '/changelog', label: 'Changelog' },
-                ].map(({ href, label }) => (
-                  <li key={href}>
-                    <Link href={href} className="text-sm text-slate-500 hover:text-emerald-400 transition-colors link-underline">
-                      {label}
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </div>
-
-            {/* Legal */}
-            <div>
-              <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">Legal</p>
-              <ul className="space-y-2.5">
-                {[
-                  { href: '/privacy', label: 'Privacy Policy' },
-                  { href: '/terms', label: 'Terms of Service' },
-                  { href: '/refund', label: 'Refund Policy' },
-                ].map(({ href, label }) => (
-                  <li key={href}>
-                    <Link href={href} className="text-sm text-slate-500 hover:text-emerald-400 transition-colors link-underline">
-                      {label}
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </div>
-
-            {/* Support */}
-            <div>
-              <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">Support</p>
-              <ul className="space-y-2.5">
-                {[
-                  { href: 'mailto:support@mycollabo.online', label: 'Contact Us' },
-                  { href: '/submit-proof', label: 'Submit Proof' },
-                  { href: '/login', label: 'Login' },
-                  { href: '/signup', label: 'Sign Up' },
-                ].map(({ href, label }) => (
-                  <li key={href}>
-                    <Link href={href} className="text-sm text-slate-500 hover:text-emerald-400 transition-colors link-underline">
-                      {label}
-                    </Link>
-                  </li>
-                ))}
-              </ul>
+            <div className="flex gap-16">
+              <div>
+                <p className="text-[11px] font-bold text-white uppercase tracking-widest mb-4">Product</p>
+                <ul className="space-y-3">
+                  {['Features', 'Pricing', 'Login', 'Sign Up'].map((l) => (
+                    <li key={l}>
+                      <Link href="#" className="text-sm text-slate-400 hover:text-white transition-colors">{l}</Link>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              <div>
+                <p className="text-[11px] font-bold text-white uppercase tracking-widest mb-4">Legal</p>
+                <ul className="space-y-3">
+                  {['Privacy Policy', 'Terms of Service', 'Refund Policy'].map((l) => (
+                    <li key={l}>
+                      <Link href="#" className="text-sm text-slate-400 hover:text-white transition-colors">{l}</Link>
+                    </li>
+                  ))}
+                </ul>
+              </div>
             </div>
           </div>
-
-          {/* Bottom bar */}
+          
           <div className="border-t border-white/5 pt-8 flex flex-col sm:flex-row justify-between items-center gap-4">
             <p className="text-xs text-slate-600">
-              © {new Date().getFullYear()} Collabo. All rights reserved. Made with ❤️ in India.
+              © {new Date().getFullYear()} Collabo. All rights reserved.
             </p>
             <div className="flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-              <span className="text-xs text-slate-600">All systems operational</span>
+              <span className="w-2 h-2 rounded-full bg-emerald-500" />
+              <span className="text-xs font-medium text-slate-500">All systems operational</span>
             </div>
           </div>
         </div>
