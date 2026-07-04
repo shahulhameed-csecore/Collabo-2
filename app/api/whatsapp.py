@@ -7,7 +7,7 @@ from app.core.config import settings
 from app.core.limiter import limiter
 from supabase import create_client
 from app.services.gemini import extract_campaign_data
-from app.core.utils import parse_corrections, format_campaign_summary_wa
+from app.core.utils import parse_corrections, format_campaign_summary_wa, parse_date_string
 from app.services.whatsapp import send_whatsapp_message, download_whatsapp_media
 
 logger = structlog.get_logger(__name__)
@@ -317,13 +317,37 @@ async def process_whatsapp_message(sender_id: str, message: dict):
         if not campaign_data.get("platform"):
             campaign_data["platform"] = "Others"
 
-        if campaign_data.get("deadline") == "":
+        # Sanitize Date Formatting to prevent Postgres crashes
+        raw_deadline = campaign_data.get("deadline")
+        if raw_deadline and str(raw_deadline).strip():
+            parsed_deadline = parse_date_string(str(raw_deadline))
+            if parsed_deadline:
+                campaign_data["deadline"] = parsed_deadline
+            else:
+                campaign_data["deadline"] = None
+                extracted_data["requires_human_review"] = True
+                existing_notes = campaign_data.get("special_notes") or ""
+                campaign_data["special_notes"] = f"{existing_notes}\n(Note: Couldn't parse deadline '{raw_deadline}')".strip()
+        else:
             campaign_data["deadline"] = None
+
+        # Sanitize Payment Amount
+        try:
+            campaign_data["payment_amount"] = float(campaign_data.get("payment_amount") or 0.0)
+            if campaign_data["payment_amount"] < 0:
+                campaign_data["payment_amount"] = 0.0
+        except ValueError:
+            campaign_data["payment_amount"] = 0.0
+            extracted_data["requires_human_review"] = True
 
         campaign_data["user_id"] = user_id
         
         extracted_status = campaign_data.get("status")
         if extracted_status not in ["active", "draft", "completed", "cancelled"]:
+            campaign_data["status"] = "draft"
+            
+        # If extraction is partial/needs review, force it to Draft to prevent invalid Active campaigns
+        if extracted_data.get("requires_human_review"):
             campaign_data["status"] = "draft"
 
         # Embed message ID in special_notes for idempotency tracking

@@ -145,7 +145,7 @@ def format_campaign_summary(campaign: dict, is_review: bool = False) -> str:
         
     clean_influencer = html.escape(influencer)
     
-    prefix = "🤖 <b>Collabo AI</b>\n\n⚠️ Some details were unclear to me. I've created a <b>Draft</b>.\n\n" if is_review else "🤖 <b>I've extracted the following details:</b>\n\n"
+    prefix = "🤖 <b>Collabo AI</b>\n\n⚠️ Some details were unclear to me. I've saved this as a <b>Draft</b>.\n\n" if is_review else "🤖 <b>I've extracted the following details:</b>\n\n"
     
     return (
         f"{prefix}"
@@ -155,8 +155,9 @@ def format_campaign_summary(campaign: dict, is_review: bool = False) -> str:
         f"📦 <b>Deliverables:</b> {html.escape(deliv)}\n"
         f"⏳ <b>Deadline:</b> {html.escape(deadl)}\n"
         f"💰 <b>Payment:</b> ₹{pay:,.2f}\n\n"
+        f"───\n"
         f"<b>Is this correct?</b>\n"
-        f"Reply <b>Yes</b> to make it Active, <b>Draft</b> to save, or correct any field (e.g., 'Payment: 15000')."
+        f"Reply <b>Yes</b> to make it Active, <b>Draft</b> to save it for later, or reply with corrections (e.g., 'Payment: 15000', 'Deadline: 20 July')."
     )
 
 def format_campaign_summary_wa(campaign: dict, is_review: bool = False) -> str:
@@ -179,7 +180,7 @@ def format_campaign_summary_wa(campaign: dict, is_review: bool = False) -> str:
         influencer = influencer_name
         
     # No HTML escaping needed for WhatsApp, just basic string replacement
-    prefix = "🤖 *Collabo AI*\n\n⚠️ Some details were unclear to me. I've created a *Draft*.\n\n" if is_review else "🤖 *I've extracted the following details:*\n\n"
+    prefix = "🤖 *Collabo AI*\n\n⚠️ Some details were unclear to me. I've saved this as a *Draft*.\n\n" if is_review else "🤖 *I've extracted the following details:*\n\n"
     
     return (
         f"{prefix}"
@@ -189,8 +190,9 @@ def format_campaign_summary_wa(campaign: dict, is_review: bool = False) -> str:
         f"📦 *Deliverables:* {deliv}\n"
         f"⏳ *Deadline:* {deadl}\n"
         f"💰 *Payment:* ₹{pay:,.2f}\n\n"
+        f"───\n"
         f"*Is this correct?*\n"
-        f"Reply *Yes* to make it Active, *Draft* to save, or correct any field (e.g., 'Payment: 15000')."
+        f"Reply *Yes* to make it Active, *Draft* to save it for later, or reply with corrections (e.g., 'Payment: 15000', 'Deadline: 20 July')."
     )
 
 def get_valid_transitions() -> dict[str, list[str]]:

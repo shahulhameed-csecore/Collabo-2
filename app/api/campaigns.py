@@ -1,7 +1,7 @@
 import structlog
 from fastapi import APIRouter, Depends, HTTPException, Query
 from typing import List
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from app.schemas.campaign import CampaignCreate, CampaignUpdate, CampaignStatusUpdate, CampaignResponse, CampaignStatus
 from app.api.dependencies import get_current_user, get_user_supabase_client, AuthenticatedUser
 from app.core.limiter import limiter
@@ -13,11 +13,11 @@ logger = structlog.get_logger(__name__)
 router = APIRouter(prefix="/campaigns", tags=["Campaigns"])
 
 class BulkStatusUpdate(BaseModel):
-    campaign_ids: List[str]
+    campaign_ids: List[str] = Field(..., max_length=100)
     status: CampaignStatus
 
 class BulkDelete(BaseModel):
-    campaign_ids: List[str]
+    campaign_ids: List[str] = Field(..., max_length=100)
 
 @router.patch("/bulk/status", response_model=dict)
 @limiter.limit("10/minute")
@@ -229,3 +229,77 @@ async def delete_campaign(request: Request, id: str, client=Depends(get_user_sup
     if not response.data:
         raise HTTPException(status_code=404, detail="Campaign not found or access denied")
     return {"message": "Campaign deleted successfully"}
+
+
+@router.post("/sample-data", response_model=List[CampaignResponse])
+@limiter.limit("5/minute")
+async def load_sample_data(
+    request: Request,
+    client=Depends(get_user_supabase_client),
+    user: AuthenticatedUser = Depends(get_current_user),
+):
+    import secrets
+    import string
+    from datetime import datetime, timezone, timedelta
+    
+    now = datetime.now(timezone.utc)
+    
+    sample_campaigns = [
+        {
+            "user_id": user.user.id,
+            "influencer_name": "Riya Sharma",
+            "influencer_handle": "@riya_creates",
+            "platform": "Instagram",
+            "deliverables": "1 Reel + 2 Stories",
+            "payment_amount": 15000.0,
+            "deadline": (now + timedelta(days=2)).isoformat(),
+            "status": "active",
+            "special_notes": "Mamaearth Hair Oil Promotion - Focus on natural ingredients",
+            "short_code": ''.join(secrets.choice(string.ascii_letters + string.digits) for _ in range(8))
+        },
+        {
+            "user_id": user.user.id,
+            "influencer_name": "Techie Rahul",
+            "influencer_handle": "@techguru_in",
+            "platform": "YouTube",
+            "deliverables": "Dedicated Integration (60s)",
+            "payment_amount": 45000.0,
+            "deadline": (now - timedelta(days=1)).isoformat(),
+            "status": "active",
+            "special_notes": "Boat Earbuds unboxing. Emphasize bass and battery life.",
+            "short_code": ''.join(secrets.choice(string.ascii_letters + string.digits) for _ in range(8))
+        },
+        {
+            "user_id": user.user.id,
+            "influencer_name": "Priya Glow",
+            "influencer_handle": "@priya.glows",
+            "platform": "Instagram",
+            "deliverables": "1 Carousel Post",
+            "payment_amount": 12000.0,
+            "deadline": (now + timedelta(days=10)).isoformat(),
+            "status": "content_received",
+            "special_notes": "Dot & Key Skincare Routine.",
+            "proof_url": "https://instagram.com/p/sample",
+            "short_code": ''.join(secrets.choice(string.ascii_letters + string.digits) for _ in range(8))
+        },
+        {
+            "user_id": user.user.id,
+            "influencer_name": "Kunal Snacks",
+            "influencer_handle": "@kunal.eats",
+            "platform": "Instagram",
+            "deliverables": "1 Reel",
+            "payment_amount": 8000.0,
+            "deadline": (now - timedelta(days=5)).isoformat(),
+            "status": "paid",
+            "special_notes": "Snackible review - focus on healthy munching.",
+            "proof_url": "https://instagram.com/p/sample2",
+            "short_code": ''.join(secrets.choice(string.ascii_letters + string.digits) for _ in range(8))
+        }
+    ]
+    
+    try:
+        response = client.table("campaigns").insert(sample_campaigns).execute()
+        return response.data if response and hasattr(response, 'data') else []
+    except Exception as e:
+        logger.error(f"Failed to load sample data: {e}")
+        raise HTTPException(status_code=500, detail="Failed to load sample data")

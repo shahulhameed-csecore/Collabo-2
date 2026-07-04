@@ -57,6 +57,7 @@ ADVANCED HINGLISH & SLANG DICTIONARY:
    - 'shorts', 'video', 'vlog', 'youtube integration', 'dedicated' = Assume 'YouTube'
    - 'do' = 2, 'teen' = 3, 'chaar' = 4, 'paanch' = 5 (e.g., 'do reel' = '2 Reels')
    - Translate Hinglish phrases like "deal final ho gayi hai" (deal is finalized) to understand context.
+   - Ignore filler words like "bhai", "yaar", "sir", "madam", "bro".
 
 Extract the following details accurately:
 - influencer_name: The real name of the creator. If missing, but a handle is present (e.g., '@vlog_queen_delhi'), infer a clean name like 'Vlog Queen Delhi'.
@@ -136,10 +137,9 @@ def parse_pdf(file_bytes: bytes) -> tuple[str, list[bytes]]:
 
 def is_retryable_error(exception: Exception) -> bool:
     err_str = str(exception).lower()
-    if "429" in err_str or "quota" in err_str or "resource_exhausted" in err_str:
-        return False
     if "404" in err_str or "not_found" in err_str:
         return False
+    # Always retry on 429/quota to let tenacity's exponential backoff handle temporary spikes
     return True
 
 @retry(wait=wait_exponential(multiplier=1, min=2, max=10), stop=stop_after_attempt(4), retry=retry_if_exception(is_retryable_error))
@@ -241,9 +241,10 @@ async def extract_campaign_data(file_bytes: bytes, filename: str, mime_type: str
                 last_error = e
                 err_str = str(e).lower()
                 
-                # If quota error, switch to next key immediately
+                # We retry quota errors internally now, but if it exhausts 4 attempts and bubbles up here,
+                # we switch to the next key.
                 if "429" in err_str or "quota" in err_str or "resource_exhausted" in err_str:
-                    logger.warning("quota_exhausted_switching_keys", key=key_name)
+                    logger.warning("quota_exhausted_switching_keys_after_retries", key=key_name)
                     continue
                 
                 # Stage 2 Fallback: If it had images, try text-only
@@ -260,7 +261,7 @@ async def extract_campaign_data(file_bytes: bytes, filename: str, mime_type: str
                         last_error = e2
                         err2_str = str(e2).lower()
                         if "429" in err2_str or "quota" in err2_str or "resource_exhausted" in err2_str:
-                            logger.warning("quota_exhausted_stage2_switching_keys", key=key_name)
+                            logger.warning("quota_exhausted_stage2_switching_keys_after_retries", key=key_name)
                             continue
                 else:
                     # If we don't have a text fallback and it's not a quota error,

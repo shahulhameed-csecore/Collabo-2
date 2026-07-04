@@ -47,6 +47,7 @@ class CampaignBase(BaseModel):
     )
     payment_amount: Optional[float] = Field(
         default=0.0,
+        ge=0.0,
         description="Total compensation in INR. Barter campaigns should be 0.0.",
         json_schema_extra={"examples": [15000.0]}
     )

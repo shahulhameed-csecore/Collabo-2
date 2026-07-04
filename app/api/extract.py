@@ -1,8 +1,9 @@
 import structlog
 from fastapi import APIRouter, Depends, UploadFile, File, Request, HTTPException
-from app.api.dependencies import get_current_user, AuthenticatedUser
+from app.api.dependencies import get_current_user, AuthenticatedUser, get_user_supabase_client
 from app.core.limiter import limiter
 from app.services.gemini import extract_campaign_data
+from datetime import datetime, timezone
 
 logger = structlog.get_logger(__name__)
 
@@ -17,6 +18,30 @@ async def extract_data(
 ):
     try:
         logger.info("extract_endpoint_called", user_id=user.user.id, filename=file.filename, content_type=file.content_type)
+        
+        # Enforce Billing / Trial Limits
+        client = get_user_supabase_client(request)
+        sub_res = client.table("subscriptions").select("tier, trial_ends_at").eq("user_id", user.user.id).execute()
+        
+        from app.api.billing import IS_TESTING_PHASE
+        if not IS_TESTING_PHASE and sub_res.data:
+            sub = sub_res.data[0]
+            tier = sub.get("tier", "free")
+            trial_str = sub.get("trial_ends_at")
+            
+            parsed_trial = None
+            if isinstance(trial_str, str):
+                try:
+                    parsed_trial = datetime.fromisoformat(trial_str.replace("Z", "+00:00"))
+                except: pass
+                
+            now = datetime.now(timezone.utc)
+            is_trial_active = parsed_trial and parsed_trial > now
+            
+            # If they are not pro (which includes active trials) or they are marked pro but trial expired
+            if tier != "pro" or (tier == "pro" and parsed_trial and not is_trial_active):
+                raise HTTPException(status_code=403, detail="AI Extraction requires a Pro plan or an active free trial.")
+                
         
         # Security: Prevent OOM by enforcing a strict 10MB limit before loading into memory.
         # We read chunk+1 bytes. If the length is > 10MB, we reject immediately.

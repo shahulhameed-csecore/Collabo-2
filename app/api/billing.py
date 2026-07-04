@@ -6,7 +6,7 @@ from app.api.dependencies import get_current_user, get_user_supabase_client, Aut
 
 # Toggle this to False when integrating real payments (Stripe/Razorpay)
 # When True, all users get a 'pro' plan by default.
-IS_TESTING_PHASE = True
+IS_TESTING_PHASE = False
 
 router = APIRouter(prefix="/billing", tags=["Billing"])
 
@@ -31,8 +31,28 @@ async def get_billing_usage(
         structlog.get_logger(__name__).error("billing_subscription_fetch_failed", error=str(e))
         sub_data = {}
     
-    current_plan = "pro" if IS_TESTING_PHASE else sub_data.get("tier", "free")
+    
+    # Evaluate Trial Status
+    raw_tier = sub_data.get("tier", "free")
     trial_ends_at = sub_data.get("trial_ends_at")
+    
+    # Parse trial string to datetime for evaluation
+    parsed_trial_ends_at = None
+    if isinstance(trial_ends_at, str):
+        try:
+            parsed_trial_ends_at = datetime.fromisoformat(trial_ends_at.replace("Z", "+00:00"))
+        except:
+            pass
+            
+    now = datetime.now(timezone.utc)
+    
+    # If they are marked as 'pro' but their trial has expired, and they haven't explicitly paid (we assume paid users won't have an expired trial date limiting their access without being updated to active paid status via webhook), downgrade to free.
+    # In a real system, you'd check a 'subscription_status' field from Stripe. Here, we rely on trial_ends_at.
+    if raw_tier == "pro" and parsed_trial_ends_at and parsed_trial_ends_at < now:
+        current_plan = "free"
+    else:
+        current_plan = "pro" if IS_TESTING_PHASE else raw_tier
+
     ai_extractions_used = sub_data.get("ai_extractions_count", 0)
     
     # Calculate campaigns this month

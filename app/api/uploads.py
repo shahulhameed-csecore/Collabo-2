@@ -101,13 +101,19 @@ async def upload_proof(
         raise HTTPException(status_code=400, detail="Campaign is not active or rejected. Proof cannot be uploaded.")
 
     # 2. File Size Validation & OOM Prevention
-    content = await file.read(MAX_VIDEO_SIZE + 1)
-    file_size = len(content)
+    # Seek to end to get actual size without loading into RAM
+    file.file.seek(0, 2)
+    file_size = file.file.tell()
+    file.file.seek(0)
+
     if file_size > MAX_VIDEO_SIZE:
         raise HTTPException(status_code=413, detail="File size exceeds the 50MB limit.")
 
     # 3. Magic Number Validation
-    file_mime = magic.from_buffer(content, mime=True)
+    chunk = await file.read(2048)
+    await file.seek(0) # Reset position for upload
+    
+    file_mime = magic.from_buffer(chunk, mime=True)
     if file_mime not in ALLOWED_MIME_TYPES:
         raise HTTPException(status_code=400, detail="Invalid file type. Only JPEG, PNG, MP4, and MOV are allowed.")
     
@@ -120,13 +126,12 @@ async def upload_proof(
     ext = ALLOWED_MIME_TYPES[file_mime]
     secure_filename = f"{uuid.uuid4()}{ext}"
 
-    # 5. Upload to Supabase Storage
+    # 5. Upload to Supabase Storage (using SpooledTemporaryFile directly prevents OOM)
     try:
         bucket_name = "proof-uploads"
-        # Supabase Python SDK storage upload expects bytes
         res = service_client.storage.from_(bucket_name).upload(
             path=secure_filename,
-            file=content,
+            file=file.file,
             file_options={"content-type": file_mime}
         )
         
