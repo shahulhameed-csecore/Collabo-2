@@ -110,20 +110,16 @@ export function ProfileDropdown({
           {/* Dropdown panel */}
           <div
             className={`
-              z-50
-              fixed bottom-0 left-0 right-0 rounded-t-3xl animate-slide-up-sheet
-              sm:absolute sm:bottom-auto sm:left-auto sm:right-0 sm:top-[calc(100%+8px)]
-              sm:w-72 sm:rounded-2xl sm:animate-slide-down
+              z-[60]
+              fixed top-[60px] left-4 right-4 rounded-2xl animate-slide-down origin-top
+              sm:absolute sm:top-[calc(100%+8px)] sm:bottom-auto sm:left-auto sm:right-0 
+              sm:w-72 sm:origin-top-right
               bg-white dark:bg-slate-900
               border border-slate-200 dark:border-slate-800/80
               shadow-2xl shadow-slate-900/10 dark:shadow-black/60
               overflow-hidden
             `}
           >
-            {/* Mobile drag handle */}
-            <div className="flex justify-center pt-3 pb-1 sm:hidden">
-              <div className="w-10 h-1 rounded-full bg-slate-300 dark:bg-slate-700" />
-            </div>
 
             {/* ── User info header ── */}
             <div className="px-4 pt-4 pb-3 border-b border-slate-100 dark:border-slate-800/80">
