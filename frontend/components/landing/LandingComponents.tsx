@@ -57,8 +57,7 @@ export function FeatureBadge({ icon: Icon, text, color }: { icon: React.ElementT
 
 import Image from 'next/image';
 
-// (Removed DashboardMockup CSS component in favor of real screenshot)
-
+export function HeroSection() {
   return (
     <section className="relative pt-28 pb-16 lg:pt-44 lg:pb-24 overflow-hidden">
       <div className="hero-gradient absolute inset-0 pointer-events-none" />
