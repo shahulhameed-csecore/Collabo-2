@@ -108,6 +108,24 @@ export default function SettingsPage() {
     }
   };
 
+  const handleUnlinkWA = async () => {
+    setIsSavingWA(true);
+    try {
+      await saveWhatsAppNumber({
+        whatsapp_number: "", 
+        telegram_username: telegramUsername,
+        email_reminders_enabled: emailEnabled,
+        whatsapp_reminders_enabled: waEnabled
+      });
+      setWhatsappNumber('');
+      toast.success('WhatsApp account unlinked successfully!');
+    } catch (error) {
+      toast.error(getApiErrorMessage(error, 'Failed to unlink WhatsApp account.'));
+    } finally {
+      setIsSavingWA(false);
+    }
+  };
+
   const handleSaveReminders = async () => {
     setIsSavingReminders(true);
     try {
@@ -256,7 +274,16 @@ export default function SettingsPage() {
                     </div>
                   )}
 
-                  <div className="pt-6 border-t border-slate-200/60 dark:border-slate-800/60 flex justify-end">
+                  <div className="pt-6 border-t border-slate-200/60 dark:border-slate-800/60 flex justify-end gap-4">
+                    {whatsappNumber && (
+                      <button
+                        onClick={handleUnlinkWA}
+                        disabled={isSavingWA || isLoading}
+                        className="inline-flex items-center gap-2 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-500/10 active:scale-95 font-bold rounded-2xl px-6 py-3.5 text-sm transition-all"
+                      >
+                        Unlink
+                      </button>
+                    )}
                     <button
                       onClick={handleSaveWA}
                       disabled={isSavingWA || isLoading}
