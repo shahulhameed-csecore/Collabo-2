@@ -178,18 +178,18 @@ export default function CalendarPage() {
             {/* Calendar Header */}
             <div className="grid grid-cols-7 border-b border-slate-200 dark:border-slate-800/60">
               {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
-                <div key={day} className="py-3 text-center text-[10px] sm:text-xs font-bold text-slate-500 uppercase tracking-wider bg-slate-50 dark:bg-slate-800/50">
+                <div key={day} className="py-2 sm:py-3 text-center text-[10px] sm:text-xs font-bold text-slate-500 uppercase tracking-wider bg-slate-50 dark:bg-slate-800/50">
                   <span className="hidden sm:inline">{day}</span>
                   <span className="sm:hidden">{day.charAt(0)}</span>
                 </div>
               ))}
             </div>
             
-            {/* Calendar Grid Container (Handles mobile overflow) */}
-            <div className="overflow-x-auto">
-              <div className="min-w-[600px] sm:min-w-0 grid grid-cols-7 auto-rows-fr">
+            {/* Calendar Grid Container */}
+            <div className="w-full">
+              <div className="grid grid-cols-7 auto-rows-fr">
                 {Array.from({ length: firstDayOfMonth }).map((_, i) => (
-                  <div key={`empty-${i}`} className="min-h-[100px] sm:min-h-[140px] p-2 border-b border-r border-slate-100 dark:border-slate-800/40 bg-slate-50/50 dark:bg-slate-900/20" />
+                  <div key={`empty-${i}`} className="min-h-[70px] sm:min-h-[140px] p-1 sm:p-2 border-b border-r border-slate-100 dark:border-slate-800/40 bg-slate-50/50 dark:bg-slate-900/20" />
                 ))}
                 
                 {Array.from({ length: daysInMonth }).map((_, i) => {
@@ -203,7 +203,7 @@ export default function CalendarPage() {
                       key={day} 
                       onClick={() => hasEvents && setSelectedDayStr(formatDateStr(currentDate.getFullYear(), currentDate.getMonth() + 1, day))}
                       className={`
-                        min-h-[100px] sm:min-h-[140px] p-1.5 sm:p-2 border-b border-r border-slate-100 dark:border-slate-800/40 transition-all
+                        min-h-[70px] sm:min-h-[140px] p-1 sm:p-2 border-b border-r border-slate-100 dark:border-slate-800/40 transition-all
                         ${isToday ? 'bg-emerald-50/30 dark:bg-emerald-500/5 relative overflow-hidden' : 'hover:bg-slate-50 dark:hover:bg-slate-800/20'}
                         ${hasEvents ? 'cursor-pointer hover:shadow-inner' : ''}
                       `}
@@ -211,37 +211,43 @@ export default function CalendarPage() {
                       {/* Today indicator border */}
                       {isToday && <div className="absolute top-0 left-0 w-full h-1 bg-emerald-500" />}
 
-                      <div className="flex items-center justify-between mb-1.5 sm:mb-2">
-                        <span className={`text-xs sm:text-sm font-bold w-6 h-6 sm:w-7 sm:h-7 flex items-center justify-center rounded-full ${isToday ? 'bg-emerald-500 text-white shadow-md shadow-emerald-500/30' : 'text-slate-700 dark:text-slate-300'}`}>
+                      <div className="flex flex-col sm:flex-row items-center sm:justify-between mb-1 sm:mb-2 gap-0.5 sm:gap-0">
+                        <span className={`text-[10px] sm:text-sm font-bold w-5 h-5 sm:w-7 sm:h-7 flex items-center justify-center rounded-full ${isToday ? 'bg-emerald-500 text-white shadow-md shadow-emerald-500/30' : 'text-slate-700 dark:text-slate-300'}`}>
                           {day}
                         </span>
                         {events.length > 0 && (
-                          <span className="text-[9px] sm:text-[10px] font-bold text-slate-400 dark:text-slate-500 bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded-full">
+                          <span className="text-[9px] sm:text-[10px] font-bold text-slate-400 dark:text-slate-500 sm:bg-slate-100 sm:dark:bg-slate-800 px-0 sm:px-1.5 py-0 sm:py-0.5 rounded-full">
                             {events.length}
                           </span>
                         )}
                       </div>
 
-                      <div className="space-y-1">
+                      <div className="flex flex-wrap sm:flex-col gap-1 items-start justify-center sm:justify-start sm:space-y-1">
                         {isLoading ? (
                           Array.from({ length: 2 }).map((_, i) => (
-                            <div key={`skel-${i}`} className="h-5 sm:h-6 bg-slate-100 dark:bg-slate-800/50 rounded animate-pulse w-full" />
+                            <div key={`skel-${i}`} className="h-1.5 w-1.5 sm:h-6 bg-slate-200 dark:bg-slate-700 rounded-full sm:rounded animate-pulse sm:w-full" />
                           ))
                         ) : (
                           <>
                             {events.slice(0, 3).map(event => (
-                              <div
-                                key={event.id}
-                                className={`flex items-center gap-1.5 text-[9px] sm:text-[10px] font-bold px-1.5 py-1 sm:px-2 sm:py-1.5 rounded-md sm:rounded-lg truncate border shadow-sm ${STATUS_COLORS[event.status] || STATUS_COLORS.draft}`}
-                                title={`${event.influencer_name || event.influencer_handle} - ${event.status}`}
-                              >
-                                {getPlatformIcon(event.platform)}
-                                <span className="truncate">{event.influencer_name || event.influencer_handle}</span>
+                              <div key={event.id}>
+                                {/* Mobile Dot */}
+                                <div 
+                                  className={`sm:hidden w-1.5 h-1.5 rounded-full bg-current ${STATUS_COLORS[event.status]?.split(' ').filter(c => c.startsWith('text-')).join(' ')}`}
+                                />
+                                {/* Desktop Badge */}
+                                <div
+                                  className={`hidden sm:flex items-center gap-1.5 text-[10px] font-bold px-2 py-1.5 rounded-lg truncate border shadow-sm ${STATUS_COLORS[event.status] || STATUS_COLORS.draft}`}
+                                  title={`${event.influencer_name || event.influencer_handle} - ${event.status}`}
+                                >
+                                  {getPlatformIcon(event.platform)}
+                                  <span className="truncate">{event.influencer_name || event.influencer_handle}</span>
+                                </div>
                               </div>
                             ))}
                             {events.length > 3 && (
-                              <div className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 text-center py-0.5 bg-slate-50 dark:bg-slate-800/50 rounded border border-slate-100 dark:border-slate-800/60">
-                                +{events.length - 3} more
+                              <div className="w-1.5 h-1.5 sm:w-auto sm:h-auto rounded-full bg-slate-300 dark:bg-slate-600 sm:bg-slate-50 sm:dark:bg-slate-800/50 sm:text-[10px] font-semibold text-slate-500 dark:text-slate-400 text-center sm:py-0.5 sm:rounded border border-transparent sm:border-slate-100 sm:dark:border-slate-800/60 flex items-center justify-center">
+                                <span className="hidden sm:inline">+{events.length - 3} more</span>
                               </div>
                             )}
                           </>
