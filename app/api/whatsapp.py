@@ -157,7 +157,6 @@ async def process_whatsapp_message(sender_id: str, message: dict):
                     .select("*")
                     .eq("user_id", user_id)
                     .eq("status", "draft")
-                    .ilike("special_notes", "%[wa_msg:%")
                     .order("created_at", desc=True)
                     .limit(1)
                     .execute()
@@ -177,6 +176,9 @@ async def process_whatsapp_message(sender_id: str, message: dict):
                     elif text_lower in ["no", "wrong"]:
                         await send_whatsapp_message(sender_id, f"Got it. The campaign for *{name}* is saved as a Draft. Please edit the details manually in your Collabo dashboard.")
                         return
+                else:
+                    await send_whatsapp_message(sender_id, "❌ I couldn't find a recent Draft to confirm. It might already be Active or Deleted. You can create a new one by sending me the influencer details.")
+                    return
 
             # Check for inline corrections
             if len(text_val) < 200:
@@ -187,7 +189,6 @@ async def process_whatsapp_message(sender_id: str, message: dict):
                         .select("*")
                         .eq("user_id", user_id)
                         .eq("status", "draft")
-                        .ilike("special_notes", "%[wa_msg:%")
                         .order("created_at", desc=True)
                         .limit(1)
                         .execute()
@@ -199,19 +200,34 @@ async def process_whatsapp_message(sender_id: str, message: dict):
                             supabase_admin.table("campaigns").update(corrections).eq("id", draft["id"]).execute()
                         
                         updated_draft = {**draft, **corrections}
-                        base_summary = format_campaign_summary_wa(updated_draft)
-                        base_summary = base_summary.replace("🤖 *I've extracted the following details:*\n\n", "")
-                        base_summary = base_summary.replace("🤖 *Collabo AI*\n\n⚠️ Some details were unclear to me. I've created a *Draft*.\n\n", "")
-                        summary_msg = "🤖 *Got it! I've updated the details:*\n\n" + base_summary
-                        
-                        if unparsed_date:
-                            summary_msg = f"⚠️ I couldn't understand the date '*{unparsed_date}*'. Please use a format like '15 July' or 'YYYY-MM-DD'.\n\n" + summary_msg
-                            
-                        await send_whatsapp_message(sender_id, summary_msg)
-                        return
                     else:
-                        await send_whatsapp_message(sender_id, "❌ I couldn't find a recent draft to update. The campaign might already be Active or Deleted. Please send a new message to extract.")
-                        return
+                        campaign_data = {
+                            "user_id": user_id,
+                            "status": "draft",
+                            "influencer_handle": "N/A",
+                            "platform": "Others",
+                            "special_notes": f"[wa_msg:{message_id}]" if message_id else ""
+                        }
+                        if corrections:
+                            campaign_data.update(corrections)
+                        
+                        insert_response = supabase_admin.table("campaigns").insert(campaign_data).execute()
+                        if insert_response.data:
+                            updated_draft = insert_response.data[0]
+                        else:
+                            await send_whatsapp_message(sender_id, "❌ I couldn't find a recent draft, and failed to create a new one. Please try again.")
+                            return
+                        
+                    base_summary = format_campaign_summary_wa(updated_draft)
+                    base_summary = base_summary.replace("🤖 *I've extracted the following details:*\n\n", "")
+                    base_summary = base_summary.replace("🤖 *Collabo AI*\n\n⚠️ Some details were unclear to me. I've created a *Draft*.\n\n", "")
+                    summary_msg = "🤖 *Got it! I've updated the details:*\n\n" + base_summary if recent_draft_resp.data else "🤖 *Got it! I've created a new Draft with these details:*\n\n" + base_summary
+                    
+                    if unparsed_date:
+                        summary_msg = f"⚠️ I couldn't understand the date '*{unparsed_date}*'. Please use a format like '15 July' or 'YYYY-MM-DD'.\n\n" + summary_msg
+                        
+                    await send_whatsapp_message(sender_id, summary_msg)
+                    return
                         
             content_for_gemini = text_val
             if not content_for_gemini:

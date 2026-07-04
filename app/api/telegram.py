@@ -175,7 +175,6 @@ async def process_telegram_message(update: dict):
                     .select("*")
                     .eq("user_id", user_id)
                     .eq("status", "draft")
-                    .ilike("special_notes", "%[tg_update:%")
                     .order("created_at", desc=True)
                     .limit(1)
                     .execute()
@@ -196,6 +195,9 @@ async def process_telegram_message(update: dict):
                     elif text_lower in ["no", "wrong"]:
                         await send_telegram_message(chat_id, f"Got it. The campaign for <b>{clean_name}</b> is saved as a Draft. Please edit the details manually in your Collabo dashboard.")
                         return
+                else:
+                    await send_telegram_message(chat_id, "❌ I couldn't find a recent Draft to confirm. It might already be Active or Deleted. You can create a new one by sending me the influencer details.")
+                    return
 
             # Check for inline corrections
             if len(text_val) < 200:
@@ -206,7 +208,6 @@ async def process_telegram_message(update: dict):
                         .select("*")
                         .eq("user_id", user_id)
                         .eq("status", "draft")
-                        .ilike("special_notes", "%[tg_update:%")
                         .order("created_at", desc=True)
                         .limit(1)
                         .execute()
@@ -219,28 +220,43 @@ async def process_telegram_message(update: dict):
                         
                         # Merge corrections into draft dict for immediate display
                         updated_draft = {**draft, **corrections}
-                        
-                        base_summary = format_campaign_summary(updated_draft)
-                        base_summary = base_summary.replace("🤖 <b>I've extracted the following details:</b>\n\n", "")
-                        base_summary = base_summary.replace("🤖 <b>Collabo AI</b>\n\n⚠️ Some details were unclear to me. I've created a <b>Draft</b>.\n\n", "")
-                        summary_msg = "🤖 <b>Got it! I've updated the details:</b>\n\n" + base_summary
-                        
-                        if unparsed_date:
-                            summary_msg = f"⚠️ I couldn't understand the date '<b>{html.escape(unparsed_date)}</b>'. Please use a format like '15 July' or 'YYYY-MM-DD'.\n\n" + summary_msg
-                            
-                        reply_markup = {
-                            "inline_keyboard": [
-                                [
-                                    {"text": "✅ Save as Active", "callback_data": f"camp_act:{draft['id']}"},
-                                    {"text": "🗑️ Delete", "callback_data": f"camp_del:{draft['id']}"}
-                                ]
-                            ]
-                        }
-                        await send_telegram_message(chat_id, summary_msg, reply_markup=reply_markup)
-                        return
                     else:
-                        await send_telegram_message(chat_id, "❌ I couldn't find a recent draft to update. The campaign might already be Active or Deleted. Please send a new message to extract.")
-                        return
+                        # If no Draft exists, create a new one!
+                        campaign_data = {
+                            "user_id": user_id,
+                            "status": "draft",
+                            "influencer_handle": "N/A",
+                            "platform": "Others",
+                            "special_notes": f"[tg_update:{update_id}]" if update_id else ""
+                        }
+                        if corrections:
+                            campaign_data.update(corrections)
+                        
+                        insert_response = supabase_admin.table("campaigns").insert(campaign_data).execute()
+                        if insert_response.data:
+                            updated_draft = insert_response.data[0]
+                        else:
+                            await send_telegram_message(chat_id, "❌ I couldn't find a recent draft, and failed to create a new one. Please try again.")
+                            return
+                    
+                    base_summary = format_campaign_summary(updated_draft)
+                    base_summary = base_summary.replace("🤖 <b>I've extracted the following details:</b>\n\n", "")
+                    base_summary = base_summary.replace("🤖 <b>Collabo AI</b>\n\n⚠️ Some details were unclear to me. I've created a <b>Draft</b>.\n\n", "")
+                    summary_msg = "🤖 <b>Got it! I've updated the details:</b>\n\n" + base_summary if recent_draft_resp.data else "🤖 <b>Got it! I've created a new Draft with these details:</b>\n\n" + base_summary
+                    
+                    if unparsed_date:
+                        summary_msg = f"⚠️ I couldn't understand the date '<b>{html.escape(unparsed_date)}</b>'. Please use a format like '15 July' or 'YYYY-MM-DD'.\n\n" + summary_msg
+                        
+                    reply_markup = {
+                        "inline_keyboard": [
+                            [
+                                {"text": "✅ Save as Active", "callback_data": f"camp_act:{updated_draft['id']}"},
+                                {"text": "🗑️ Delete", "callback_data": f"camp_del:{updated_draft['id']}"}
+                            ]
+                        ]
+                    }
+                    await send_telegram_message(chat_id, summary_msg, reply_markup=reply_markup)
+                    return
 
         # 4. Extract content (Text / Audio / Image)
         content_for_gemini = None
