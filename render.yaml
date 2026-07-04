@@ -11,9 +11,13 @@ services:
       - key: ENVIRONMENT
         value: production
 
-      # CORS — update if your Vercel domain changes
+      # Base URL for email and WhatsApp reminders
+      - key: BASE_URL
+        value: "https://mycollabo.online"
+
+      # CORS — update if your domain changes
       - key: ALLOWED_ORIGINS
-        value: "https://collabo-2.vercel.app"
+        value: "https://mycollabo.online,http://localhost:3000"
 
       # Supabase (set in Render dashboard — do NOT commit real values)
       - key: SUPABASE_URL

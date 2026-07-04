@@ -29,7 +29,7 @@ def get_proof_received_email_html(inf_name: str) -> str:
     <h1 style="color:#34d399;margin-top:0;">🎉 Proof Received!</h1>
     <p>The influencer <strong style="color:#fbbf24;">{inf_name}</strong> just uploaded their proof of posting.</p>
     <p>Please log in to review and approve the content.</p>
-    <a href="https://collabo-2.vercel.app/dashboard" style="display:inline-block;background:#10b981;color:#ffffff;text-decoration:none;font-weight:bold;padding:12px 24px;border-radius:8px;margin-top:16px;">View Dashboard →</a>
+    <a href="{settings.BASE_URL}/dashboard" style="display:inline-block;background:#10b981;color:#ffffff;text-decoration:none;font-weight:bold;padding:12px 24px;border-radius:8px;margin-top:16px;">View Dashboard →</a>
   </div>
 </body>
 </html>"""
@@ -69,7 +69,7 @@ async def notify_owner_of_proof(user_id: str, inf_name: str):
         body = (
             f"🎉 *Proof Received!*\nThe influencer *{inf_name}* just uploaded their proof of posting.\n\n"
             "Please log into Collabo to review and approve the content:\n"
-            "https://collabo-2.vercel.app/dashboard"
+            f"{settings.BASE_URL}/dashboard"
         )
         await send_whatsapp_message(wa_num, body)
 

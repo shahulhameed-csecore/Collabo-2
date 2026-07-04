@@ -163,7 +163,7 @@ app = FastAPI(
     version="1.0.0",
     contact={
         "name": "Collabo Support",
-        "url": "https://collabo-2.vercel.app",
+        "url": settings.BASE_URL,
         "email": "support@collabo.app",
     },
     lifespan=lifespan,
@@ -193,7 +193,7 @@ async def add_security_headers(request: Request, call_next):
         "default-src 'self'; "
         "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
         "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net; "
-        "img-src 'self' data: https://collabo-2.vercel.app; "
+        f"img-src 'self' data: {settings.BASE_URL}; "
         "connect-src 'self' https://*.supabase.co; "
         "frame-ancestors 'none';"
     )
@@ -256,7 +256,7 @@ async def health_check(request: Request):
 @app.get("/", include_in_schema=False)
 async def root_redirect():
     """301 permanent redirect: Render API domain → Vercel frontend."""
-    return RedirectResponse(url="https://collabo-2.vercel.app", status_code=301)
+    return RedirectResponse(url=settings.BASE_URL, status_code=301)
 
 
 @app.get("/favicon.ico", include_in_schema=False)

@@ -225,7 +225,7 @@ def _build_reminder_email(inf_name: str, deadline_ist: str) -> tuple[str, str]:
                 and ready to go live.
               </p>
               <div style="text-align:center;">
-                <a href="https://collabo-2.vercel.app/dashboard"
+                <a href="{settings.BASE_URL}/dashboard"
                    style="display:inline-block;background:#10b981;color:#ffffff;
                           text-decoration:none;font-weight:700;font-size:14px;
                           padding:14px 32px;border-radius:10px;">
@@ -238,7 +238,7 @@ def _build_reminder_email(inf_name: str, deadline_ist: str) -> tuple[str, str]:
             <td style="padding:20px 40px;border-top:1px solid #1e293b;text-align:center;">
               <p style="margin:0;color:#475569;font-size:12px;">
                 You're receiving this because you enabled email reminders in
-                <a href="https://collabo-2.vercel.app/settings"
+                <a href="{settings.BASE_URL}/settings"
                    style="color:#34d399;text-decoration:none;">Collabo Settings</a>.
               </p>
             </td>
@@ -296,7 +296,7 @@ def _build_overdue_email(inf_name: str, deadline_ist: str) -> tuple[str, str]:
                 (mark it as <em>Completed</em> or <em>Cancelled</em>).
               </p>
               <div style="text-align:center;">
-                <a href="https://collabo-2.vercel.app/dashboard"
+                <a href="{settings.BASE_URL}/dashboard"
                    style="display:inline-block;background:#ef4444;color:#ffffff;
                           text-decoration:none;font-weight:700;font-size:14px;
                           padding:14px 32px;border-radius:10px;">
@@ -309,7 +309,7 @@ def _build_overdue_email(inf_name: str, deadline_ist: str) -> tuple[str, str]:
             <td style="padding:20px 40px;border-top:1px solid #1e293b;text-align:center;">
               <p style="margin:0;color:#475569;font-size:12px;">
                 You're receiving this because you enabled email reminders in
-                <a href="https://collabo-2.vercel.app/settings"
+                <a href="{settings.BASE_URL}/settings"
                    style="color:#34d399;text-decoration:none;">Collabo Settings</a>.
               </p>
             </td>
@@ -645,7 +645,7 @@ async def check_deadlines_job() -> dict:
                         f"📅 Deadline: {deadline_ist_str}\n\n"
                         "Please follow up with the creator to confirm deliverables "
                         "are on track.\n\n"
-                        "View dashboard: https://collabo-2.vercel.app/dashboard"
+                        f"View dashboard: {settings.BASE_URL}/dashboard"
                     )
                     wa_ok = await _send_whatsapp(whatsapp_num, wa_body)
                 else:
@@ -732,7 +732,7 @@ async def check_deadlines_job() -> dict:
                         f"🚨 *Overdue* — Campaign for *{inf_name}* missed its deadline!\n\n"
                         f"📅 Was due: {deadline_ist_str}\n\n"
                         "Please contact the creator and update the campaign status.\n\n"
-                        "View: https://collabo-2.vercel.app/dashboard"
+                        f"View: {settings.BASE_URL}/dashboard"
                     )
                     wa_ok = await _send_whatsapp(whatsapp_num, wa_body)
 
