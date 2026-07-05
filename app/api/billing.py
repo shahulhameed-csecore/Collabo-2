@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, Request
 from pydantic import BaseModel
 from typing import Optional
 from datetime import datetime, timezone
-from app.api.dependencies import get_current_user, get_user_supabase_client, AuthenticatedUser
+from app.api.dependencies import get_current_user, get_user_supabase_client, AuthenticatedUser, get_service_client
 from app.core.config import settings
 import razorpay
 from fastapi import HTTPException
@@ -155,6 +155,7 @@ async def verify_payment(
         # Get current subscription
         sub_response = db_client.table("subscriptions").select("*").eq("user_id", user.user.id).execute()
         
+        service_client = get_service_client()
         if sub_response.data:
             current_sub = sub_response.data[0]
             current_trial = current_sub.get("trial_ends_at")
@@ -171,8 +172,8 @@ async def verify_payment(
             else:
                 new_expiry = now + timedelta(days=days_to_add)
                 
-            # Update DB
-            db_client.table("subscriptions").update({
+            # Update DB (Using service client to bypass RLS)
+            service_client.table("subscriptions").update({
                 "tier": "pro",
                 "trial_ends_at": new_expiry.isoformat(),
                 "razorpay_customer_id": None, # or update if available
@@ -180,7 +181,7 @@ async def verify_payment(
             }).eq("user_id", user.user.id).execute()
         else:
             # If no subscription exists for some reason, create one
-            db_client.table("subscriptions").insert({
+            service_client.table("subscriptions").insert({
                 "user_id": user.user.id,
                 "tier": "pro",
                 "trial_ends_at": (now + timedelta(days=days_to_add)).isoformat()
