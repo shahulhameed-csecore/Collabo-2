@@ -104,7 +104,7 @@ async def create_razorpay_order(
         
     client = razorpay.Client(auth=(settings.RAZORPAY_KEY_ID, settings.RAZORPAY_KEY_SECRET))
     
-    amount = 2990 * 100 if req.is_annual else 299 * 100  # Amount in paise (₹2990 yearly, ₹299 monthly)
+    amount = 300 * 100  # Amount in paise (₹300 monthly)
     
     data = {
         "amount": amount,
@@ -112,7 +112,7 @@ async def create_razorpay_order(
         "receipt": f"rcpt_{str(user.user.id).replace('-', '')}",
         "notes": {
             "user_id": user.user.id,
-            "type": "annual_pro" if req.is_annual else "monthly_pro"
+            "type": "monthly_pro"
         }
     }
     
