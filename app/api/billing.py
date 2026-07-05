@@ -109,7 +109,7 @@ async def create_razorpay_order(
     data = {
         "amount": amount,
         "currency": "INR",
-        "receipt": f"receipt_{user.user.id}",
+        "receipt": f"rcpt_{str(user.user.id).replace('-', '')}",
         "notes": {
             "user_id": user.user.id,
             "type": "annual_pro" if req.is_annual else "monthly_pro"
