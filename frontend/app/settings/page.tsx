@@ -21,7 +21,7 @@ export default function SettingsPage() {
   const [isSavingReminders, setIsSavingReminders] = useState(false);
   const [copied, setCopied] = useState(false);
   const [usage, setUsage] = useState<BillingUsage | null>(null);
-  const [isAnnual, setIsAnnual] = useState(false);
+  // Removed isAnnual state
 
   // Updated fallback Bot Number as requested
   const botNumber = process.env.NEXT_PUBLIC_BOT_NUMBER || "+91 6374771074";
@@ -161,14 +161,14 @@ export default function SettingsPage() {
     }
     
     try {
-      const order = await createRazorpayOrder(isAnnual);
+      const order = await createRazorpayOrder();
       
       const options = {
         key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
         amount: order.amount,
         currency: order.currency,
         name: "Collabo",
-        description: isAnnual ? "Collabo Pro - Annual" : "Collabo Pro - Monthly",
+        description: "Collabo Pro - Monthly",
         order_id: order.order_id,
         handler: async function (response: any) {
           try {

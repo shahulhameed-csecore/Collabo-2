@@ -11,7 +11,7 @@ import { IS_TESTING_PHASE } from '@/lib/config';
 export default function BillingPage() {
   const [usage, setUsage] = useState<BillingUsage | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [isAnnual, setIsAnnual] = useState(true);
+  // Removed isAnnual state
 
   useEffect(() => {
     const fetchUsage = async () => {
@@ -44,16 +44,14 @@ export default function BillingPage() {
       toast.info('Payments are currently disabled during the testing phase.');
       return;
     }
-    
     try {
-      const order = await createRazorpayOrder(isAnnual);
-      
+      const order = await createRazorpayOrder();
       const options = {
         key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
         amount: order.amount,
         currency: order.currency,
         name: "Collabo",
-        description: isAnnual ? "Collabo Pro - Annual" : "Collabo Pro - Monthly",
+        description: "Collabo Pro - Monthly",
         order_id: order.order_id,
         handler: async function (response: any) {
           try {
@@ -216,23 +214,6 @@ export default function BillingPage() {
           <h2 className="text-2xl font-black text-slate-900 dark:text-white mb-2">Supercharge your influencer marketing</h2>
           <p className="text-slate-500 text-sm mb-8">Stop using spreadsheets. Start acting like an enterprise.</p>
           
-          <div className="flex justify-center mb-8">
-            <div className="bg-slate-100 dark:bg-slate-800 p-1 rounded-xl flex items-center gap-1 border border-slate-200 dark:border-slate-700/50">
-              <button 
-                onClick={() => setIsAnnual(false)}
-                className={`px-4 py-1.5 rounded-lg text-sm font-semibold transition-all ${!isAnnual ? 'bg-white dark:bg-slate-600 text-slate-900 dark:text-white shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
-              >
-                Monthly
-              </button>
-              <button 
-                onClick={() => setIsAnnual(true)}
-                className={`px-4 py-1.5 rounded-lg text-sm font-semibold transition-all flex items-center gap-2 ${isAnnual ? 'bg-white dark:bg-slate-600 text-slate-900 dark:text-white shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
-              >
-                Yearly <span className="text-[10px] bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400 px-2 py-0.5 rounded-full">Save 20%</span>
-              </button>
-            </div>
-          </div>
-
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto text-left">
             {/* Free Plan */}
             <div className="bg-white dark:bg-slate-900/40 p-8 rounded-3xl border border-slate-200 dark:border-slate-800/60 shadow-sm relative">
@@ -278,7 +259,7 @@ export default function BillingPage() {
               </h3>
               <p className="text-sm text-slate-400 mb-6 h-10 relative z-10">Everything you need to scale influencer marketing profitably.</p>
               <div className="flex items-baseline gap-1 mb-6 relative z-10">
-                <span className="text-4xl font-black text-white">{isAnnual ? '₹249' : '₹299'}</span>
+                <span className="text-4xl font-black text-white">₹300</span>
                 <span className="text-slate-400 font-medium">/ month</span>
               </div>
               

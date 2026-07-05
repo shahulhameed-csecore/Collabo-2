@@ -67,7 +67,7 @@ export default function PricingPage() {
               </h3>
               <p className="text-sm text-slate-400 mb-6 h-10 relative z-10">Everything you need to scale influencer marketing profitably.</p>
               <div className="flex items-baseline gap-1 mb-6 relative z-10">
-                <span className="text-4xl font-black text-white">₹299</span>
+                <span className="text-4xl font-black text-white">₹300</span>
                 <span className="text-slate-400 font-medium">/ month</span>
               </div>
               
