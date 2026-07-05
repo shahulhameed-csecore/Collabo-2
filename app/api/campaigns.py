@@ -134,6 +134,33 @@ async def create_campaign(
         data["short_code"] = ''.join(secrets.choice(string.ascii_letters + string.digits) for _ in range(8))
 
     try:
+        from app.api.billing import IS_TESTING_PHASE
+        if not IS_TESTING_PHASE:
+            sub_res = client.table("subscriptions").select("tier, trial_ends_at").eq("user_id", user.user.id).execute()
+            is_pro = False
+            if sub_res.data:
+                sub = sub_res.data[0]
+                tier = sub.get("tier", "free")
+                trial_str = sub.get("trial_ends_at")
+                
+                parsed_trial = None
+                if isinstance(trial_str, str):
+                    try:
+                        from datetime import datetime, timezone
+                        parsed_trial = datetime.fromisoformat(trial_str.replace("Z", "+00:00"))
+                    except: pass
+                
+                from datetime import datetime, timezone
+                now = datetime.now(timezone.utc)
+                is_trial_active = parsed_trial and parsed_trial > now
+                if tier == "pro" and is_trial_active:
+                    is_pro = True
+            
+            if not is_pro:
+                count_res = client.table("campaigns").select("id", count="exact").eq("user_id", user.user.id).execute()
+                if count_res.count is not None and count_res.count >= 5:
+                    raise HTTPException(status_code=403, detail="Free tier limit reached. Please upgrade to Pro to create more campaigns.")
+
         response = client.table("campaigns").insert(data).execute()
         if not response.data:
             raise HTTPException(status_code=400, detail="Failed to create campaign")
