@@ -4,10 +4,11 @@ import { useState, useEffect } from 'react';
 import DashboardLayout from '@/components/DashboardLayout';
 import { 
   Settings, MessageSquare, Phone, AlertCircle, Save, 
-  Bell, Mail, Copy, Check, Info, ShieldCheck, Send, QrCode, Smartphone, Sparkles
+  Bell, Mail, Copy, Check, Info, ShieldCheck, Send, QrCode, Smartphone, Sparkles, CreditCard, ArrowRight
 } from 'lucide-react';
 import { toast } from 'sonner';
-import { saveWhatsAppNumber, getWhatsAppNumber, getApiErrorMessage } from '@/lib/api';
+import { saveWhatsAppNumber, getWhatsAppNumber, getApiErrorMessage, getBillingUsage, BillingUsage, createRazorpayOrder, verifyRazorpayPayment } from '@/lib/api';
+import { IS_TESTING_PHASE } from '@/lib/config';
 
 export default function SettingsPage() {
   const [whatsappNumber, setWhatsappNumber] = useState('');
@@ -19,6 +20,8 @@ export default function SettingsPage() {
   const [isSavingTG, setIsSavingTG] = useState(false);
   const [isSavingReminders, setIsSavingReminders] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [usage, setUsage] = useState<BillingUsage | null>(null);
+  const [isAnnual, setIsAnnual] = useState(false);
 
   // Updated fallback Bot Number as requested
   const botNumber = process.env.NEXT_PUBLIC_BOT_NUMBER || "+91 6374771074";
@@ -44,6 +47,10 @@ export default function SettingsPage() {
         if (settings.email_reminders_enabled !== undefined) {
           setEmailEnabled(settings.email_reminders_enabled);
           setWaEnabled(settings.whatsapp_reminders_enabled);
+        }
+        const usageData = await getBillingUsage().catch(() => null);
+        if (usageData) {
+          setUsage(usageData);
         }
       } catch (error) {
         console.error("Failed to load settings:", error);
@@ -145,6 +152,54 @@ export default function SettingsPage() {
     }
   };
 
+  const isPro = IS_TESTING_PHASE || usage?.current_plan === 'pro';
+
+  const handleUpgrade = async () => {
+    if (IS_TESTING_PHASE && !process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID) {
+      toast.info('Payments are currently disabled during the testing phase.');
+      return;
+    }
+    
+    try {
+      const order = await createRazorpayOrder(isAnnual);
+      
+      const options = {
+        key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
+        amount: order.amount,
+        currency: order.currency,
+        name: "Collabo",
+        description: isAnnual ? "Collabo Pro - Annual" : "Collabo Pro - Monthly",
+        order_id: order.order_id,
+        handler: async function (response: any) {
+          try {
+            await verifyRazorpayPayment({
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_order_id: response.razorpay_order_id,
+              razorpay_signature: response.razorpay_signature,
+            });
+            toast.success("Payment successful! You are now on the Pro plan.");
+            // Refresh usage
+            const data = await getBillingUsage();
+            setUsage(data);
+          } catch (err) {
+            toast.error("Payment verification failed.");
+          }
+        },
+        theme: {
+          color: "#10b981"
+        }
+      };
+      
+      const rzp = new (window as any).Razorpay(options);
+      rzp.on('payment.failed', function (response: any){
+        toast.error(`Payment failed: ${response.error.description}`);
+      });
+      rzp.open();
+    } catch (err) {
+      toast.error("Failed to initiate payment. Please try again.");
+    }
+  };
+
   return (
     <DashboardLayout onNewCampaign={() => {}}>
       <div className="max-w-6xl mx-auto pb-16 animate-fade-in px-2 sm:px-4">
@@ -168,7 +223,52 @@ export default function SettingsPage() {
         ) : (
         <div className="space-y-16">
           
+          {/* ─── SECTION: Subscription ─── */}
+          <section className="flex flex-col xl:flex-row gap-8 xl:gap-12 relative">
+            <div className="xl:w-1/3 flex-shrink-0 space-y-4">
+              <div className="inline-flex items-center justify-center p-3.5 rounded-2xl bg-gradient-to-br from-purple-400/10 to-purple-500/10 border border-purple-500/20 text-purple-500 shadow-inner">
+                <CreditCard className="w-7 h-7" />
+              </div>
+              <div>
+                <h2 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight mb-2">Subscription Plan</h2>
+                <p className="text-sm text-slate-500 leading-relaxed max-w-sm font-medium">
+                  Manage your subscription tier and upgrade to unlock unlimited campaigns and premium features.
+                </p>
+              </div>
+            </div>
+            
+            <div className="xl:w-2/3">
+              <div className="bg-white/70 dark:bg-slate-950/70 backdrop-blur-xl border border-slate-200 dark:border-slate-800/80 rounded-[2rem] overflow-hidden shadow-sm">
+                <div className="p-6 sm:p-10 space-y-6">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between p-5 sm:p-6 bg-slate-50 dark:bg-slate-900/40 rounded-3xl border border-slate-200 dark:border-slate-800/60 shadow-sm gap-5">
+                    <div>
+                      <h3 className="text-base font-bold text-slate-900 dark:text-white mb-1.5 flex items-center gap-2">
+                        Current Plan: {isPro ? <span className="text-emerald-500">Collabo Pro</span> : <span className="text-slate-500">Starter (Free)</span>}
+                      </h3>
+                      {!isPro && (
+                        <p className="text-xs sm:text-sm text-slate-500 leading-relaxed font-medium">
+                          You are currently on the free tier. Upgrade to unlock unlimited campaigns and priority extractions.
+                        </p>
+                      )}
+                    </div>
+                    {!isPro && (
+                      <button
+                        onClick={handleUpgrade}
+                        className="inline-flex items-center justify-center gap-2 shrink-0 bg-emerald-500 hover:bg-emerald-400 shadow-lg shadow-emerald-500/20 active:scale-95 text-white font-bold rounded-2xl px-6 py-3 text-sm transition-all"
+                      >
+                        Upgrade to Pro <ArrowRight className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <hr className="border-slate-200 dark:border-slate-800/60" />
+
           {/* ─── SECTION: WhatsApp Integration ─── */}
+
           <section className="flex flex-col xl:flex-row gap-8 xl:gap-12 relative">
             <div className="xl:w-1/3 flex-shrink-0 space-y-4">
               <div className="inline-flex items-center justify-center p-3.5 rounded-2xl bg-gradient-to-br from-emerald-400/10 to-emerald-500/10 border border-emerald-500/20 text-emerald-500 shadow-inner">

@@ -351,4 +351,26 @@ export async function getBillingUsage(): Promise<BillingUsage> {
   return res.data;
 }
 
+export interface RazorpayOrderResponse {
+  order_id: string;
+  amount: number;
+  currency: string;
+}
+
+export async function createRazorpayOrder(isAnnual: boolean): Promise<RazorpayOrderResponse> {
+  const res = await api.post<RazorpayOrderResponse>('/billing/create-razorpay-order', { is_annual: isAnnual });
+  return res.data;
+}
+
+export interface RazorpayVerificationPayload {
+  razorpay_payment_id: string;
+  razorpay_order_id: string;
+  razorpay_signature: string;
+}
+
+export async function verifyRazorpayPayment(payload: RazorpayVerificationPayload): Promise<{ status: string; message: string }> {
+  const res = await api.post('/billing/verify-payment', payload);
+  return res.data;
+}
+
 export default api;

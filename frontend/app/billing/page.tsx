@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import DashboardLayout from '@/components/DashboardLayout';
-import { getBillingUsage, BillingUsage } from '@/lib/api';
+import { getBillingUsage, BillingUsage, createRazorpayOrder, verifyRazorpayPayment } from '@/lib/api';
 import { CreditCard, Zap, Check, Shield, Sparkles, TrendingUp, Star, ArrowRight, Infinity } from 'lucide-react';
 import { toast } from 'sonner';
 import Link from 'next/link';
@@ -39,11 +39,49 @@ export default function BillingPage() {
   const isTrialExpired = trialEndsAt && trialEndsAt <= now;
   const daysLeftInTrial = isTrialActive ? Math.ceil((trialEndsAt!.getTime() - now.getTime()) / (1000 * 3600 * 24)) : 0;
 
-  const handleUpgrade = () => {
-    if (IS_TESTING_PHASE) {
+  const handleUpgrade = async () => {
+    if (IS_TESTING_PHASE && !process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID) {
       toast.info('Payments are currently disabled during the testing phase.');
-    } else {
-      toast.error('Payment gateway integration pending.');
+      return;
+    }
+    
+    try {
+      const order = await createRazorpayOrder(isAnnual);
+      
+      const options = {
+        key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
+        amount: order.amount,
+        currency: order.currency,
+        name: "Collabo",
+        description: isAnnual ? "Collabo Pro - Annual" : "Collabo Pro - Monthly",
+        order_id: order.order_id,
+        handler: async function (response: any) {
+          try {
+            await verifyRazorpayPayment({
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_order_id: response.razorpay_order_id,
+              razorpay_signature: response.razorpay_signature,
+            });
+            toast.success("Payment successful! You are now on the Pro plan.");
+            // Refresh usage
+            const data = await getBillingUsage();
+            setUsage(data);
+          } catch (err) {
+            toast.error("Payment verification failed.");
+          }
+        },
+        theme: {
+          color: "#10b981"
+        }
+      };
+      
+      const rzp = new (window as any).Razorpay(options);
+      rzp.on('payment.failed', function (response: any){
+        toast.error(`Payment failed: ${response.error.description}`);
+      });
+      rzp.open();
+    } catch (err) {
+      toast.error("Failed to initiate payment. Please try again.");
     }
   };
 
@@ -240,7 +278,7 @@ export default function BillingPage() {
               </h3>
               <p className="text-sm text-slate-400 mb-6 h-10 relative z-10">Everything you need to scale influencer marketing profitably.</p>
               <div className="flex items-baseline gap-1 mb-6 relative z-10">
-                <span className="text-4xl font-black text-white">{isAnnual ? '₹399' : '₹499'}</span>
+                <span className="text-4xl font-black text-white">{isAnnual ? '₹249' : '₹299'}</span>
                 <span className="text-slate-400 font-medium">/ month</span>
               </div>
               
