@@ -25,6 +25,10 @@ class Settings(BaseSettings):
     TELEGRAM_BOT_TOKEN: Optional[str] = None
     TELEGRAM_WEBHOOK_SECRET: Optional[str] = None
 
+    # Razorpay Integration
+    RAZORPAY_KEY_ID: Optional[str] = None
+    RAZORPAY_KEY_SECRET: Optional[str] = None
+
     # Webhook Settings
     GMAIL_WEBHOOK_URL: Optional[str] = None
     GMAIL_WEBHOOK_SECRET: Optional[str] = None

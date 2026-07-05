@@ -3,6 +3,10 @@ from pydantic import BaseModel
 from typing import Optional
 from datetime import datetime, timezone
 from app.api.dependencies import get_current_user, get_user_supabase_client, AuthenticatedUser
+from app.core.config import settings
+import razorpay
+from fastapi import HTTPException
+from datetime import timedelta
 
 # Toggle this to False when integrating real payments (Stripe/Razorpay)
 # When True, all users get a 'pro' plan by default.
@@ -81,3 +85,112 @@ async def get_billing_usage(
         campaigns_this_month=campaigns_this_month,
         ai_extractions_used=ai_extractions_used
     )
+
+class CreateOrderRequest(BaseModel):
+    is_annual: bool = False
+
+class VerifyPaymentRequest(BaseModel):
+    razorpay_payment_id: str
+    razorpay_order_id: str
+    razorpay_signature: str
+
+@router.post("/create-razorpay-order")
+async def create_razorpay_order(
+    req: CreateOrderRequest,
+    user: AuthenticatedUser = Depends(get_current_user),
+):
+    if not settings.RAZORPAY_KEY_ID or not settings.RAZORPAY_KEY_SECRET:
+        raise HTTPException(status_code=500, detail="Razorpay is not configured")
+        
+    client = razorpay.Client(auth=(settings.RAZORPAY_KEY_ID, settings.RAZORPAY_KEY_SECRET))
+    
+    amount = 2990 * 100 if req.is_annual else 299 * 100  # Amount in paise (₹2990 yearly, ₹299 monthly)
+    
+    data = {
+        "amount": amount,
+        "currency": "INR",
+        "receipt": f"receipt_{user.user.id}",
+        "notes": {
+            "user_id": user.user.id,
+            "type": "annual_pro" if req.is_annual else "monthly_pro"
+        }
+    }
+    
+    try:
+        order = client.order.create(data=data)
+        return {"order_id": order["id"], "amount": amount, "currency": "INR"}
+    except Exception as e:
+        import structlog
+        structlog.get_logger(__name__).error("razorpay_order_creation_failed", error=str(e))
+        raise HTTPException(status_code=500, detail="Failed to create order")
+
+@router.post("/verify-payment")
+async def verify_payment(
+    req: VerifyPaymentRequest,
+    db_client=Depends(get_user_supabase_client),
+    user: AuthenticatedUser = Depends(get_current_user),
+):
+    if not settings.RAZORPAY_KEY_ID or not settings.RAZORPAY_KEY_SECRET:
+        raise HTTPException(status_code=500, detail="Razorpay is not configured")
+        
+    client = razorpay.Client(auth=(settings.RAZORPAY_KEY_ID, settings.RAZORPAY_KEY_SECRET))
+    
+    try:
+        # Verify Signature
+        client.utility.verify_payment_signature({
+            'razorpay_payment_id': req.razorpay_payment_id,
+            'razorpay_order_id': req.razorpay_order_id,
+            'razorpay_signature': req.razorpay_signature
+        })
+        
+        # Payment is valid. We need to fetch the order details to know if it's monthly or annual.
+        # Actually, let's just fetch the order from razorpay.
+        order = client.order.fetch(req.razorpay_order_id)
+        is_annual = order.get("notes", {}).get("type") == "annual_pro"
+        
+        # Extend subscription
+        days_to_add = 365 if is_annual else 30
+        now = datetime.now(timezone.utc)
+        
+        # Get current subscription
+        sub_response = db_client.table("subscriptions").select("*").eq("user_id", user.user.id).execute()
+        
+        if sub_response.data:
+            current_sub = sub_response.data[0]
+            current_trial = current_sub.get("trial_ends_at")
+            if current_trial:
+                try:
+                    parsed_trial = datetime.fromisoformat(current_trial.replace("Z", "+00:00"))
+                    # If still valid, extend from valid date, otherwise from now
+                    if parsed_trial > now:
+                        new_expiry = parsed_trial + timedelta(days=days_to_add)
+                    else:
+                        new_expiry = now + timedelta(days=days_to_add)
+                except:
+                    new_expiry = now + timedelta(days=days_to_add)
+            else:
+                new_expiry = now + timedelta(days=days_to_add)
+                
+            # Update DB
+            db_client.table("subscriptions").update({
+                "tier": "pro",
+                "trial_ends_at": new_expiry.isoformat(),
+                "razorpay_customer_id": None, # or update if available
+                "razorpay_subscription_id": None, 
+            }).eq("user_id", user.user.id).execute()
+        else:
+            # If no subscription exists for some reason, create one
+            db_client.table("subscriptions").insert({
+                "user_id": user.user.id,
+                "tier": "pro",
+                "trial_ends_at": (now + timedelta(days=days_to_add)).isoformat()
+            }).execute()
+            
+        return {"status": "success", "message": "Payment verified and tier updated to Pro."}
+
+    except razorpay.errors.SignatureVerificationError:
+        raise HTTPException(status_code=400, detail="Invalid payment signature")
+    except Exception as e:
+        import structlog
+        structlog.get_logger(__name__).error("razorpay_verification_failed", error=str(e))
+        raise HTTPException(status_code=500, detail="Failed to verify payment")
