@@ -195,3 +195,79 @@ async def verify_payment(
         import structlog
         structlog.get_logger(__name__).error("razorpay_verification_failed", error=str(e))
         raise HTTPException(status_code=500, detail="Failed to verify payment")
+
+
+@router.post("/razorpay-webhook")
+async def razorpay_webhook(request: Request):
+    if not settings.RAZORPAY_WEBHOOK_SECRET:
+        import structlog
+        structlog.get_logger(__name__).error("razorpay_webhook_secret_missing")
+        raise HTTPException(status_code=500, detail="Webhook secret not configured")
+        
+    payload_body = await request.body()
+    signature = request.headers.get("X-Razorpay-Signature")
+    
+    if not signature:
+        raise HTTPException(status_code=400, detail="Missing signature")
+        
+    client = razorpay.Client(auth=(settings.RAZORPAY_KEY_ID, settings.RAZORPAY_KEY_SECRET))
+    
+    try:
+        # Verify Webhook Signature
+        client.utility.verify_webhook_signature(
+            payload_body.decode('utf-8'),
+            signature,
+            settings.RAZORPAY_WEBHOOK_SECRET
+        )
+    except razorpay.errors.SignatureVerificationError:
+        raise HTTPException(status_code=400, detail="Invalid webhook signature")
+        
+    import json
+    payload = json.loads(payload_body)
+    
+    event = payload.get("event")
+    if event == "order.paid":
+        order = payload.get("payload", {}).get("order", {}).get("entity", {})
+        notes = order.get("notes", {})
+        user_id = notes.get("user_id")
+        
+        if user_id:
+            try:
+                from app.api.dependencies import get_service_client
+                service_client = get_service_client()
+                
+                now = datetime.now(timezone.utc)
+                sub_response = service_client.table("subscriptions").select("*").eq("user_id", user_id).execute()
+                days_to_add = 30 # Monthly
+                
+                if sub_response.data:
+                    current_sub = sub_response.data[0]
+                    current_trial = current_sub.get("trial_ends_at")
+                    if current_trial:
+                        try:
+                            parsed_trial = datetime.fromisoformat(current_trial.replace("Z", "+00:00"))
+                            if parsed_trial > now:
+                                new_expiry = parsed_trial + timedelta(days=days_to_add)
+                            else:
+                                new_expiry = now + timedelta(days=days_to_add)
+                        except:
+                            new_expiry = now + timedelta(days=days_to_add)
+                    else:
+                        new_expiry = now + timedelta(days=days_to_add)
+                        
+                    service_client.table("subscriptions").update({
+                        "tier": "pro",
+                        "trial_ends_at": new_expiry.isoformat()
+                    }).eq("user_id", user_id).execute()
+                else:
+                    service_client.table("subscriptions").insert({
+                        "user_id": user_id,
+                        "tier": "pro",
+                        "trial_ends_at": (now + timedelta(days=days_to_add)).isoformat()
+                    }).execute()
+            except Exception as e:
+                import structlog
+                structlog.get_logger(__name__).error("razorpay_webhook_db_update_failed", error=str(e))
+                
+    return {"status": "ok"}
+
