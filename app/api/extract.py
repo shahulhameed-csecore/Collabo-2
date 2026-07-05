@@ -20,7 +20,7 @@ async def extract_data(
         logger.info("extract_endpoint_called", user_id=user.user.id, filename=file.filename, content_type=file.content_type)
         
         # Enforce Billing / Trial Limits
-        client = get_user_supabase_client(request)
+        client = get_user_supabase_client(user)
         sub_res = client.table("subscriptions").select("tier, trial_ends_at").eq("user_id", user.user.id).execute()
         
         from app.api.billing import IS_TESTING_PHASE
