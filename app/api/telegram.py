@@ -226,7 +226,7 @@ async def process_telegram_message(update: dict):
                             "user_id": user_id,
                             "status": "draft",
                             "influencer_handle": "N/A",
-                            "platform": "Others",
+                            "platform": "Other",
                             "special_notes": f"[tg_update:{update_id}]" if update_id else ""
                         }
                         if corrections:
@@ -344,7 +344,7 @@ async def process_telegram_message(update: dict):
         if not campaign_data.get("influencer_handle"):
             campaign_data["influencer_handle"] = "N/A"
         if not campaign_data.get("platform"):
-            campaign_data["platform"] = "Others"
+            campaign_data["platform"] = "Other"
 
         # Sanitize Date Formatting to prevent Postgres crashes
         raw_deadline = campaign_data.get("deadline")

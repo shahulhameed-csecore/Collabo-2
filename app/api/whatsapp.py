@@ -205,7 +205,7 @@ async def process_whatsapp_message(sender_id: str, message: dict):
                             "user_id": user_id,
                             "status": "draft",
                             "influencer_handle": "N/A",
-                            "platform": "Others",
+                            "platform": "Other",
                             "special_notes": f"[wa_msg:{message_id}]" if message_id else ""
                         }
                         if corrections:
@@ -315,7 +315,7 @@ async def process_whatsapp_message(sender_id: str, message: dict):
         if not campaign_data.get("influencer_handle"):
             campaign_data["influencer_handle"] = "N/A"
         if not campaign_data.get("platform"):
-            campaign_data["platform"] = "Others"
+            campaign_data["platform"] = "Other"
 
         # Sanitize Date Formatting to prevent Postgres crashes
         raw_deadline = campaign_data.get("deadline")

@@ -74,6 +74,7 @@ from apscheduler.executors.asyncio import AsyncIOExecutor
 
 # reminders.py is now safe to import — structlog is already configured
 from app.services.reminders import check_deadlines_job
+from app.services.billing_cron import check_expired_trials_job
 
 # ─── Sentry (optional, before app init) ───────────────────────────────────────
 if settings.SENTRY_DSN:
@@ -107,6 +108,17 @@ async def lifespan(app: FastAPI):
         coalesce=True,            # collapse stacked missed runs into one
         jitter=30,                # ±30 s spread to avoid thundering herd
     )
+    
+    scheduler.add_job(
+        check_expired_trials_job,
+        trigger="interval",
+        minutes=interval_minutes,
+        id="billing_downgrade_job",
+        replace_existing=True,
+        misfire_grace_time=600,
+        coalesce=True,
+        jitter=30,
+    )
 
     # Optional: Schedule monthly report generation
     # Runs on the 1st of every month at 00:00 UTC
@@ -132,6 +144,10 @@ async def lifespan(app: FastAPI):
     task = asyncio.create_task(check_deadlines_job())
     background_tasks.add(task)
     task.add_done_callback(background_tasks.discard)
+    
+    billing_task = asyncio.create_task(check_expired_trials_job())
+    background_tasks.add(billing_task)
+    billing_task.add_done_callback(background_tasks.discard)
 
     job = scheduler.get_job("deadlines_job")
     logger.info(
