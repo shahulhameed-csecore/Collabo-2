@@ -73,14 +73,14 @@ async def verify_webhook(request: Request):
     raise HTTPException(status_code=403, detail="Verification failed")
 
 
+@sentry_sdk.trace(op="webhook", name="Process WhatsApp Message")
 async def process_whatsapp_message(sender_id: str, message: dict):
     """
     Background task to process the incoming WhatsApp message.
     Looks up the user, calls Gemini AI, and inserts a campaign into Supabase.
     """
-    with sentry_sdk.start_transaction(op="webhook", name="Process WhatsApp Message"):
-        try:
-            logger.info("Started process_whatsapp_message", sender_id=sender_id)
+    try:
+        logger.info("Started process_whatsapp_message", sender_id=sender_id)
         if not supabase_admin:
             logger.error("Supabase Admin client not initialized — SERVICE_ROLE_KEY missing.")
             return

@@ -26,13 +26,13 @@ if settings.SUPABASE_URL and settings.SUPABASE_SERVICE_ROLE_KEY:
 
 from app.core.utils import parse_date_string, parse_corrections, format_campaign_summary
 
+@sentry_sdk.trace(op="webhook", name="Process Telegram Message")
 async def process_telegram_message(update: dict):
     """
     Background task to process the incoming Telegram message.
     Looks up the user by username, calls Gemini AI, and inserts a campaign into Supabase.
     """
-    with sentry_sdk.start_transaction(op="webhook", name="Process Telegram Message"):
-        try:
+    try:
             if not supabase_admin:
                 logger.error("Supabase Admin client not initialized — SERVICE_ROLE_KEY missing.")
                 return
