@@ -1,5 +1,7 @@
 'use client';
 
+import * as Sentry from "@sentry/nextjs";
+import { useEffect } from "react";
 import { AlertCircle, RefreshCw } from 'lucide-react';
 import Link from 'next/link';
 
@@ -10,6 +12,10 @@ export default function GlobalError({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
+  useEffect(() => {
+    Sentry.captureException(error);
+  }, [error]);
+
   return (
     <html lang="en">
       <body className="bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex items-center justify-center min-h-screen p-4">
