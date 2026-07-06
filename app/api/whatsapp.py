@@ -273,6 +273,32 @@ async def process_whatsapp_message(sender_id: str, message: dict):
                     "caption": caption,
                 }
 
+        elif msg_type == "document":
+            document = message.get("document", {})
+            document_id = document.get("id")
+            filename = document.get("filename", "document")
+            mime_type = document.get("mime_type", "application/pdf")
+            caption = document.get("caption", "")
+            
+            if not document_id:
+                await send_whatsapp_message(
+                    sender_id, "🤖 *Collabo AI*\n\n❌ I couldn't download the document. Please try again."
+                )
+                return
+                
+            await send_whatsapp_message(sender_id, "🤖 *Collabo AI*\n\nReading your document... 📄")
+            doc_bytes = await download_whatsapp_media(document_id, max_bytes=_MAX_MEDIA_BYTES)
+            
+            if not doc_bytes:
+                content_for_gemini = f"{caption}\n(WhatsApp document download failed or exceeded size limits.)".strip()
+            else:
+                content_for_gemini = {
+                    "document_bytes": doc_bytes,
+                    "mime_type": mime_type,
+                    "filename": filename,
+                    "caption": caption,
+                }
+
         else:
             safe_type = str(msg_type)[:32] if msg_type else "unknown"
             await send_whatsapp_message(
@@ -287,6 +313,8 @@ async def process_whatsapp_message(sender_id: str, message: dict):
         
         file_bytes = b""
         mime_type = "text/plain"
+        filename = "message.txt"
+        caption_text = ""
         
         if isinstance(content_for_gemini, str):
             file_bytes = content_for_gemini.encode('utf-8')
@@ -295,14 +323,25 @@ async def process_whatsapp_message(sender_id: str, message: dict):
             if "audio_bytes" in content_for_gemini:
                 file_bytes = content_for_gemini["audio_bytes"]
                 mime_type = content_for_gemini["mime_type"]
+                filename = "audio.ogg"
             elif "image_bytes" in content_for_gemini:
                 file_bytes = content_for_gemini["image_bytes"]
                 mime_type = content_for_gemini["mime_type"]
-                if content_for_gemini.get("caption"):
-                    file_bytes += b"\n" + content_for_gemini["caption"].encode('utf-8')
+                filename = "image.jpg"
+                caption_text = content_for_gemini.get("caption", "")
+            elif "document_bytes" in content_for_gemini:
+                file_bytes = content_for_gemini["document_bytes"]
+                mime_type = content_for_gemini["mime_type"]
+                filename = content_for_gemini["filename"]
+                caption_text = content_for_gemini.get("caption", "")
                     
         logger.info("Calling Gemini extraction", mime_type=mime_type)
-        extracted_data = await extract_campaign_data(file_bytes=file_bytes, filename="whatsapp_input", mime_type=mime_type)
+        extracted_data = await extract_campaign_data(
+            file_bytes=file_bytes, 
+            filename=filename, 
+            mime_type=mime_type,
+            text_content=caption_text
+        )
         logger.info("Gemini extraction complete", extracted_data=extracted_data)
         
         if extracted_data:

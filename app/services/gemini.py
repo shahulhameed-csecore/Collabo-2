@@ -6,6 +6,7 @@ from tenacity import retry, wait_exponential, stop_after_attempt, retry_if_excep
 import asyncio
 import sentry_sdk
 from pypdf import PdfReader
+import docx
 from PIL import Image
 from pillow_heif import register_heif_opener
 from google import genai
@@ -136,6 +137,19 @@ def parse_pdf(file_bytes: bytes) -> tuple[str, list[bytes]]:
         logger.error("pdf_parsing_failed", error=str(e))
         return "", []
 
+def parse_docx(file_bytes: bytes) -> str:
+    """Extracts text from a Word document."""
+    try:
+        doc = docx.Document(io.BytesIO(file_bytes))
+        full_text = []
+        for para in doc.paragraphs:
+            if para.text.strip():
+                full_text.append(para.text)
+        return "\n".join(full_text)
+    except Exception as e:
+        logger.error("docx_parsing_failed", error=str(e))
+        return ""
+
 def is_retryable_error(exception: Exception) -> bool:
     err_str = str(exception).lower()
     if "404" in err_str or "not_found" in err_str:
@@ -171,7 +185,7 @@ async def _call_gemini_with_fallback(client: genai.Client, contents: list) -> Ex
         return await _call_gemini(client, contents, model='gemini-2.5-flash')
 
 @sentry_sdk.trace(op="task", name="Extract AI Data")
-async def extract_campaign_data(file_bytes: bytes, filename: str, mime_type: str) -> dict:
+async def extract_campaign_data(file_bytes: bytes, filename: str, mime_type: str, text_content: str = "") -> dict:
     """Main extraction pipeline with two-stage fallback."""
     try:
         from app.core.config import settings
@@ -204,6 +218,11 @@ async def extract_campaign_data(file_bytes: bytes, filename: str, mime_type: str
                     types.Part.from_bytes(data=img_bytes, mime_type="image/jpeg")
                 )
                 has_images = True
+        elif mime_type == "application/vnd.openxmlformats-officedocument.wordprocessingml.document" or filename.endswith(".docx"):
+            text = parse_docx(file_bytes)
+            if text.strip():
+                contents.append(text)
+                text_fallback = text
         elif mime_type.startswith("image/") or mime_type.startswith("audio/"):
             if mime_type.startswith("image/"):
                 compressed = compress_image(file_bytes)
@@ -223,6 +242,10 @@ async def extract_campaign_data(file_bytes: bytes, filename: str, mime_type: str
             # Try parsing as generic text if unknown
             text_fallback = file_bytes.decode('utf-8', errors='ignore')
             contents.append(text_fallback)
+            
+        if text_content:
+            contents.append(text_content)
+            text_fallback += "\n" + text_content
 
         last_error = None
         for key_name, api_key in keys_to_try:
