@@ -37,6 +37,7 @@ from typing import Optional, Any
 import pytz
 import structlog
 from supabase import create_client
+import sentry_sdk
 
 from app.core.config import settings
 
@@ -782,6 +783,7 @@ async def check_deadlines_job() -> dict:
                 )
 
         except Exception as exc:
+            sentry_sdk.capture_exception(exc)
             error_count += 1
             clog.error(
                 "reminders.campaign_processing_error",

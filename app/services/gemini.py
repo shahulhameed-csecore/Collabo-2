@@ -4,6 +4,7 @@ import structlog
 from pydantic import BaseModel, Field
 from tenacity import retry, wait_exponential, stop_after_attempt, retry_if_exception
 import asyncio
+import sentry_sdk
 from pypdf import PdfReader
 from PIL import Image
 from pillow_heif import register_heif_opener
@@ -171,8 +172,9 @@ async def _call_gemini_with_fallback(client: genai.Client, contents: list) -> Ex
 
 async def extract_campaign_data(file_bytes: bytes, filename: str, mime_type: str) -> dict:
     """Main extraction pipeline with two-stage fallback."""
-    try:
-        from app.core.config import settings
+    with sentry_sdk.start_transaction(op="task", name="Extract AI Data"):
+        try:
+            from app.core.config import settings
         
         api_key_1 = settings.GEMINI_API_KEY_1 or settings.GEMINI_API_KEY or os.getenv("GEMINI_API_KEY_1") or os.getenv("GEMINI_API_KEY")
         api_key_2 = settings.GEMINI_API_KEY_2 or os.getenv("GEMINI_API_KEY_2")
@@ -237,6 +239,7 @@ async def extract_campaign_data(file_bytes: bytes, filename: str, mime_type: str
                     
                 return result.model_dump()
             except Exception as e:
+                sentry_sdk.capture_exception(e)
                 logger.warning("gemini_stage1_failed", key=key_name, error=str(e))
                 last_error = e
                 err_str = str(e).lower()

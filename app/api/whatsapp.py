@@ -3,6 +3,7 @@ import hashlib
 import structlog
 import json
 from fastapi import APIRouter, Request, HTTPException, Response, BackgroundTasks
+import sentry_sdk
 from app.core.config import settings
 from app.core.limiter import limiter
 from supabase import create_client
@@ -77,8 +78,9 @@ async def process_whatsapp_message(sender_id: str, message: dict):
     Background task to process the incoming WhatsApp message.
     Looks up the user, calls Gemini AI, and inserts a campaign into Supabase.
     """
-    try:
-        logger.info("Started process_whatsapp_message", sender_id=sender_id)
+    with sentry_sdk.start_transaction(op="webhook", name="Process WhatsApp Message"):
+        try:
+            logger.info("Started process_whatsapp_message", sender_id=sender_id)
         if not supabase_admin:
             logger.error("Supabase Admin client not initialized — SERVICE_ROLE_KEY missing.")
             return
@@ -396,6 +398,7 @@ async def process_whatsapp_message(sender_id: str, message: dict):
             )
 
     except Exception as e:
+        sentry_sdk.capture_exception(e)
         logger.error("WhatsApp processing error", error=str(e), exc_info=True)
         # Log to DB so we can see it!
         if supabase_admin:
