@@ -170,11 +170,11 @@ async def _call_gemini_with_fallback(client: genai.Client, contents: list) -> Ex
         logger.warning("gemini_3_5_flash_failed_falling_back", error=str(e))
         return await _call_gemini(client, contents, model='gemini-2.5-flash')
 
+@sentry_sdk.trace(op="task", name="Extract AI Data")
 async def extract_campaign_data(file_bytes: bytes, filename: str, mime_type: str) -> dict:
     """Main extraction pipeline with two-stage fallback."""
-    with sentry_sdk.start_transaction(op="task", name="Extract AI Data"):
-        try:
-            from app.core.config import settings
+    try:
+        from app.core.config import settings
         
         api_key_1 = settings.GEMINI_API_KEY_1 or settings.GEMINI_API_KEY or os.getenv("GEMINI_API_KEY_1") or os.getenv("GEMINI_API_KEY")
         api_key_2 = settings.GEMINI_API_KEY_2 or os.getenv("GEMINI_API_KEY_2")
