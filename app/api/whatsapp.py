@@ -316,8 +316,8 @@ async def process_whatsapp_message(sender_id: str, message: dict):
 
         if not campaign_data.get("influencer_handle"):
             campaign_data["influencer_handle"] = "N/A"
-        if not campaign_data.get("platform"):
-            campaign_data["platform"] = "Other"
+        if not campaign_data.get("platform") or campaign_data.get("platform") == "Other":
+            campaign_data["platform"] = "Others"
 
         # Sanitize Date Formatting to prevent Postgres crashes
         raw_deadline = campaign_data.get("deadline")
