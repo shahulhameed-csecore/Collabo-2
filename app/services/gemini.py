@@ -29,9 +29,11 @@ class ExtractionResult(BaseModel):
 def get_system_prompt() -> str:
     return """You are a fast and accurate extraction engine for Collabo.
 
-Extract campaign details and output ONLY clean JSON.
+Extract campaign details from the chat and output ONLY clean JSON.
 
-Pay special attention to dates. Convert "12 Oct", "12 October", "12th Oct", "Oct 12" to YYYY-MM-DD format. Use year 2026 if not specified.
+Pay very close attention to dates. Convert phrases like "12 Oct", "12 October", "12th Oct", "Oct 12", "deadline is 12 Oct" to YYYY-MM-DD format. Assume year 2026 if not specified.
+
+Be smart with context. Even if the date is in the middle or end of the chat, extract it.
 
 JSON format:
 {
