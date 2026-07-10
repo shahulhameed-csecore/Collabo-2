@@ -1,3 +1,4 @@
+import asyncio
 import structlog
 import json
 import html
@@ -64,8 +65,8 @@ async def process_telegram_message(update: dict):
         # 1. Deduplicate using update_id
         if update_id:
             try:
-                existing = (
-                    supabase_admin.table("campaigns")
+                existing = await asyncio.to_thread(
+                    lambda: supabase_admin.table("campaigns")
                     .select("id")
                     .ilike("special_notes", f"%[tg_update:{update_id}]%")
                     .limit(1)
@@ -83,8 +84,8 @@ async def process_telegram_message(update: dict):
             # Check with and without @ prefix
             usernames_to_check = [username.lower(), f"@{username.lower()}"]
             try:
-                user_response = (
-                    supabase_admin.table("user_settings")
+                user_response = await asyncio.to_thread(
+                    lambda: supabase_admin.table("user_settings")
                     .select("user_id, telegram_username")
                     .ilike("telegram_username", f"%{username}%")
                     .execute()
@@ -116,9 +117,9 @@ async def process_telegram_message(update: dict):
 
         # 2b. Store the chat_id so we can send proactive reminders later
         try:
-            supabase_admin.table("user_settings").update({
+            await asyncio.to_thread(lambda: supabase_admin.table("user_settings").update({
                 "telegram_chat_id": chat_id
-            }).eq("user_id", user_id).execute()
+            }).eq("user_id", user_id).execute())
         except Exception as e:
             logger.error("Failed to update telegram_chat_id", error=str(e))
 
@@ -134,30 +135,30 @@ async def process_telegram_message(update: dict):
 
             if cb_data.startswith("camp_del:"):
                 camp_id = cb_data.split(":")[1]
-                supabase_admin.table("campaigns").delete().eq("id", camp_id).eq("user_id", user_id).execute()
+                await asyncio.to_thread(lambda: supabase_admin.table("campaigns").delete().eq("id", camp_id).eq("user_id", user_id).execute())
                 await send_telegram_message(chat_id, "🗑️ <b>Campaign Deleted</b>\n\nI've removed that draft from your account.")
                 return
             elif cb_data.startswith("camp_act:"):
                 camp_id = cb_data.split(":")[1]
-                supabase_admin.table("campaigns").update({"status": "active"}).eq("id", camp_id).eq("user_id", user_id).execute()
+                await asyncio.to_thread(lambda: supabase_admin.table("campaigns").update({"status": "active"}).eq("id", camp_id).eq("user_id", user_id).execute())
                 await send_telegram_message(chat_id, "✅ <b>Campaign Activated!</b>\n\nIt will now show up on your dashboard and calendar.")
                 return
             elif cb_data.startswith("camp_done:"):
                 camp_id = cb_data.split(":")[1]
-                supabase_admin.table("campaigns").update({"status": "completed"}).eq("id", camp_id).eq("user_id", user_id).execute()
+                await asyncio.to_thread(lambda: supabase_admin.table("campaigns").update({"status": "completed"}).eq("id", camp_id).eq("user_id", user_id).execute())
                 await send_telegram_message(chat_id, "🎉 <b>Awesome!</b>\n\nI've marked that campaign as <b>Completed</b>.")
                 return
             elif cb_data.startswith("camp_ext:"):
                 camp_id = cb_data.split(":")[1]
                 # Fetch campaign to get current deadline
-                resp = supabase_admin.table("campaigns").select("deadline").eq("id", camp_id).eq("user_id", user_id).execute()
+                resp = await asyncio.to_thread(lambda: supabase_admin.table("campaigns").select("deadline").eq("id", camp_id).eq("user_id", user_id).execute())
                 if resp.data and resp.data[0].get("deadline"):
                     cur = resp.data[0].get("deadline")
                     try:
                         from datetime import datetime, timedelta
                         dt = datetime.fromisoformat(cur)
                         new_dt = dt + timedelta(days=7)
-                        supabase_admin.table("campaigns").update({"deadline": new_dt.date().isoformat()}).eq("id", camp_id).eq("user_id", user_id).execute()
+                        await asyncio.to_thread(lambda: supabase_admin.table("campaigns").update({"deadline": new_dt.date().isoformat()}).eq("id", camp_id).eq("user_id", user_id).execute())
                         await send_telegram_message(chat_id, f"📅 <b>Deadline Extended!</b>\n\nNew deadline is: <b>{new_dt.date().isoformat()}</b>")
                     except Exception as e:
                         logger.error("Failed to parse deadline to extend", error=str(e))
@@ -174,8 +175,8 @@ async def process_telegram_message(update: dict):
             
             # Check for short confirmation intents
             if len(text_lower) < 20 and text_lower in ["yes", "correct", "y", "yep", "draft", "no", "wrong"]:
-                recent_draft_resp = (
-                    supabase_admin.table("campaigns")
+                recent_draft_resp = await asyncio.to_thread(
+                    lambda: supabase_admin.table("campaigns")
                     .select("*")
                     .eq("user_id", user_id)
                     .eq("status", "draft")
@@ -190,7 +191,7 @@ async def process_telegram_message(update: dict):
                     clean_name = html.escape(name)
                     
                     if text_lower in ["yes", "correct", "y", "yep"]:
-                        supabase_admin.table("campaigns").update({"status": "active"}).eq("id", draft["id"]).execute()
+                        await asyncio.to_thread(lambda: supabase_admin.table("campaigns").update({"status": "active"}).eq("id", draft["id"]).execute())
                         await send_telegram_message(chat_id, f"✅ Done! The campaign for <b>{clean_name}</b> is now Active.")
                         return
                     elif text_lower == "draft":
@@ -207,8 +208,8 @@ async def process_telegram_message(update: dict):
             if len(text_val) < 200:
                 corrections, unparsed_date = parse_corrections(text_val)
                 if corrections or unparsed_date:
-                    recent_draft_resp = (
-                        supabase_admin.table("campaigns")
+                    recent_draft_resp = await asyncio.to_thread(
+                        lambda: supabase_admin.table("campaigns")
                         .select("*")
                         .eq("user_id", user_id)
                         .eq("status", "draft")
@@ -220,7 +221,7 @@ async def process_telegram_message(update: dict):
                     if recent_draft_resp.data:
                         draft = recent_draft_resp.data[0]
                         if corrections:
-                            supabase_admin.table("campaigns").update(corrections).eq("id", draft["id"]).execute()
+                            await asyncio.to_thread(lambda: supabase_admin.table("campaigns").update(corrections).eq("id", draft["id"]).execute())
                         
                         # Merge corrections into draft dict for immediate display
                         updated_draft = {**draft, **corrections}
@@ -236,7 +237,7 @@ async def process_telegram_message(update: dict):
                         if corrections:
                             campaign_data.update(corrections)
                         
-                        insert_response = supabase_admin.table("campaigns").insert(campaign_data).execute()
+                        insert_response = await asyncio.to_thread(lambda: supabase_admin.table("campaigns").insert(campaign_data).execute())
                         if insert_response.data:
                             updated_draft = insert_response.data[0]
                         else:
@@ -338,7 +339,7 @@ async def process_telegram_message(update: dict):
         
         if extracted_data:
             try:
-                supabase_admin.rpc("increment_ai_extractions", {"p_user_id": user_id}).execute()
+                await asyncio.to_thread(lambda: supabase_admin.rpc("increment_ai_extractions", {"p_user_id": user_id}).execute())
             except Exception as e:
                 logger.error("Failed to increment AI count via telegram webhook", error=str(e))
 
@@ -388,7 +389,7 @@ async def process_telegram_message(update: dict):
             existing_notes = campaign_data.get("special_notes") or ""
             campaign_data["special_notes"] = f"{existing_notes} [tg_update:{update_id}]".strip()
 
-        insert_response = supabase_admin.table("campaigns").insert(campaign_data).execute()
+        insert_response = await asyncio.to_thread(lambda: supabase_admin.table("campaigns").insert(campaign_data).execute())
 
         if insert_response.data:
             inserted_campaign = insert_response.data[0]
@@ -444,12 +445,12 @@ async def process_telegram_message(update: dict):
         # Log to DB so we can see it!
         if supabase_admin:
             try:
-                supabase_admin.table("campaigns").insert({
+                await asyncio.to_thread(lambda: supabase_admin.table("campaigns").insert({
                     "status": "draft",
                     "special_notes": f"CRASH: {str(e)}",
                     "influencer_name": "DEBUG CRASH TG",
                     "user_id": user_id if 'user_id' in locals() else None
-                }).execute()
+                }).execute())
             except:
                 pass
         

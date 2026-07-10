@@ -7,7 +7,7 @@ from app.schemas.influencer import InfluencerResponse, InfluencerProfileUpdate
 router = APIRouter(prefix="/influencers", tags=["Influencers"])
 
 @router.get("/", response_model=List[InfluencerResponse])
-async def get_influencers(
+def get_influencers(
     request: Request,
     client=Depends(get_user_supabase_client),
     user: AuthenticatedUser = Depends(get_current_user),
@@ -113,7 +113,7 @@ async def get_influencers(
     return response_data
 
 @router.patch("/{handle}", response_model=InfluencerResponse)
-async def update_influencer_profile(
+def update_influencer_profile(
     handle: str,
     profile_update: InfluencerProfileUpdate,
     request: Request,

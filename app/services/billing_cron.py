@@ -37,7 +37,8 @@ async def check_expired_trials_job() -> dict:
         # Find all pro subscriptions with an expired trial
         # Supabase Python client filter for less than timestamp
         now_str = now_utc.isoformat()
-        resp = supabase.table("subscriptions").select("id, user_id, tier, trial_ends_at").eq("tier", "pro").lt("trial_ends_at", now_str).execute()
+        import asyncio
+        resp = await asyncio.to_thread(lambda: supabase.table("subscriptions").select("id, user_id, tier, trial_ends_at").eq("tier", "pro").lt("trial_ends_at", now_str).execute())
         
         expired_subs = resp.data or []
         
@@ -51,7 +52,7 @@ async def check_expired_trials_job() -> dict:
             sub_id = sub.get("id")
             try:
                 # Downgrade to free
-                supabase.table("subscriptions").update({"tier": "free"}).eq("id", sub_id).execute()
+                await asyncio.to_thread(lambda: supabase.table("subscriptions").update({"tier": "free"}).eq("id", sub_id).execute())
                 
                 # Optional: You could insert a notification for the user here
                 # from app.services.notifications import create_notification

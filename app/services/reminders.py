@@ -331,7 +331,8 @@ def _build_overdue_email(inf_name: str, deadline_ist: str) -> tuple[str, str]:
 async def _get_user_email(supabase_admin, user_id: str) -> Optional[str]:
     """Fetch user email from Supabase Auth admin API."""
     try:
-        resp = supabase_admin.auth.admin.get_user_by_id(user_id)
+        import asyncio
+        resp = await asyncio.to_thread(lambda: supabase_admin.auth.admin.get_user_by_id(user_id))
         if resp and resp.user and resp.user.email:
             return resp.user.email
         logger.warning("reminders.user_email_not_found", user_id=user_id)
@@ -399,7 +400,7 @@ def _parse_deadline_utc(deadline_raw: str, clog) -> Optional[datetime]:
 # Idempotency flag updater
 # ---------------------------------------------------------------------------
 
-def _mark_flag(supabase_admin, campaign_id: str, flag: str, clog) -> None:
+async def _mark_flag(supabase_admin, campaign_id: str, flag: str, clog) -> None:
     """
     Set a reminder flag to True on the campaign row.
 
@@ -408,10 +409,13 @@ def _mark_flag(supabase_admin, campaign_id: str, flag: str, clog) -> None:
     is idempotent and harmless even if two job instances run concurrently.
     """
     try:
-        supabase_admin.table("campaigns") \
-            .update({flag: True}) \
-            .eq("id", campaign_id) \
+        import asyncio
+        await asyncio.to_thread(
+            lambda: supabase_admin.table("campaigns")
+            .update({flag: True})
+            .eq("id", campaign_id)
             .execute()
+        )
         clog.info("reminders.flag_set", flag=flag, campaign_id=campaign_id)
     except Exception as exc:
         clog.error(
@@ -678,7 +682,7 @@ async def check_deadlines_job() -> dict:
 
                 # Always mark flag — even if no channels are configured,
                 # so we don't flood logs on every job run.
-                _mark_flag(supabase, campaign_id, "reminder_48h_sent", clog)
+                await _mark_flag(supabase, campaign_id, "reminder_48h_sent", clog)
                 # Send Telegram (if configured, we use the same WA toggle for TG or just send if chat_id exists)
                 if telegram_chat_id:
                     from app.services.telegram import send_telegram_message
@@ -743,7 +747,7 @@ async def check_deadlines_job() -> dict:
                         subject, html = _build_overdue_email(inf_name, deadline_ist_str)
                         email_ok = await _send_email(user_email, subject, html)
 
-                _mark_flag(supabase, campaign_id, "overdue_alert_sent", clog)
+                await _mark_flag(supabase, campaign_id, "overdue_alert_sent", clog)
                 # Send Telegram
                 if telegram_chat_id:
                     from app.services.telegram import send_telegram_message

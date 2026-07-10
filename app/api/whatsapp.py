@@ -1,3 +1,4 @@
+import asyncio
 import hmac
 import hashlib
 import structlog
@@ -89,8 +90,8 @@ async def process_whatsapp_message(sender_id: str, message: dict):
         message_id = message.get("id")
         if message_id:
             try:
-                existing = (
-                    supabase_admin.table("campaigns")
+                existing = await asyncio.to_thread(
+                    lambda: supabase_admin.table("campaigns")
                     .select("id")
                     .ilike("special_notes", f"%[wa_msg:{message_id}]%")
                     .limit(1)
@@ -120,8 +121,8 @@ async def process_whatsapp_message(sender_id: str, message: dict):
             
         possible_numbers = list(set(possible_numbers)) # Remove duplicates
 
-        user_response = (
-            supabase_admin.table("user_settings")
+        user_response = await asyncio.to_thread(
+            lambda: supabase_admin.table("user_settings")
             .select("user_id")
             .in_("whatsapp_number", possible_numbers)
             .execute()
@@ -154,8 +155,8 @@ async def process_whatsapp_message(sender_id: str, message: dict):
             
             # Check for short confirmation intents
             if len(text_lower) < 20 and text_lower in ["yes", "correct", "y", "yep", "draft", "no", "wrong"]:
-                recent_draft_resp = (
-                    supabase_admin.table("campaigns")
+                recent_draft_resp = await asyncio.to_thread(
+                    lambda: supabase_admin.table("campaigns")
                     .select("*")
                     .eq("user_id", user_id)
                     .eq("status", "draft")
@@ -169,7 +170,7 @@ async def process_whatsapp_message(sender_id: str, message: dict):
                     name = draft.get("influencer_name") or draft.get("influencer_handle") or "Unknown"
                     
                     if text_lower in ["yes", "correct", "y", "yep"]:
-                        supabase_admin.table("campaigns").update({"status": "active"}).eq("id", draft["id"]).execute()
+                        await asyncio.to_thread(lambda: supabase_admin.table("campaigns").update({"status": "active"}).eq("id", draft["id"]).execute())
                         await send_whatsapp_message(sender_id, f"✅ Done! The campaign for *{name}* is now Active.")
                         return
                     elif text_lower == "draft":
@@ -186,8 +187,8 @@ async def process_whatsapp_message(sender_id: str, message: dict):
             if len(text_val) < 200:
                 corrections, unparsed_date = parse_corrections(text_val)
                 if corrections or unparsed_date:
-                    recent_draft_resp = (
-                        supabase_admin.table("campaigns")
+                    recent_draft_resp = await asyncio.to_thread(
+                        lambda: supabase_admin.table("campaigns")
                         .select("*")
                         .eq("user_id", user_id)
                         .eq("status", "draft")
@@ -199,7 +200,7 @@ async def process_whatsapp_message(sender_id: str, message: dict):
                     if recent_draft_resp.data:
                         draft = recent_draft_resp.data[0]
                         if corrections:
-                            supabase_admin.table("campaigns").update(corrections).eq("id", draft["id"]).execute()
+                            await asyncio.to_thread(lambda: supabase_admin.table("campaigns").update(corrections).eq("id", draft["id"]).execute())
                         
                         updated_draft = {**draft, **corrections}
                     else:
@@ -213,7 +214,7 @@ async def process_whatsapp_message(sender_id: str, message: dict):
                         if corrections:
                             campaign_data.update(corrections)
                         
-                        insert_response = supabase_admin.table("campaigns").insert(campaign_data).execute()
+                        insert_response = await asyncio.to_thread(lambda: supabase_admin.table("campaigns").insert(campaign_data).execute())
                         if insert_response.data:
                             updated_draft = insert_response.data[0]
                         else:
@@ -346,7 +347,7 @@ async def process_whatsapp_message(sender_id: str, message: dict):
         
         if extracted_data:
             try:
-                supabase_admin.rpc("increment_ai_extractions", {"p_user_id": user_id}).execute()
+                await asyncio.to_thread(lambda: supabase_admin.rpc("increment_ai_extractions", {"p_user_id": user_id}).execute())
             except Exception as e:
                 logger.error("Failed to increment AI count via whatsapp webhook", error=str(e))
 
@@ -396,7 +397,7 @@ async def process_whatsapp_message(sender_id: str, message: dict):
             existing_notes = campaign_data.get("special_notes") or ""
             campaign_data["special_notes"] = f"{existing_notes} [wa_msg:{message_id}]".strip()
 
-        insert_response = supabase_admin.table("campaigns").insert(campaign_data).execute()
+        insert_response = await asyncio.to_thread(lambda: supabase_admin.table("campaigns").insert(campaign_data).execute())
 
         if insert_response.data:
             inserted_campaign = insert_response.data[0]
@@ -442,12 +443,12 @@ async def process_whatsapp_message(sender_id: str, message: dict):
         # Log to DB so we can see it!
         if supabase_admin:
             try:
-                supabase_admin.table("campaigns").insert({
+                await asyncio.to_thread(lambda: supabase_admin.table("campaigns").insert({
                     "status": "draft",
                     "special_notes": f"CRASH: {str(e)}",
                     "influencer_name": "DEBUG CRASH WA",
                     "user_id": user_id if 'user_id' in locals() else None
-                }).execute()
+                }).execute())
             except:
                 pass
         
