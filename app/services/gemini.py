@@ -35,6 +35,12 @@ Pay very close attention to dates. Convert phrases like "12 Oct", "12 October", 
 
 Be smart with context. Even if the date is in the middle or end of the chat, extract it.
 
+**Important Rules for Special Notes**:
+- ONLY include relevant human instructions (promo codes, mentions, payment terms, shipping, etc.)
+- NEVER include system tags, message IDs, internal notes, or error messages like "(Note: Couldn't parse...)"
+- Remove any HTML entities (use normal apostrophe ' instead of &#x27;)
+- Keep it short and clean
+
 JSON format:
 {
   "influencer_name": "string or null",
