@@ -154,7 +154,7 @@ async def process_whatsapp_message(sender_id: str, message: dict):
             text_lower = text_val.lower()
             
             # Check for short confirmation intents
-            if len(text_lower) < 20 and text_lower in ["yes", "correct", "y", "yep", "draft", "no", "wrong"]:
+            if len(text_lower) < 20 and text_lower in ["yes", "correct", "y", "yep", "draft", "no", "wrong", "delete", "cancel", "remove"]:
                 recent_draft_resp = await asyncio.to_thread(
                     lambda: supabase_admin.table("campaigns")
                     .select("*")
@@ -178,6 +178,10 @@ async def process_whatsapp_message(sender_id: str, message: dict):
                         return
                     elif text_lower in ["no", "wrong"]:
                         await send_whatsapp_message(sender_id, f"Got it. The campaign for *{name}* is saved as a Draft. Please edit the details manually in your Collabo dashboard.")
+                        return
+                    elif text_lower in ["delete", "cancel", "remove"]:
+                        await asyncio.to_thread(lambda: supabase_admin.table("campaigns").delete().eq("id", draft["id"]).execute())
+                        await send_whatsapp_message(sender_id, f"🗑️ Campaign Deleted. I've removed the draft for *{name}*.")
                         return
                 else:
                     await send_whatsapp_message(sender_id, "❌ I couldn't find a recent Draft to confirm. It might already be Active or Deleted. You can create a new one by sending me the influencer details.")

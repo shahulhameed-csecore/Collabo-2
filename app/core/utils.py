@@ -157,7 +157,10 @@ def format_campaign_summary(campaign: dict, is_review: bool = False) -> str:
         f"💰 <b>Payment:</b> ₹{pay:,.2f}\n\n"
         f"───\n"
         f"<b>Is this correct?</b>\n"
-        f"Reply <b>Yes</b> to make it Active, <b>Draft</b> to save it for later, or reply with corrections (e.g., 'Payment: 15000', 'Deadline: 20 July')."
+        f"Reply <b>Yes</b> to make it Active.\n"
+        f"Reply <b>Draft</b> to save it for later.\n"
+        f"Reply <b>Delete</b> to discard this campaign.\n\n"
+        f"Or, reply with corrections (e.g., 'Payment: 15000', 'Deadline: 20 July')."
     )
 
 def format_campaign_summary_wa(campaign: dict, is_review: bool = False) -> str:
@@ -192,7 +195,10 @@ def format_campaign_summary_wa(campaign: dict, is_review: bool = False) -> str:
         f"💰 *Payment:* ₹{pay:,.2f}\n\n"
         f"───\n"
         f"*Is this correct?*\n"
-        f"Reply *Yes* to make it Active, *Draft* to save it for later, or reply with corrections (e.g., 'Payment: 15000', 'Deadline: 20 July')."
+        f"Reply *Yes* to make it Active.\n"
+        f"Reply *Draft* to save it for later.\n"
+        f"Reply *Delete* to discard this campaign.\n\n"
+        f"Or, reply with corrections (e.g., 'Payment: 15000', 'Deadline: 20 July')."
     )
 
 def get_valid_transitions() -> dict[str, list[str]]:

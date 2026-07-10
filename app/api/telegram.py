@@ -138,6 +138,10 @@ async def process_telegram_message(update: dict):
                 await asyncio.to_thread(lambda: supabase_admin.table("campaigns").delete().eq("id", camp_id).eq("user_id", user_id).execute())
                 await send_telegram_message(chat_id, "🗑️ <b>Campaign Deleted</b>\n\nI've removed that draft from your account.")
                 return
+            elif cb_data.startswith("camp_draft:"):
+                # It is already a draft, so we just confirm
+                await send_telegram_message(chat_id, "📝 <b>Saved as Draft!</b>\n\nYou can edit it later in your dashboard.")
+                return
             elif cb_data.startswith("camp_act:"):
                 camp_id = cb_data.split(":")[1]
                 await asyncio.to_thread(lambda: supabase_admin.table("campaigns").update({"status": "active"}).eq("id", camp_id).eq("user_id", user_id).execute())
@@ -174,7 +178,7 @@ async def process_telegram_message(update: dict):
             text_lower = text_val.lower()
             
             # Check for short confirmation intents
-            if len(text_lower) < 20 and text_lower in ["yes", "correct", "y", "yep", "draft", "no", "wrong"]:
+            if len(text_lower) < 20 and text_lower in ["yes", "correct", "y", "yep", "draft", "no", "wrong", "delete", "cancel", "remove"]:
                 recent_draft_resp = await asyncio.to_thread(
                     lambda: supabase_admin.table("campaigns")
                     .select("*")
@@ -199,6 +203,10 @@ async def process_telegram_message(update: dict):
                         return
                     elif text_lower in ["no", "wrong"]:
                         await send_telegram_message(chat_id, f"Got it. The campaign for <b>{clean_name}</b> is saved as a Draft. Please edit the details manually in your Collabo dashboard.")
+                        return
+                    elif text_lower in ["delete", "cancel", "remove"]:
+                        await asyncio.to_thread(lambda: supabase_admin.table("campaigns").delete().eq("id", draft["id"]).execute())
+                        await send_telegram_message(chat_id, f"🗑️ Campaign Deleted. I've removed the draft for <b>{clean_name}</b>.")
                         return
                 else:
                     await send_telegram_message(chat_id, "❌ I couldn't find a recent Draft to confirm. It might already be Active or Deleted. You can create a new one by sending me the influencer details.")
@@ -255,7 +263,10 @@ async def process_telegram_message(update: dict):
                     reply_markup = {
                         "inline_keyboard": [
                             [
-                                {"text": "✅ Save as Active", "callback_data": f"camp_act:{updated_draft['id']}"},
+                                {"text": "✅ Save as Active", "callback_data": f"camp_act:{updated_draft['id']}"}
+                            ],
+                            [
+                                {"text": "📝 Save as Draft", "callback_data": f"camp_draft:{updated_draft['id']}"},
                                 {"text": "🗑️ Delete", "callback_data": f"camp_del:{updated_draft['id']}"}
                             ]
                         ]
@@ -405,7 +416,10 @@ async def process_telegram_message(update: dict):
             reply_markup = {
                 "inline_keyboard": [
                     [
-                        {"text": "✅ Save as Active", "callback_data": f"camp_act:{camp_id}"},
+                        {"text": "✅ Save as Active", "callback_data": f"camp_act:{camp_id}"}
+                    ],
+                    [
+                        {"text": "📝 Save as Draft", "callback_data": f"camp_draft:{camp_id}"},
                         {"text": "🗑️ Delete", "callback_data": f"camp_del:{camp_id}"}
                     ]
                 ]
