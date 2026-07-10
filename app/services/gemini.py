@@ -152,13 +152,13 @@ def parse_docx(file_bytes: bytes) -> str:
 
 def is_retryable_error(exception: Exception) -> bool:
     err_str = str(exception).lower()
-    if "404" in err_str or "not_found" in err_str:
+    if "404" in err_str or "not_found" in err_str or "400" in err_str or "invalid_argument" in err_str:
         return False
     # Always retry on 429/quota to let tenacity's exponential backoff handle temporary spikes
     return True
 
 @retry(wait=wait_exponential(multiplier=1, min=2, max=10), stop=stop_after_attempt(4), retry=retry_if_exception(is_retryable_error))
-async def _call_gemini(client: genai.Client, contents: list, model: str = 'gemini-3.5-flash') -> ExtractionResult:
+async def _call_gemini(client: genai.Client, contents: list, model: str = 'gemini-2.5-flash') -> ExtractionResult:
     """Makes the actual API call with retries and timeout."""
     # Using asyncio.wait_for to enforce 120s timeout per attempt
     response = await asyncio.wait_for(
@@ -177,12 +177,12 @@ async def _call_gemini(client: genai.Client, contents: list, model: str = 'gemin
     return ExtractionResult.model_validate_json(response.text)
 
 async def _call_gemini_with_fallback(client: genai.Client, contents: list) -> ExtractionResult:
-    """Attempts extraction with 3.5-flash, falls back to 2.5-flash on failure/quota."""
+    """Attempts extraction with 2.5-flash, falls back to 2.0-flash on failure/quota."""
     try:
-        return await _call_gemini(client, contents, model='gemini-3.5-flash')
-    except Exception as e:
-        logger.warning("gemini_3_5_flash_failed_falling_back", error=str(e))
         return await _call_gemini(client, contents, model='gemini-2.5-flash')
+    except Exception as e:
+        logger.warning("gemini_2_5_flash_failed_falling_back", error=str(e))
+        return await _call_gemini(client, contents, model='gemini-2.0-flash')
 
 @sentry_sdk.trace(op="task", name="Extract AI Data")
 async def extract_campaign_data(file_bytes: bytes, filename: str, mime_type: str, text_content: str = "") -> dict:
