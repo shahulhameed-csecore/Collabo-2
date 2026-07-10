@@ -89,10 +89,14 @@ async def upload_proof(
     background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
 ):
+    from fastapi.concurrency import run_in_threadpool
     service_client = get_service_client()
 
     # 1. Validate Token and Campaign State
-    campaign_resp = service_client.table("campaigns").select("id", "status", "user_id", "influencer_name", "proof_url", "proof_history", "updated_at").eq("magic_link_token", token).execute()
+    def fetch_campaign():
+        return service_client.table("campaigns").select("id", "status", "user_id", "influencer_name", "proof_url", "proof_history", "updated_at").eq("magic_link_token", token).execute()
+        
+    campaign_resp = await run_in_threadpool(fetch_campaign)
     if not campaign_resp.data:
         raise HTTPException(status_code=404, detail="Invalid token.")
     
@@ -100,62 +104,81 @@ async def upload_proof(
     if campaign["status"] not in ["active", "rejected"]:
         raise HTTPException(status_code=400, detail="Campaign is not active or rejected. Proof cannot be uploaded.")
 
-    # 2. File Size Validation & OOM Prevention
-    # Seek to end to get actual size without loading into RAM
-    file.file.seek(0, 2)
-    file_size = file.file.tell()
-    file.file.seek(0)
-
-    if file_size > MAX_VIDEO_SIZE:
-        raise HTTPException(status_code=413, detail="File size exceeds the 50MB limit.")
-
-    # 3. Magic Number Validation
-    chunk = await file.read(2048)
-    await file.seek(0) # Reset position for upload
+    # 2. Dynamic File Size Validation & OOM Prevention
+    import tempfile
     
-    file_mime = magic.from_buffer(chunk, mime=True)
+    # Check Magic Bytes and Size dynamically as we stream
+    # 2048 is enough for magic byte detection
+    first_chunk = await file.read(2048)
+    if not first_chunk:
+        raise HTTPException(status_code=400, detail="Empty file.")
+        
+    file_mime = magic.from_buffer(first_chunk, mime=True)
     if file_mime not in ALLOWED_MIME_TYPES:
         raise HTTPException(status_code=400, detail="Invalid file type. Only JPEG, PNG, MP4, and MOV are allowed.")
+        
+    is_image = file_mime.startswith("image/")
+    max_size_allowed = MAX_IMAGE_SIZE if is_image else MAX_VIDEO_SIZE
+
+    bytes_read = len(first_chunk)
     
-    if file_mime.startswith("image/") and file_size > MAX_IMAGE_SIZE:
-        raise HTTPException(status_code=413, detail="Image size exceeds the 5MB limit.")
-    if file_mime.startswith("video/") and file_size > MAX_VIDEO_SIZE:
-        raise HTTPException(status_code=413, detail="Video size exceeds the 50MB limit.")
+    # Safely stream the rest of the file to a temporary file on disk (so we don't hold 50MB in RAM)
+    with tempfile.NamedTemporaryFile(delete=False) as tmp:
+        tmp.write(first_chunk)
+        
+        while chunk := await file.read(1024 * 1024):  # 1MB chunks
+            bytes_read += len(chunk)
+            if bytes_read > max_size_allowed:
+                import os
+                tmp.close()
+                os.unlink(tmp.name)
+                raise HTTPException(status_code=413, detail=f"File size exceeds the limit ({'5MB' if is_image else '50MB'}).")
+            tmp.write(chunk)
+            
+        tmp_path = tmp.name
 
     # 4. Generate Secure Filename
     ext = ALLOWED_MIME_TYPES[file_mime]
     secure_filename = f"{uuid.uuid4()}{ext}"
 
-    # 5. Upload to Supabase Storage (using SpooledTemporaryFile directly prevents OOM)
+    # 5. Upload to Supabase Storage (offloaded to threadpool)
     try:
-        bucket_name = "proof-uploads"
-        res = service_client.storage.from_(bucket_name).upload(
-            path=secure_filename,
-            file=file.file,
-            file_options={"content-type": file_mime}
-        )
+        def upload_to_storage():
+            bucket_name = "proof-uploads"
+            with open(tmp_path, "rb") as f:
+                service_client.storage.from_(bucket_name).upload(
+                    path=secure_filename,
+                    file=f,
+                    file_options={"content-type": file_mime}
+                )
+            return service_client.storage.from_(bucket_name).get_public_url(secure_filename)
+            
+        public_url = await run_in_threadpool(upload_to_storage)
         
-        # Get public URL
-        public_url = service_client.storage.from_(bucket_name).get_public_url(secure_filename)
+        # Clean up temp file
+        import os
+        os.unlink(tmp_path)
         
         # 6. Update Campaign Status to 'content_received'
-        from datetime import datetime
-        current_proof = campaign.get("proof_url")
-        current_history = campaign.get("proof_history") or []
-        
-        # If there's an existing proof, push it to history before replacing
-        if current_proof:
-            current_history.append({
-                "url": current_proof,
-                "uploaded_at": campaign.get("updated_at") or datetime.utcnow().isoformat(),
-            })
+        def update_campaign_db():
+            from datetime import datetime, timezone
+            current_proof = campaign.get("proof_url")
+            current_history = campaign.get("proof_history") or []
+            
+            if current_proof:
+                current_history.append({
+                    "url": current_proof,
+                    "uploaded_at": campaign.get("updated_at") or datetime.now(timezone.utc).isoformat(),
+                })
 
-        update_data = {
-            "status": "content_received",
-            "proof_url": public_url,
-            "proof_history": current_history
-        }
-        service_client.table("campaigns").update(update_data).eq("id", campaign["id"]).execute()
+            update_data = {
+                "status": "content_received",
+                "proof_url": public_url,
+                "proof_history": current_history
+            }
+            service_client.table("campaigns").update(update_data).eq("id", campaign["id"]).execute()
+            
+        await run_in_threadpool(update_campaign_db)
 
         # 7. Notify Owner
         inf_name = campaign.get("influencer_name") or "Unknown Creator"

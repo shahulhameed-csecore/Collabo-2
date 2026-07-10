@@ -17,11 +17,15 @@ async def extract_data(
     user: AuthenticatedUser = Depends(get_current_user),
 ):
     try:
+        from fastapi.concurrency import run_in_threadpool
         logger.info("extract_endpoint_called", user_id=user.user.id, filename=file.filename, content_type=file.content_type)
         
-        # Enforce Billing / Trial Limits
-        client = get_user_supabase_client(user)
-        sub_res = client.table("subscriptions").select("tier, trial_ends_at").eq("user_id", user.user.id).execute()
+        # Enforce Billing / Trial Limits synchronously via threadpool
+        def check_billing():
+            client = get_user_supabase_client(user)
+            return client.table("subscriptions").select("tier, trial_ends_at").eq("user_id", user.user.id).execute()
+            
+        sub_res = await run_in_threadpool(check_billing)
         
         from app.api.billing import IS_TESTING_PHASE
         if not IS_TESTING_PHASE and sub_res.data:
@@ -38,28 +42,29 @@ async def extract_data(
             now = datetime.now(timezone.utc)
             is_trial_active = parsed_trial and parsed_trial > now
             
-            # If they are not pro (which includes active trials) or they are marked pro but trial expired
             if tier != "pro" or (tier == "pro" and parsed_trial and not is_trial_active):
                 raise HTTPException(status_code=403, detail="AI Extraction requires a Pro plan or an active free trial.")
                 
-        
-        # Security: Prevent OOM by enforcing a strict 10MB limit before loading into memory.
-        # We read chunk+1 bytes. If the length is > 10MB, we reject immediately.
+        # Security: Prevent OOM by enforcing a strict 10MB limit via chunked reading.
         MAX_SIZE = 10 * 1024 * 1024
-        file_bytes = await file.read(MAX_SIZE + 1)
-        if len(file_bytes) > MAX_SIZE:
-            logger.warning("extract_endpoint_rejected_file_too_large", user_id=user.user.id, size=len(file_bytes))
-            raise HTTPException(status_code=413, detail="File too large. Maximum size allowed is 10MB.")
-            
+        file_bytes = bytearray()
         
+        while chunk := await file.read(1024 * 1024): # 1MB chunks
+            file_bytes.extend(chunk)
+            if len(file_bytes) > MAX_SIZE:
+                logger.warning("extract_endpoint_rejected_file_too_large", user_id=user.user.id, size=len(file_bytes))
+                raise HTTPException(status_code=413, detail="File too large. Maximum size allowed is 10MB.")
+                
         # Delegate to the robust gemini service
         extracted_data = await extract_campaign_data(
-            file_bytes=file_bytes,
+            file_bytes=bytes(file_bytes),
             filename=file.filename,
             mime_type=file.content_type or "application/octet-stream"
         )
         
         return extracted_data
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error("extract_endpoint_failed", error=str(e), user_id=user.user.id if hasattr(user, 'user') else None)
         return {
