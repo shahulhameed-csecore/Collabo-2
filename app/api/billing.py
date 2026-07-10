@@ -21,7 +21,7 @@ class BillingUsageResponse(BaseModel):
     ai_extractions_used: int
 
 @router.get("/usage", response_model=BillingUsageResponse)
-async def get_billing_usage(
+def get_billing_usage(
     request: Request,
     client=Depends(get_user_supabase_client),
     user: AuthenticatedUser = Depends(get_current_user),
@@ -95,7 +95,7 @@ class VerifyPaymentRequest(BaseModel):
     razorpay_signature: str
 
 @router.post("/create-razorpay-order")
-async def create_razorpay_order(
+def create_razorpay_order(
     req: CreateOrderRequest,
     user: AuthenticatedUser = Depends(get_current_user),
 ):
@@ -125,7 +125,7 @@ async def create_razorpay_order(
         raise HTTPException(status_code=500, detail="Failed to create order")
 
 @router.post("/verify-payment")
-async def verify_payment(
+def verify_payment(
     req: VerifyPaymentRequest,
     db_client=Depends(get_user_supabase_client),
     user: AuthenticatedUser = Depends(get_current_user),
@@ -143,9 +143,14 @@ async def verify_payment(
             'razorpay_signature': req.razorpay_signature
         })
         
-        # Payment is valid. We need to fetch the order details to know if it's monthly or annual.
-        # Actually, let's just fetch the order from razorpay.
+        # Payment is valid. We need to fetch the order details to verify ownership and plan type.
         order = client.order.fetch(req.razorpay_order_id)
+        
+        # SECURITY PATCH: Verify the order was explicitly created for the authenticated user.
+        # This prevents an attacker from using a valid order from Account A to upgrade Account B.
+        if order.get("notes", {}).get("user_id") != user.user.id:
+            raise HTTPException(status_code=403, detail="Forbidden")
+            
         is_annual = order.get("notes", {}).get("type") == "annual_pro"
         
         # Extend subscription
@@ -197,6 +202,62 @@ async def verify_payment(
         raise HTTPException(status_code=500, detail="Failed to verify payment")
 
 
+def process_razorpay_webhook_db(order_id: str, user_id: str, notes: dict):
+    """Synchronous database handler for the webhook."""
+    from app.api.dependencies import get_service_client
+    service_client = get_service_client()
+    
+    try:
+        service_client.table("processed_transactions").insert({
+            "order_id": order_id,
+            "user_id": user_id,
+            "event_type": "order.paid"
+        }).execute()
+    except Exception as db_err:
+        err_str = str(db_err).lower()
+        if "duplicate key value" in err_str or "unique constraint" in err_str or "23505" in err_str:
+            import structlog
+            structlog.get_logger(__name__).info("webhook_already_processed", order_id=order_id)
+            return {"status": "ok", "message": "Already processed"}
+        else:
+            raise db_err
+
+    now = datetime.now(timezone.utc)
+    sub_response = service_client.table("subscriptions").select("*").eq("user_id", user_id).execute()
+    
+    is_annual = notes.get("type") == "annual_pro"
+    days_to_add = 365 if is_annual else 30 
+    
+    if sub_response.data:
+        current_sub = sub_response.data[0]
+        current_trial = current_sub.get("trial_ends_at")
+        if current_trial:
+            try:
+                parsed_trial = datetime.fromisoformat(current_trial.replace("Z", "+00:00"))
+                if parsed_trial > now:
+                    new_expiry = parsed_trial + timedelta(days=days_to_add)
+                else:
+                    new_expiry = now + timedelta(days=days_to_add)
+            except:
+                new_expiry = now + timedelta(days=days_to_add)
+        else:
+            new_expiry = now + timedelta(days=days_to_add)
+            
+        service_client.table("subscriptions").update({
+            "tier": "pro",
+            "trial_ends_at": new_expiry.isoformat()
+        }).eq("user_id", user_id).execute()
+    else:
+        service_client.table("subscriptions").insert({
+            "user_id": user_id,
+            "tier": "pro",
+            "trial_ends_at": (now + timedelta(days=days_to_add)).isoformat()
+        }).execute()
+        
+    import structlog
+    structlog.get_logger(__name__).info("webhook_processed_success", order_id=order_id, user_id=user_id)
+    return {"status": "ok"}
+
 @router.post("/razorpay-webhook")
 async def razorpay_webhook(request: Request):
     if not settings.RAZORPAY_WEBHOOK_SECRET:
@@ -213,8 +274,9 @@ async def razorpay_webhook(request: Request):
     client = razorpay.Client(auth=(settings.RAZORPAY_KEY_ID, settings.RAZORPAY_KEY_SECRET))
     
     try:
-        # Verify Webhook Signature
-        client.utility.verify_webhook_signature(
+        # Offload the cryptographic verification to the threadpool
+        await run_in_threadpool(
+            client.utility.verify_webhook_signature,
             payload_body.decode('utf-8'),
             signature,
             settings.RAZORPAY_WEBHOOK_SECRET
@@ -228,46 +290,19 @@ async def razorpay_webhook(request: Request):
     event = payload.get("event")
     if event == "order.paid":
         order = payload.get("payload", {}).get("order", {}).get("entity", {})
+        order_id = order.get("id")
         notes = order.get("notes", {})
         user_id = notes.get("user_id")
         
-        if user_id:
+        if user_id and order_id:
             try:
-                from app.api.dependencies import get_service_client
-                service_client = get_service_client()
-                
-                now = datetime.now(timezone.utc)
-                sub_response = service_client.table("subscriptions").select("*").eq("user_id", user_id).execute()
-                days_to_add = 30 # Monthly
-                
-                if sub_response.data:
-                    current_sub = sub_response.data[0]
-                    current_trial = current_sub.get("trial_ends_at")
-                    if current_trial:
-                        try:
-                            parsed_trial = datetime.fromisoformat(current_trial.replace("Z", "+00:00"))
-                            if parsed_trial > now:
-                                new_expiry = parsed_trial + timedelta(days=days_to_add)
-                            else:
-                                new_expiry = now + timedelta(days=days_to_add)
-                        except:
-                            new_expiry = now + timedelta(days=days_to_add)
-                    else:
-                        new_expiry = now + timedelta(days=days_to_add)
-                        
-                    service_client.table("subscriptions").update({
-                        "tier": "pro",
-                        "trial_ends_at": new_expiry.isoformat()
-                    }).eq("user_id", user_id).execute()
-                else:
-                    service_client.table("subscriptions").insert({
-                        "user_id": user_id,
-                        "tier": "pro",
-                        "trial_ends_at": (now + timedelta(days=days_to_add)).isoformat()
-                    }).execute()
+                # Offload the synchronous Supabase DB logic to the threadpool
+                result = await run_in_threadpool(process_razorpay_webhook_db, order_id, user_id, notes)
+                return result
             except Exception as e:
                 import structlog
-                structlog.get_logger(__name__).error("razorpay_webhook_db_update_failed", error=str(e))
+                structlog.get_logger(__name__).error("razorpay_webhook_processing_failed", error=str(e))
+                # Do NOT return 200 if the DB update failed, let Razorpay retry
+                raise HTTPException(status_code=500, detail="Internal processing error")
                 
     return {"status": "ok"}
-

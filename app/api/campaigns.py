@@ -53,31 +53,32 @@ async def bulk_update_status(
 
     response = client.table("campaigns").update({"status": new_status}).in_("id", valid_ids).execute()
     
-    # Send notifications
+    # Send notifications using a single bulk O(1) network operation
     try:
         from app.api.dependencies import get_service_client
-        from app.services.notifications import create_notification
-        import asyncio
         
         service_client = get_service_client()
         display_status = new_status.replace("_", " ").title()
         
-        async def notify(camp):
-            inf_name = camp.get("influencer_name") or camp.get("influencer_handle") or "Creator"
-            await create_notification(
-                service_client=service_client,
-                user_id=camp.get("user_id"),
-                title=f"Campaign {display_status}",
-                message=f"The campaign for {inf_name} was moved to {display_status}.",
-                type="info",
-                link_url="/dashboard"
-            )
+        notifications_to_insert = []
+        for camp in current_campaigns.data:
+            if camp["id"] in valid_ids:
+                inf_name = camp.get("influencer_name") or camp.get("influencer_handle") or "Creator"
+                notifications_to_insert.append({
+                    "user_id": camp.get("user_id"),
+                    "title": f"Campaign {display_status}",
+                    "message": f"The campaign for {inf_name} was moved to {display_status}.",
+                    "type": "info",
+                    "link_url": "/dashboard",
+                    "is_read": False
+                })
+                
+        if notifications_to_insert:
+            # Perform a single POST request to Supabase inserting all objects at once
+            service_client.table("notifications").insert(notifications_to_insert).execute()
             
-        tasks = [notify(c) for c in current_campaigns.data if c["id"] in valid_ids]
-        if tasks:
-            await asyncio.gather(*tasks)
     except Exception as e:
-        logger.error(f"Failed to create bulk status notifications: {e}")
+        logger.error(f"Failed to execute bulk insert for notifications: {e}")
 
     return {"message": f"Updated {len(response.data)} campaigns"}
 
