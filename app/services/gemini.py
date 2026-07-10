@@ -18,64 +18,31 @@ register_heif_opener()
 logger = structlog.get_logger(__name__)
 
 class ExtractionResult(BaseModel):
-    influencer_name: str = Field(default="", description="Name of the influencer")
-    influencer_handle: str = Field(default="", description="Social media handle (e.g. @username)")
-    platform: str = Field(default="", description="Platform like Instagram, YouTube, etc.")
-    deliverables: str = Field(default="", description="What needs to be delivered (e.g. 1 Reel, 2 Stories)")
-    deadline: str = Field(default="", description="Deadline in YYYY-MM-DD format if present")
-    payment_amount: float = Field(default=0.0, description="Payment amount in INR")
-    special_notes: str = Field(default="", description="Any other important details or requirements")
-    status: str = Field(default="draft", description="Current status")
-    requires_human_review: bool = Field(default=False, description="True if extraction is uncertain or partial")
+    influencer_name: str | None = Field(default=None, description="string or null")
+    brand_name: str | None = Field(default=None, description="string or null")
+    platform: str | None = Field(default=None, description="string or null")
+    deliverables: str | None = Field(default=None, description="string or null")
+    payment_amount: float | None = Field(default=None, description="number or null")
+    deadline: str | None = Field(default=None, description="YYYY-MM-DD or null")
+    special_notes: str | None = Field(default=None, description="string or null")
 
 def get_system_prompt() -> str:
-    from datetime import datetime
-    import pytz
-    ist = pytz.timezone('Asia/Kolkata')
-    now = datetime.now(ist)
-    date_str = now.strftime('%Y-%m-%d')
-    day_str = now.strftime('%A')
-    
-    return f"""You are an elite AI specialized in extracting micro-influencer campaign details from highly conversational negotiations (WhatsApp chats, voice notes, emails, contracts) for Indian D2C brands.
-You MUST have a deep understanding of standard English, 'Hinglish' (Hindi + English), and Indian creator slang.
+    return """You are a fast and accurate extraction engine for Collabo.
 
-CRITICAL CONTEXT:
-- Today's Date is: {date_str} ({day_str}). Use this to calculate exact relative deadlines!
-  - 'aaj' / 'today' = {date_str}
-  - 'kal' / 'tomorrow' = Add 1 day
-  - 'parso' / 'day after' / 'parson' = Add 2 days
-  - 'next week' = Add 7 days
+Extract campaign details and output ONLY clean JSON.
 
-ADVANCED HINGLISH & SLANG DICTIONARY:
-1. Money/Amounts:
-   - 'k', 'hazaar', 'hazari' = 1,000 (e.g., '10k', '10 hazaar' = 10000.0)
-   - 'peti', 'lakh', 'lac' = 100,000 (e.g., '1 peti', '2 peti', '1.5 lakh' = 100000.0, 200000.0, 150000.0)
-   - 'khoka', 'koka', 'cr', 'crore' = 10,000,000 (e.g., '1 cr' = 10000000.0)
-   - 'barter', 'collab' (without money), 'freebie' = Set payment_amount to 0.0 and note 'Barter deal' in special_notes
-   - Note: If numbers are written as '₹1,00,000' or '100000', strip commas and symbols to output exact float (100000.0).
+Pay special attention to dates. Convert "12 Oct", "12 October", "12th Oct", "Oct 12" to YYYY-MM-DD format. Use year 2026 if not specified.
 
-2. Platforms & Deliverables:
-   - 'reel', 'story', 'post', 'grid', 'ig' = Assume 'Instagram'
-   - 'shorts', 'video', 'vlog', 'youtube integration', 'dedicated' = Assume 'YouTube'
-   - 'do' = 2, 'teen' = 3, 'chaar' = 4, 'paanch' = 5 (e.g., 'do reel' = '2 Reels')
-   - Translate Hinglish phrases like "deal final ho gayi hai" (deal is finalized) to understand context.
-   - Ignore filler words like "bhai", "yaar", "sir", "madam", "bro".
-
-Extract the following details accurately:
-- influencer_name: The real name of the creator. If missing, but a handle is present (e.g., '@vlog_queen_delhi'), infer a clean name like 'Vlog Queen Delhi'.
-- influencer_handle: Social media handle (MUST start with @). e.g., @vlog_queen_delhi
-- platform: e.g., Instagram, YouTube. Detect this even if indirectly mentioned via deliverables (like 'vlog' or 'yt integration').
-- deliverables: What needs to be delivered (e.g., 1 Dedicated YouTube Video, 2 Reels).
-- deadline: Deadline strictly in YYYY-MM-DD format (e.g., '25th July' -> '2026-07-25', adjusting year logically if it's past).
-- payment_amount: Exact float value (e.g., 100000.0). Pick the clearest demanded amount if multiple are stated.
-- status: Default is 'draft'. If the text explicitly says "Mark status as Active", "make it active", or "active karo", set to 'active'.
-- special_notes: Any other conversational context, strict guidelines, tags, or demands.
-
-INSTRUCTIONS FOR UNCERTAINTY & MESSY DATA:
-1. Handle long, messy, conversational texts gracefully. Ignore irrelevant chatter.
-2. If uncertain about a field (e.g., vague deadline or unclear amount), leave it as an empty string ("") or 0.0. DO NOT guess blindly.
-3. If critical fields (handle/name, deliverables, payment_amount) are highly ambiguous or missing entirely, set `requires_human_review = true`.
-"""
+JSON format:
+{
+  "influencer_name": "string or null",
+  "brand_name": "string or null",
+  "platform": "string or null",
+  "deliverables": "string or null",
+  "payment_amount": "number or null",
+  "deadline": "YYYY-MM-DD or null",
+  "special_notes": "string or null"
+}"""
 
 def compress_image(image_bytes: bytes, max_size_kb: int = 500, max_dim: int = 1600) -> bytes:
     """Compresses an image to be under max_size_kb and max dimensions while keeping text readable."""
@@ -256,11 +223,18 @@ async def extract_campaign_data(file_bytes: bytes, filename: str, mime_type: str
                 # Stage 1: Attempt extraction with all contents (images + text)
                 result = await _call_gemini_with_fallback(client, contents)
                 
+                result_dict = result.model_dump()
+                
                 # Post-process to ensure requires_human_review is true if critical fields are missing
-                if (not result.influencer_handle and not result.influencer_name) or not result.deadline or not result.deliverables:
-                    result.requires_human_review = True
+                if not result.influencer_name or not result.deadline or not result.deliverables:
+                    result_dict["requires_human_review"] = True
+                else:
+                    result_dict["requires_human_review"] = False
                     
-                return result.model_dump()
+                result_dict["status"] = "draft"
+                result_dict["influencer_handle"] = "N/A"
+                    
+                return result_dict
             except Exception as e:
                 sentry_sdk.capture_exception(e)
                 logger.warning("gemini_stage1_failed", key=key_name, error=str(e))
@@ -310,14 +284,15 @@ async def extract_campaign_data(file_bytes: bytes, filename: str, mime_type: str
             error_msg = "Voice note transcription failed or was unclear. Please send text or a screenshot instead."
         
         # Complete fallback: Never crash, always return usable JSON
-        return ExtractionResult(
-            influencer_name="",
-            influencer_handle="",
-            platform="",
-            deliverables="",
-            deadline="",
-            payment_amount=0.0,
-            special_notes=error_msg,
-            status="draft",
-            requires_human_review=True
-        ).model_dump()
+        return {
+            "influencer_name": None,
+            "brand_name": None,
+            "platform": None,
+            "deliverables": None,
+            "deadline": None,
+            "payment_amount": 0.0,
+            "special_notes": error_msg,
+            "status": "draft",
+            "influencer_handle": "N/A",
+            "requires_human_review": True
+        }

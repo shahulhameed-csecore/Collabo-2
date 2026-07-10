@@ -356,7 +356,7 @@ async def process_whatsapp_message(sender_id: str, message: dict):
                 logger.error("Failed to increment AI count via whatsapp webhook", error=str(e))
 
         # 5. Insert into Supabase
-        campaign_data = {k: v for k, v in extracted_data.items() if k != "requires_human_review"}
+        campaign_data = {k: v for k, v in extracted_data.items() if k not in ["requires_human_review", "brand_name"]}
 
         if not campaign_data.get("influencer_handle"):
             campaign_data["influencer_handle"] = "N/A"
