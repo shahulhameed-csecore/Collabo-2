@@ -155,6 +155,13 @@ class CampaignResponse(CampaignBase):
     clicks: int = Field(default=0, description="Number of times the tracking link was clicked.")
 
 
+class PaginatedCampaigns(BaseModel):
+    data: List[CampaignResponse] = Field(description="The paginated list of campaigns.")
+    count: int = Field(description="The total number of campaigns matching the query.")
+    limit: int = Field(description="The maximum number of items returned in this page.")
+    offset: int = Field(description="The number of items skipped.")
+
+
 class ExtractionResult(CampaignBase):
     requires_human_review: bool = Field(
         default=False,

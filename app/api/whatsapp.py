@@ -9,7 +9,8 @@ from app.core.config import settings
 from app.core.limiter import limiter
 from supabase import create_client
 from app.services.gemini import extract_campaign_data
-from app.core.utils import parse_corrections, format_campaign_summary_wa, parse_date_string
+from app.core.parsers import parse_corrections, parse_date_string
+from app.core.formatters import format_campaign_summary_wa
 from app.services.whatsapp import send_whatsapp_message, download_whatsapp_media
 
 logger = structlog.get_logger(__name__)
@@ -463,7 +464,7 @@ async def process_whatsapp_message(sender_id: str, message: dict):
             )
 
 @router.post("/whatsapp")
-@limiter.limit("200/minute")
+@limiter.limit("60/minute")
 async def meta_whatsapp_webhook(request: Request, background_tasks: BackgroundTasks):
     """
     Receives incoming WhatsApp messages via Meta Cloud API.

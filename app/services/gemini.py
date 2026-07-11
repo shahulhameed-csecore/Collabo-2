@@ -179,7 +179,7 @@ async def extract_campaign_data(file_bytes: bytes, filename: str, mime_type: str
         has_images = False
         
         if mime_type == "application/pdf":
-            text, images = parse_pdf(file_bytes)
+            text, images = await asyncio.to_thread(parse_pdf, file_bytes)
             if text.strip():
                 contents.append(text)
                 text_fallback = text
@@ -189,13 +189,13 @@ async def extract_campaign_data(file_bytes: bytes, filename: str, mime_type: str
                 )
                 has_images = True
         elif mime_type == "application/vnd.openxmlformats-officedocument.wordprocessingml.document" or filename.endswith(".docx"):
-            text = parse_docx(file_bytes)
+            text = await asyncio.to_thread(parse_docx, file_bytes)
             if text.strip():
                 contents.append(text)
                 text_fallback = text
         elif mime_type.startswith("image/") or mime_type.startswith("audio/"):
             if mime_type.startswith("image/"):
-                compressed = compress_image(file_bytes)
+                compressed = await asyncio.to_thread(compress_image, file_bytes)
                 final_mime = "image/jpeg" if compressed != file_bytes else mime_type
                 contents.append(
                     types.Part.from_bytes(data=compressed, mime_type=final_mime)

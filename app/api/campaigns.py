@@ -2,7 +2,7 @@ import structlog
 from fastapi import APIRouter, Depends, HTTPException, Query
 from typing import List
 from pydantic import BaseModel, Field
-from app.schemas.campaign import CampaignCreate, CampaignUpdate, CampaignStatusUpdate, CampaignResponse, CampaignStatus
+from app.schemas.campaign import CampaignCreate, CampaignUpdate, CampaignStatusUpdate, CampaignResponse, CampaignStatus, PaginatedCampaigns
 from app.api.dependencies import get_current_user, get_user_supabase_client, AuthenticatedUser
 from app.core.limiter import limiter
 from app.core.utils import handle_db_error, get_valid_transitions
@@ -96,7 +96,7 @@ def bulk_remind(
 ):
     return {"message": f"Reminders queued for {len(payload.campaign_ids)} campaigns"}
 
-@router.get("/", response_model=List[CampaignResponse])
+@router.get("/", response_model=PaginatedCampaigns)
 @limiter.limit("60/minute")
 def get_campaigns(
     request: Request,
@@ -105,11 +105,20 @@ def get_campaigns(
     client=Depends(get_user_supabase_client),
 ):
     try:
-        response = client.table("campaigns").select("*").range(offset, offset + limit - 1).execute()
-        return response.data if response and hasattr(response, 'data') else []
+        response = client.table("campaigns").select("*", count="exact").range(offset, offset + limit - 1).execute()
+        
+        data = response.data if response and hasattr(response, 'data') else []
+        count = response.count if response and hasattr(response, 'count') and response.count is not None else 0
+        
+        return {
+            "data": data,
+            "count": count,
+            "limit": limit,
+            "offset": offset
+        }
     except Exception as e:
         logger.error("campaigns_fetch_failed", error=str(e))
-        return []
+        return {"data": [], "count": 0, "limit": limit, "offset": offset}
 
 def _generate_unique_short_code(client, max_retries=5) -> str:
     import secrets

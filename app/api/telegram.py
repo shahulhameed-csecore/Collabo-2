@@ -27,7 +27,8 @@ if settings.SUPABASE_URL and settings.SUPABASE_SERVICE_ROLE_KEY:
         settings.SUPABASE_SERVICE_ROLE_KEY,
     )
 
-from app.core.utils import parse_date_string, parse_corrections, format_campaign_summary
+from app.core.parsers import parse_date_string, parse_corrections
+from app.core.formatters import format_campaign_summary
 
 @sentry_sdk.trace(op="webhook", name="Process Telegram Message")
 async def process_telegram_message(update: dict):
@@ -473,7 +474,7 @@ async def process_telegram_message(update: dict):
             await send_telegram_message(chat_id, "🤖 <b>Collabo AI</b>\n\n❌ Oops, my servers hit a snag while processing that message. Please try again!")
 
 @router.post("/telegram")
-@limiter.limit("200/minute")
+@limiter.limit("60/minute")
 async def telegram_webhook(
     request: Request, 
     background_tasks: BackgroundTasks,
