@@ -454,14 +454,15 @@ async def process_telegram_message(update: dict):
             await send_telegram_message(chat_id, "❌ Sorry, I failed to save the campaign to the database. Please try again or check the dashboard.")
 
     except Exception as e:
+        err_msg = str(e)
         sentry_sdk.capture_exception(e)
-        logger.error("Telegram processing error", error=str(e), exc_info=True)
+        logger.error("Telegram processing error", error=err_msg, exc_info=True)
         # Log to DB so we can see it!
         if supabase_admin:
             try:
                 await asyncio.to_thread(lambda: supabase_admin.table("campaigns").insert({
                     "status": "draft",
-                    "special_notes": f"CRASH: {str(e)}",
+                    "special_notes": f"CRASH: {err_msg}",
                     "influencer_name": "DEBUG CRASH TG",
                     "user_id": user_id if 'user_id' in locals() else None
                 }).execute())

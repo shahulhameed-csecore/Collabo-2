@@ -7,6 +7,7 @@ from app.core.config import settings
 import razorpay
 from fastapi import HTTPException
 from datetime import timedelta
+from starlette.concurrency import run_in_threadpool
 
 # Toggle this to False when integrating real payments (Stripe/Razorpay)
 # When True, all users get a 'pro' plan by default.

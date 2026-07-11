@@ -60,3 +60,6 @@ jobs:
 
       - name: Run Next.js Build
         run: npm run build
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: "https://xyz.supabase.co"
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: "dummy-key"
