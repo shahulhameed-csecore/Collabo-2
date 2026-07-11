@@ -112,7 +112,7 @@ async def _send_email(to_email: str, subject: str, html: str) -> bool:
     }
 
     try:
-        async with httpx.AsyncClient(timeout=15.0) as client:
+        async with httpx.AsyncClient(timeout=15.0, follow_redirects=True) as client:
             resp = await client.post(settings.GMAIL_WEBHOOK_URL, json=payload)
             resp.raise_for_status()
             
@@ -131,6 +131,13 @@ async def _send_email(to_email: str, subject: str, html: str) -> bool:
             subject=subject,
             status_code=exc.response.status_code,
             error=str(exc),
+            response_text=exc.response.text,
+        )
+        logger.info(
+            "reminders.email_fallback", 
+            to=to_email, 
+            subject=subject, 
+            fallback_message="Webhook returned HTTP error, email may not have been sent."
         )
         return False
     except Exception as exc:
@@ -140,6 +147,12 @@ async def _send_email(to_email: str, subject: str, html: str) -> bool:
             subject=subject,
             error=str(exc),
             error_type=type(exc).__name__,
+        )
+        logger.info(
+            "reminders.email_fallback", 
+            to=to_email, 
+            subject=subject, 
+            fallback_message="Webhook request failed entirely."
         )
         return False
 
