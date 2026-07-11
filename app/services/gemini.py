@@ -32,10 +32,9 @@ def get_system_prompt() -> str:
 Extract campaign details and output ONLY clean JSON.
 
 **Strict Rules**:
-- Special Notes: ONLY include relevant human instructions (promo codes, shipping address, payment terms, etc.). 
-- NEVER include system tags like [wa_msg:...], message IDs, or error notes like "(Note: Couldn't parse...)".
-- Clean all HTML entities (use normal ' instead of &#x27;).
-- For dates: Carefully extract and convert "12 Oct", "12th Oct", "20 July", "20-07-2026", "July 20" to YYYY-MM-DD format. Use year 2026 if not specified.
+- Special Notes: ONLY include relevant human instructions. NEVER include system tags or error notes.
+- Clean all HTML entities.
+- For dates: Convert "12 Oct", "20 July", etc. to YYYY-MM-DD.
 
 JSON format:
 {
