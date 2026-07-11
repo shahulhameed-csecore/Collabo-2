@@ -574,6 +574,7 @@ export default function CampaignTable({ campaigns, isLoading, onRefresh, onCreat
                                   e.stopPropagation();
                                   setTrackingModalCampaign(c);
                                 }}
+                                aria-label={`View click analytics for ${c.influencer_name}`}
                                 className="text-xs font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-500/10 dark:hover:bg-emerald-500/20 px-2 py-1 rounded-md border border-emerald-200 dark:border-emerald-500/20 transition-colors flex items-center gap-1 cursor-pointer shadow-sm shadow-emerald-500/5"
                                 title="View detailed click analytics"
                               >
@@ -587,6 +588,7 @@ export default function CampaignTable({ campaigns, isLoading, onRefresh, onCreat
                                   navigator.clipboard.writeText(`${baseUrl}/t/${c.short_code}`);
                                   toast.success('Tracking link copied!');
                                 }}
+                                aria-label="Copy tracking link"
                                 className="text-[10px] text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 transition-colors flex items-center gap-1 mt-0.5"
                                 title={c.destination_url || ''}
                               >

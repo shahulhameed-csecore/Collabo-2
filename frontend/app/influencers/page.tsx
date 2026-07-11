@@ -34,7 +34,7 @@ export default function InfluencersPage() {
       }
 
       if (campData.status === 'fulfilled') {
-        setAllCampaigns(campData.value);
+        setAllCampaigns(campData.value.data);
       } else {
         setAllCampaigns([]);
       }

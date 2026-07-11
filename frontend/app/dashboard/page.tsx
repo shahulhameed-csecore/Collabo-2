@@ -177,8 +177,8 @@ export default function DashboardPage() {
     setError(null);
     try {
       const data = await getCampaigns();
-      setCampaigns(data);
-      setStats(computeDashboardStats(data));
+      setCampaigns(data.data);
+      setStats(computeDashboardStats(data.data));
     } catch (err) {
       const msg = getApiErrorMessage(err, 'Failed to load campaigns.');
       if (!silent) setError(msg);

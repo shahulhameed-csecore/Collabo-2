@@ -8,6 +8,7 @@ import type {
   ExtractedData,
   DashboardStats,
   ApiError,
+  PaginatedCampaigns,
 } from './types';
 
 // ─── Base URL Resolution ──────────────────────────────────────────────────────
@@ -145,8 +146,8 @@ export function getApiErrorMessage(
 
 /** Fetch all campaigns for the current authenticated user. */
 // Limit bumped to 200 per user request to avoid truncation without pagination
-export async function getCampaigns(limit = 200, offset = 0): Promise<Campaign[]> {
-  const res = await api.get<Campaign[]>('/campaigns/', { params: { limit, offset } });
+export async function getCampaigns(limit = 200, offset = 0): Promise<PaginatedCampaigns> {
+  const res = await api.get<PaginatedCampaigns>('/campaigns/', { params: { limit, offset } });
   return res.data;
 }
 

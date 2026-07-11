@@ -37,6 +37,13 @@ export interface Campaign {
   updated_at: string;             // ISO datetime string
 }
 
+export interface PaginatedCampaigns {
+  data: Campaign[];
+  count: number;
+  limit: number;
+  offset: number;
+}
+
 // ─── Payload for creating a new campaign (POST /campaigns/) ──────────────────
 export interface CreateCampaignPayload {
   influencer_name?: string | null;
