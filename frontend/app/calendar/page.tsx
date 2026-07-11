@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import DashboardLayout from '@/components/DashboardLayout';
-import { Campaign } from '@/lib/types';
+import { Campaign, PaginatedCampaigns } from '@/lib/types';
 import api from '@/lib/api';
 import { toast } from 'sonner';
 import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, AlertCircle, Sparkles, Plus, Flag, Play, Video, Image as ImageIcon } from 'lucide-react';
@@ -24,8 +24,8 @@ export default function CalendarPage() {
   const fetchData = async () => {
     setIsLoading(true);
     try {
-      const campRes = await api.get<Campaign[]>('/campaigns/');
-      setCampaigns(campRes.data);
+      const campRes = await api.get<PaginatedCampaigns>('/campaigns/?limit=200');
+      setCampaigns(campRes.data.data);
     } catch (err) {
       toast.error(getApiErrorMessage(err, 'Failed to load campaigns'));
     }
