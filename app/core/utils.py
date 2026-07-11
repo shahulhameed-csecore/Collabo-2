@@ -6,6 +6,14 @@ def parse_date_string(date_str: str) -> str | None:
     """Parses natural language dates into YYYY-MM-DD."""
     date_str = date_str.strip().lower()
     
+    # 0. Already in YYYY-MM-DD format (from Gemini)
+    if re.match(r'^\d{4}-\d{2}-\d{2}$', date_str):
+        try:
+            datetime.strptime(date_str, "%Y-%m-%d")
+            return date_str
+        except ValueError:
+            pass
+            
     # Remove common conversational time words to simplify parsing
     date_str = re.sub(r'\b(shaam|subah|morning|evening|night|raat|ko|in the|at|by|on)\b', '', date_str).strip()
     
