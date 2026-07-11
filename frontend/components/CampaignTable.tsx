@@ -617,6 +617,7 @@ export default function CampaignTable({ campaigns, isLoading, onRefresh, onCreat
 
                             {c.status === 'active' && (
                               <button
+                                data-tour-target="copy-link-btn"
                                 onClick={() => {
                                   if (c.magic_link_token) {
                                     const link = `${window.location.origin}/submit-proof/${c.magic_link_token}`;
@@ -632,7 +633,7 @@ export default function CampaignTable({ campaigns, isLoading, onRefresh, onCreat
                             )}
 
                             {c.status === 'content_received' && (
-                              <>
+                              <div data-tour-target="approve-reject-actions" className="flex items-center gap-1">
                                 {c.proof_history && c.proof_history.length > 0 && (
                                   <div className="relative group/history">
                                     <button
@@ -688,7 +689,7 @@ export default function CampaignTable({ campaigns, isLoading, onRefresh, onCreat
                                 >
                                   <CheckCircle2 className="w-3.5 h-3.5" />
                                 </button>
-                              </>
+                              </div>
                             )}
 
                             {c.status === 'approved' && (

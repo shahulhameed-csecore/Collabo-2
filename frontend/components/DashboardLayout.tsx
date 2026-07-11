@@ -10,6 +10,7 @@ import {
   Sparkles, TrendingUp, Sun, Moon, Calendar, Users, CreditCard
 } from 'lucide-react';
 import { useTheme } from 'next-themes';
+import { useGuidedTour } from './GuidedTourProvider';
 import Link from 'next/link';
 import { toast } from 'sonner';
 import { Logo } from '@/components/Logo';
@@ -88,6 +89,14 @@ export default function DashboardLayout({ children, onNewCampaign }: DashboardLa
   const pathname                            = usePathname();
   const supabase                            = useMemo(() => createClient(), []);
   const { theme, setTheme }                 = useTheme();
+  const { isSidebarForcedOpen }             = useGuidedTour();
+
+  // Force sidebar open if tour requires it
+  useEffect(() => {
+    if (isSidebarForcedOpen) {
+      setSidebarOpen(true);
+    }
+  }, [isSidebarForcedOpen]);
 
   /* ── Auth ── */
   useEffect(() => {
@@ -246,6 +255,7 @@ export default function DashboardLayout({ children, onNewCampaign }: DashboardLa
             isActive={pathname === href || (href !== '/dashboard' && pathname.startsWith(href))}
             onClick={() => setSidebarOpen(false)}
             id={`tour-nav-${href.replace('/', '') || 'dashboard'}`}
+            data-tour-target={`nav-${href.replace('/', '') || 'dashboard'}`}
           />
         ))}
       </nav>
@@ -253,6 +263,7 @@ export default function DashboardLayout({ children, onNewCampaign }: DashboardLa
       {/* AI Insight card */}
       <div
         id="tour-ai-insight"
+        data-tour-target="ai-insight"
         className="mx-3 mb-3 p-3.5 bg-gradient-to-br from-emerald-500/6 to-teal-500/4 border border-emerald-500/15 rounded-xl flex-shrink-0"
       >
         <div className="flex items-start gap-2.5">
