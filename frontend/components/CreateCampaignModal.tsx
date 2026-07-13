@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Field, inputCls, AiThinkingAnimation } from '@/components/CampaignFormUtils';
+import Image from 'next/image';
 
 type Step = 'upload' | 'review' | 'submitting';
 
@@ -322,10 +323,13 @@ export default function CreateCampaignModal({ isOpen, onClose, onSuccess }: Crea
                             <p className="text-slate-400 text-sm mt-1">{(file.size / 1024 / 1024).toFixed(2)} MB</p>
                           </div>
                         ) : (
-                          <img
+                          <Image
                             src={filePreview!}
                             alt="Uploaded preview"
+                            width={800}
+                            height={600}
                             className="w-full max-h-60 object-contain rounded-xl p-3"
+                            unoptimized
                           />
                         )}
                         <div className="absolute inset-0 bg-black/50 rounded-xl flex flex-col items-center justify-center opacity-0 hover:opacity-100 transition-opacity">

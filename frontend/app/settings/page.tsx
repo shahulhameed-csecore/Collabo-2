@@ -6,6 +6,7 @@ import {
   Settings, MessageSquare, Phone, AlertCircle, Save, 
   Bell, Mail, Copy, Check, Info, ShieldCheck, Send, QrCode, Smartphone, Sparkles, CreditCard, ArrowRight
 } from 'lucide-react';
+import Image from 'next/image';
 import { toast } from 'sonner';
 import { saveWhatsAppNumber, getWhatsAppNumber, getApiErrorMessage, getBillingUsage, BillingUsage, createRazorpayOrder, verifyRazorpayPayment } from '@/lib/api';
 import { IS_TESTING_PHASE } from '@/lib/config';
@@ -304,7 +305,7 @@ export default function SettingsPage() {
                       </div>
                       
                       <div className="p-3 bg-white rounded-2xl shadow-md border border-slate-100 dark:border-slate-800 transition-transform duration-500 hover:scale-105 hover:shadow-xl hover:shadow-emerald-500/10 group-hover:rotate-1">
-                        <img src="/whatsapp-qr.png" alt="WhatsApp QR Code" className="w-36 h-36 object-contain" />
+                        <Image src="/whatsapp-qr.png" alt="WhatsApp QR Code" width={144} height={144} className="w-36 h-36 object-contain" />
                       </div>
                       
                       <a href={`https://wa.me/${botNumber.replace(/[^0-9]/g, '')}`} target="_blank" rel="noopener noreferrer" className="text-xs font-bold text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 dark:hover:text-emerald-300 flex items-center gap-1 mt-1 bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-500/10 dark:hover:bg-emerald-500/20 px-5 py-2.5 rounded-xl transition-colors">

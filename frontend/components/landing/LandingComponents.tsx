@@ -112,7 +112,7 @@ export function HeroSection() {
 
       <div className="max-w-5xl mx-auto mt-16 px-4 sm:px-6 lg:px-8 animate-fade-in-up stagger-6">
         <div className="relative rounded-2xl border border-slate-700/60 bg-slate-900/80 shadow-[0_40px_120px_-20px_rgba(0,0,0,0.8)] overflow-hidden" style={{ transform: 'perspective(1200px) rotateX(8deg) scale(1.01)', transformStyle: 'preserve-3d' }}>
-          <img src="/images/dashboard.png" alt="Collabo Dashboard" className="w-full h-auto object-cover opacity-90" />
+          <Image src="/images/dashboard.png" alt="Collabo Dashboard" width={1200} height={800} className="w-full h-auto object-cover opacity-90" />
         </div>
       </div>
     </section>

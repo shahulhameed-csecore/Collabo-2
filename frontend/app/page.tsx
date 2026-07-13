@@ -167,7 +167,7 @@ export default function LandingPage() {
             <div className="relative rounded-2xl border border-white/10 bg-slate-900/80 shadow-[0_0_100px_rgba(16,185,129,0.1)] overflow-hidden" 
                  style={{ transform: 'rotateX(8deg) translateY(-20px)', transformStyle: 'preserve-3d' }}>
               <div className="absolute inset-0 bg-gradient-to-t from-[#020617] via-transparent to-transparent z-10 h-full" />
-              <img src="/images/dashboard.png" alt="Collabo Dashboard" className="w-full h-auto object-cover opacity-90 block" />
+              <Image src="/images/dashboard.png" alt="Collabo Dashboard" width={1200} height={800} className="w-full h-auto object-cover opacity-90 block" />
             </div>
           </div>
         </section>
@@ -209,7 +209,7 @@ export default function LandingPage() {
                   </p>
                 </div>
                 <div className="relative h-48 rounded-xl overflow-hidden border border-white/5">
-                  <img src="/images/ai-extraction.png" alt="AI Extraction" className="w-full h-full object-cover object-left-top opacity-80 group-hover:opacity-100 transition-opacity" />
+                  <Image src="/images/ai-extraction.png" alt="AI Extraction" width={800} height={600} className="w-full h-full object-cover object-left-top opacity-80 group-hover:opacity-100 transition-opacity" />
                 </div>
               </div>
 
