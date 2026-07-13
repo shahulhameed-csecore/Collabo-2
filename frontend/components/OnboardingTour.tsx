@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import Joyride, { CallBackProps, STATUS, Step, TooltipRenderProps, EVENTS, ACTIONS } from 'react-joyride';
+import { Joyride, CallBackProps, STATUS, Step, TooltipRenderProps, EVENTS, ACTIONS } from 'react-joyride';
 import { useTheme } from 'next-themes';
 import { createClient } from '@/lib/supabase';
 import { usePathname } from 'next/navigation';
