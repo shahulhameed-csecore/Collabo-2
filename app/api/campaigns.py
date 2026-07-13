@@ -23,12 +23,12 @@ class BulkDelete(BaseModel):
 
 @router.patch("/bulk/status", response_model=dict)
 @limiter.limit("10/minute")
-def bulk_update_status(
+async def bulk_update_status(
     request: Request,
     payload: BulkStatusUpdate,
     client=Depends(get_user_supabase_client),
 ):
-    current_campaigns = client.table("campaigns").select("id, status, user_id, influencer_handle, influencer_name").in_("id", payload.campaign_ids).execute()
+    current_campaigns = await client.table("campaigns").select("id, status, user_id, influencer_handle, influencer_name").in_("id", payload.campaign_ids).execute()
     if not current_campaigns.data:
         return {"message": "No valid campaigns found"}
     
@@ -49,11 +49,11 @@ def bulk_update_status(
     if not valid_ids:
         raise HTTPException(status_code=400, detail="No campaigns were in a valid state for this status transition.")
 
-    response = client.table("campaigns").update({"status": new_status}).in_("id", valid_ids).execute()
+    response = await client.table("campaigns").update({"status": new_status}).in_("id", valid_ids).execute()
     
     try:
         from app.api.dependencies import get_service_client
-        service_client = get_service_client()
+        service_client = await get_service_client()
         display_status = new_status.replace("_", " ").title()
         
         notifications_to_insert = []
@@ -70,7 +70,7 @@ def bulk_update_status(
                 })
                 
         if notifications_to_insert:
-            service_client.table("notifications").insert(notifications_to_insert).execute()
+            await service_client.table("notifications").insert(notifications_to_insert).execute()
             
     except Exception as e:
         logger.error(f"Failed to execute bulk insert for notifications: {e}")
@@ -79,17 +79,17 @@ def bulk_update_status(
 
 @router.delete("/bulk/delete", response_model=dict)
 @limiter.limit("10/minute")
-def bulk_delete(
+async def bulk_delete(
     request: Request,
     payload: BulkDelete,
     client=Depends(get_user_supabase_client),
 ):
-    response = client.table("campaigns").delete().in_("id", payload.campaign_ids).execute()
+    response = await client.table("campaigns").delete().in_("id", payload.campaign_ids).execute()
     return {"message": f"Deleted {len(response.data)} campaigns"}
 
 @router.post("/bulk/remind", response_model=dict)
 @limiter.limit("5/minute")
-def bulk_remind(
+async def bulk_remind(
     request: Request,
     payload: BulkDelete,
     client=Depends(get_user_supabase_client),
@@ -98,14 +98,14 @@ def bulk_remind(
 
 @router.get("/", response_model=PaginatedCampaigns)
 @limiter.limit("60/minute")
-def get_campaigns(
+async def get_campaigns(
     request: Request,
     limit: int = Query(50, ge=1, le=200),
     offset: int = Query(0, ge=0),
     client=Depends(get_user_supabase_client),
 ):
     try:
-        response = client.table("campaigns").select("*", count="exact").range(offset, offset + limit - 1).execute()
+        response = await client.table("campaigns").select("*", count="exact").range(offset, offset + limit - 1).execute()
         
         data = response.data if response and hasattr(response, 'data') else []
         count = response.count if response and hasattr(response, 'count') and response.count is not None else 0
@@ -120,19 +120,19 @@ def get_campaigns(
         logger.error("campaigns_fetch_failed", error=str(e))
         return {"data": [], "count": 0, "limit": limit, "offset": offset}
 
-def _generate_unique_short_code(client, max_retries=5) -> str:
+async def _generate_unique_short_code(client, max_retries=5) -> str:
     import secrets
     import string
     for _ in range(max_retries):
         code = ''.join(secrets.choice(string.ascii_letters + string.digits) for _ in range(8))
-        res = client.table("campaigns").select("id").eq("short_code", code).execute()
+        res = await client.table("campaigns").select("id").eq("short_code", code).execute()
         if not res.data:
             return code
     raise HTTPException(status_code=500, detail="Failed to generate unique short code. Please try again.")
 
 @router.post("/", response_model=CampaignResponse)
 @limiter.limit("20/minute")
-def create_campaign(
+async def create_campaign(
     request: Request,
     campaign: CampaignCreate,
     client=Depends(get_user_supabase_client),
@@ -142,12 +142,12 @@ def create_campaign(
     data["user_id"] = user.user.id
     
     if data.get("destination_url"):
-        data["short_code"] = _generate_unique_short_code(client)
+        data["short_code"] = await _generate_unique_short_code(client)
 
     try:
         from app.api.billing import IS_TESTING_PHASE
         if not IS_TESTING_PHASE:
-            sub_res = client.table("subscriptions").select("tier, trial_ends_at").eq("user_id", user.user.id).execute()
+            sub_res = await client.table("subscriptions").select("tier, trial_ends_at").eq("user_id", user.user.id).execute()
             is_pro = False
             if sub_res.data:
                 sub = sub_res.data[0]
@@ -168,11 +168,11 @@ def create_campaign(
                     is_pro = True
             
             if not is_pro:
-                count_res = client.table("campaigns").select("id", count="exact").eq("user_id", user.user.id).execute()
+                count_res = await client.table("campaigns").select("id", count="exact").eq("user_id", user.user.id).execute()
                 if count_res.count is not None and count_res.count >= 5:
                     raise HTTPException(status_code=403, detail="Free tier limit reached. Please upgrade to Pro to create more campaigns.")
 
-        response = client.table("campaigns").insert(data).execute()
+        response = await client.table("campaigns").insert(data).execute()
         if not response.data:
             raise HTTPException(status_code=400, detail="Failed to create campaign")
         return response.data[0]
@@ -183,7 +183,7 @@ def create_campaign(
 
 @router.put("/{id}", response_model=CampaignResponse)
 @limiter.limit("20/minute")
-def update_campaign(
+async def update_campaign(
     request: Request,
     id: str,
     campaign: CampaignUpdate,
@@ -192,11 +192,11 @@ def update_campaign(
     data = campaign.model_dump(mode="json", exclude_unset=True)
     
     if "destination_url" in data and data["destination_url"]:
-        current = client.table("campaigns").select("short_code").eq("id", id).execute()
+        current = await client.table("campaigns").select("short_code").eq("id", id).execute()
         if current.data and not current.data[0].get("short_code"):
-            data["short_code"] = _generate_unique_short_code(client)
+            data["short_code"] = await _generate_unique_short_code(client)
 
-    response = client.table("campaigns").update(data).eq("id", id).execute()
+    response = await client.table("campaigns").update(data).eq("id", id).execute()
     if not response.data:
         raise HTTPException(status_code=404, detail="Campaign not found or access denied")
     return response.data[0]
@@ -204,14 +204,14 @@ def update_campaign(
 
 @router.patch("/{id}/status", response_model=CampaignResponse)
 @limiter.limit("20/minute")
-def update_campaign_status(
+async def update_campaign_status(
     request: Request,
     id: str,
     status_update: CampaignStatusUpdate,
     background_tasks: BackgroundTasks,
     client=Depends(get_user_supabase_client),
 ):
-    current_campaign = client.table("campaigns").select("status, user_id, influencer_handle, influencer_name").eq("id", id).execute()
+    current_campaign = await client.table("campaigns").select("status, user_id, influencer_handle, influencer_name").eq("id", id).execute()
     if not current_campaign.data:
         raise HTTPException(status_code=404, detail="Campaign not found or access denied")
     
@@ -227,7 +227,7 @@ def update_campaign_status(
         raise HTTPException(status_code=400, detail=f"Invalid transition from {current_status} to {new_status}")
 
     data = status_update.model_dump(mode="json")
-    response = client.table("campaigns").update(data).eq("id", id).execute()
+    response = await client.table("campaigns").update(data).eq("id", id).execute()
     if not response.data:
         raise HTTPException(status_code=404, detail="Campaign not found or access denied")
         
@@ -235,7 +235,7 @@ def update_campaign_status(
         try:
             from app.api.dependencies import get_service_client
             from app.services.notifications import create_notification
-            service_client = get_service_client()
+            service_client = await get_service_client()
             user_id = current_campaign.data[0].get("user_id")
             inf_name = current_campaign.data[0].get("influencer_handle") or current_campaign.data[0].get("influencer_name") or "Creator"
             display_status = new_status.replace("_", " ").title()
@@ -257,15 +257,15 @@ def update_campaign_status(
 
 @router.delete("/{id}")
 @limiter.limit("20/minute")
-def delete_campaign(request: Request, id: str, client=Depends(get_user_supabase_client)):
-    response = client.table("campaigns").delete().eq("id", id).execute()
+async def delete_campaign(request: Request, id: str, client=Depends(get_user_supabase_client)):
+    response = await client.table("campaigns").delete().eq("id", id).execute()
     if not response.data:
         raise HTTPException(status_code=404, detail="Campaign not found or access denied")
     return {"message": "Campaign deleted successfully"}
 
 @router.post("/sample-data", response_model=List[CampaignResponse])
 @limiter.limit("5/minute")
-def load_sample_data(
+async def load_sample_data(
     request: Request,
     client=Depends(get_user_supabase_client),
     user: AuthenticatedUser = Depends(get_current_user),
@@ -333,7 +333,7 @@ def load_sample_data(
     ]
     
     try:
-        response = client.table("campaigns").insert(sample_campaigns).execute()
+        response = await client.table("campaigns").insert(sample_campaigns).execute()
         return response.data if response and hasattr(response, 'data') else []
     except Exception as e:
         logger.error(f"Failed to load sample data: {e}")

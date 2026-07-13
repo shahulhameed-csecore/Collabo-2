@@ -1,7 +1,7 @@
 import logging
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from supabase import create_client, ClientOptions
+from supabase import create_async_client, AsyncClient, ClientOptions
 from app.services.supabase import supabase
 from app.core.config import settings
 
@@ -22,7 +22,8 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
     """
     token = credentials.credentials
     try:
-        user_response = supabase.auth.get_user(token)
+        service_client = await get_service_client()
+        user_response = await service_client.auth.get_user(token)
         if user_response and user_response.user:
             return AuthenticatedUser(user_response.user, token)
         else:
@@ -43,20 +44,20 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
         )
 
 
-def get_user_supabase_client(user: AuthenticatedUser = Depends(get_current_user)):
+async def get_user_supabase_client(user: AuthenticatedUser = Depends(get_current_user)):
     """
     Returns a Supabase client authenticated with the user's JWT.
     This client will respect Row Level Security (RLS) policies.
     Defined once here to avoid duplication across router files.
     """
-    client = create_client(
+    client = await create_async_client(
         settings.SUPABASE_URL,
         settings.SUPABASE_ANON_KEY,
         options=ClientOptions(headers={"Authorization": f"Bearer {user.jwt_token}"})
     )
     return client
 
-def get_service_client():
+async def get_service_client():
     """
     Returns a Supabase client authenticated with the SERVICE ROLE KEY.
     Use ONLY for internal/background tasks that need to bypass RLS.
@@ -66,5 +67,5 @@ def get_service_client():
             status_code=500, 
             detail="Supabase service role key not configured."
         )
-    return create_client(settings.SUPABASE_URL, settings.SUPABASE_SERVICE_ROLE_KEY)
+    return await create_async_client(settings.SUPABASE_URL, settings.SUPABASE_SERVICE_ROLE_KEY)
 

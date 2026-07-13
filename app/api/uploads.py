@@ -34,16 +34,16 @@ def get_proof_received_email_html(inf_name: str) -> str:
 </body>
 </html>"""
 
-def get_service_client():
+async def get_service_client():
     if not settings.SUPABASE_SERVICE_ROLE_KEY:
         raise HTTPException(status_code=500, detail="Supabase service role key not configured.")
     return create_client(settings.SUPABASE_URL, settings.SUPABASE_SERVICE_ROLE_KEY)
 
 async def notify_owner_of_proof(user_id: str, inf_name: str):
-    service_client = get_service_client()
+    service_client = await get_service_client()
     
     # Fetch user settings
-    resp = service_client.table("user_settings").select("*").eq("user_id", user_id).execute()
+    resp = await service_client.table("user_settings").select("*").eq("user_id", user_id).execute()
     if not resp.data:
         return
     
@@ -90,13 +90,11 @@ async def upload_proof(
     file: UploadFile = File(...),
 ):
     from fastapi.concurrency import run_in_threadpool
-    service_client = get_service_client()
+    service_client = await get_service_client()
 
     # 1. Validate Token and Campaign State
-    def fetch_campaign():
-        return service_client.table("campaigns").select("id", "status", "user_id", "influencer_name", "proof_url", "proof_history", "updated_at").eq("magic_link_token", token).execute()
-        
-    campaign_resp = await run_in_threadpool(fetch_campaign)
+    campaign_resp = await service_client.table("campaigns").select("id", "status", "user_id", "influencer_name", "proof_url", "proof_history", "updated_at").eq("magic_link_token", token).execute()
+    
     if not campaign_resp.data:
         raise HTTPException(status_code=404, detail="Invalid token.")
     
@@ -163,22 +161,22 @@ async def upload_proof(
         def update_campaign_db():
             from datetime import datetime, timezone
             current_proof = campaign.get("proof_url")
-            current_history = campaign.get("proof_history") or []
-            
-            if current_proof:
-                current_history.append({
-                    "url": current_proof,
-                    "uploaded_at": campaign.get("updated_at") or datetime.now(timezone.utc).isoformat(),
-                })
+        from datetime import datetime, timezone
+        current_proof = campaign.get("proof_url")
+        current_history = campaign.get("proof_history") or []
+        
+        if current_proof:
+            current_history.append({
+                "url": current_proof,
+                "uploaded_at": campaign.get("updated_at") or datetime.now(timezone.utc).isoformat(),
+            })
 
-            update_data = {
-                "status": "content_received",
-                "proof_url": public_url,
-                "proof_history": current_history
-            }
-            service_client.table("campaigns").update(update_data).eq("id", campaign["id"]).execute()
-            
-        await run_in_threadpool(update_campaign_db)
+        update_data = {
+            "status": "content_received",
+            "proof_url": public_url,
+            "proof_history": current_history
+        }
+        await service_client.table("campaigns").update(update_data).eq("id", campaign["id"]).execute()
 
         # 7. Notify Owner
         inf_name = campaign.get("influencer_name") or "Unknown Creator"

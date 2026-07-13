@@ -50,7 +50,7 @@ supabase_admin: Client = create_client(settings.SUPABASE_URL, settings.SUPABASE_
 async def track_link(request: Request, short_code: str):
     try:
         # Fetch campaign by short_code
-        response = supabase_admin.table("campaigns").select("id, user_id, influencer_handle, influencer_name, destination_url, clicks").eq("short_code", short_code).execute()
+        response = await supabase_admin.table("campaigns").select("id, user_id, influencer_handle, influencer_name, destination_url, clicks").eq("short_code", short_code).execute()
         
         if not response.data:
             raise HTTPException(status_code=404, detail="Tracking link not found")
@@ -63,7 +63,7 @@ async def track_link(request: Request, short_code: str):
             raise HTTPException(status_code=404, detail="Destination URL not found")
             
         # Call the RPC function to atomically increment clicks
-        supabase_admin.rpc("increment_campaign_clicks", {"p_short_code": short_code}).execute()
+        await supabase_admin.rpc("increment_campaign_clicks", {"p_short_code": short_code}).execute()
 
         # If this is the very first click, notify the owner
         if clicks == 0:

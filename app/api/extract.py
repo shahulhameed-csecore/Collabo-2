@@ -21,11 +21,11 @@ async def extract_data(
         logger.info("extract_endpoint_called", user_id=user.user.id, filename=file.filename, content_type=file.content_type)
         
         # Enforce Billing / Trial Limits synchronously via threadpool
-        def check_billing():
+        async def verify_subscription(user):
             client = get_user_supabase_client(user)
-            return client.table("subscriptions").select("tier, trial_ends_at").eq("user_id", user.user.id).execute()
+            return await client.table("subscriptions").select("tier, trial_ends_at").eq("user_id", user.user.id).execute()
             
-        sub_res = await run_in_threadpool(check_billing)
+        sub_res = await verify_subscription(user)
         
         from app.api.billing import IS_TESTING_PHASE
         if not IS_TESTING_PHASE and sub_res.data:

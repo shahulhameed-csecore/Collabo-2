@@ -7,13 +7,13 @@ from app.schemas.influencer import InfluencerResponse, InfluencerProfileUpdate
 router = APIRouter(prefix="/influencers", tags=["Influencers"])
 
 @router.get("/", response_model=List[InfluencerResponse])
-def get_influencers(
+async def get_influencers(
     request: Request,
     client=Depends(get_user_supabase_client),
     user: AuthenticatedUser = Depends(get_current_user),
 ):
     try:
-        campaigns_response = client.table("campaigns").select("*").eq("user_id", user.user.id).execute()
+        campaigns_response = await client.table("campaigns").select("*").eq("user_id", user.user.id).execute()
         campaigns = campaigns_response.data if campaigns_response and hasattr(campaigns_response, 'data') else []
     except Exception as e:
         import structlog
@@ -64,7 +64,7 @@ def get_influencers(
                 stats["last_collaboration"] = deadline
 
     try:
-        profiles_response = client.table("influencer_profiles").select("*").eq("user_id", user.user.id).execute()
+        profiles_response = await client.table("influencer_profiles").select("*").eq("user_id", user.user.id).execute()
         profiles = profiles_response.data if profiles_response and hasattr(profiles_response, 'data') else []
     except Exception as e:
         import structlog
@@ -113,7 +113,7 @@ def get_influencers(
     return response_data
 
 @router.patch("/{handle}", response_model=InfluencerResponse)
-def update_influencer_profile(
+async def update_influencer_profile(
     handle: str,
     profile_update: InfluencerProfileUpdate,
     request: Request,
@@ -131,7 +131,7 @@ def update_influencer_profile(
         **data
     }
     try:
-        response = client.table("influencer_profiles").upsert(upsert_data, on_conflict="user_id,handle").execute()
+        response = await client.table("influencer_profiles").upsert(upsert_data, on_conflict="user_id,handle").execute()
         result = response.data[0] if response.data else data
     except Exception:
         # If table doesn't exist, just return the data as if it succeeded to not break the UI

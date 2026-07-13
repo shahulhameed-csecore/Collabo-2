@@ -22,14 +22,14 @@ class BillingUsageResponse(BaseModel):
     ai_extractions_used: int
 
 @router.get("/usage", response_model=BillingUsageResponse)
-def get_billing_usage(
+async def get_billing_usage(
     request: Request,
     client=Depends(get_user_supabase_client),
     user: AuthenticatedUser = Depends(get_current_user),
 ):
     # Get subscription details
     try:
-        sub_response = client.table("subscriptions").select("*").eq("user_id", user.user.id).execute()
+        sub_response = await client.table("subscriptions").select("*").eq("user_id", user.user.id).execute()
         sub_data = sub_response.data[0] if sub_response and hasattr(sub_response, 'data') and len(sub_response.data) > 0 else {}
     except Exception as e:
         import structlog
@@ -66,7 +66,7 @@ def get_billing_usage(
     
     # Supabase select with count
     try:
-        campaigns_response = client.table("campaigns").select("id", count="exact").eq("user_id", user.user.id).gte("created_at", start_of_month).execute()
+        campaigns_response = await client.table("campaigns").select("id", count="exact").eq("user_id", user.user.id).gte("created_at", start_of_month).execute()
         campaigns_this_month = campaigns_response.count if campaigns_response and hasattr(campaigns_response, 'count') and campaigns_response.count is not None else 0
     except Exception as e:
         import structlog
@@ -96,7 +96,7 @@ class VerifyPaymentRequest(BaseModel):
     razorpay_signature: str
 
 @router.post("/create-razorpay-order")
-def create_razorpay_order(
+async def create_razorpay_order(
     req: CreateOrderRequest,
     user: AuthenticatedUser = Depends(get_current_user),
 ):
@@ -126,7 +126,7 @@ def create_razorpay_order(
         raise HTTPException(status_code=500, detail="Failed to create order")
 
 @router.post("/verify-payment")
-def verify_payment(
+async def verify_payment(
     req: VerifyPaymentRequest,
     db_client=Depends(get_user_supabase_client),
     user: AuthenticatedUser = Depends(get_current_user),
@@ -161,7 +161,7 @@ def verify_payment(
         # Get current subscription
         sub_response = db_client.table("subscriptions").select("*").eq("user_id", user.user.id).execute()
         
-        service_client = get_service_client()
+        service_client = await get_service_client()
         if sub_response.data:
             current_sub = sub_response.data[0]
             current_trial = current_sub.get("trial_ends_at")
@@ -179,7 +179,7 @@ def verify_payment(
                 new_expiry = now + timedelta(days=days_to_add)
                 
             # Update DB (Using service client to bypass RLS)
-            service_client.table("subscriptions").update({
+            await service_client.table("subscriptions").update({
                 "tier": "pro",
                 "trial_ends_at": new_expiry.isoformat(),
                 "razorpay_customer_id": None, # or update if available
@@ -187,7 +187,7 @@ def verify_payment(
             }).eq("user_id", user.user.id).execute()
         else:
             # If no subscription exists for some reason, create one
-            service_client.table("subscriptions").insert({
+            await service_client.table("subscriptions").insert({
                 "user_id": user.user.id,
                 "tier": "pro",
                 "trial_ends_at": (now + timedelta(days=days_to_add)).isoformat()
@@ -203,13 +203,13 @@ def verify_payment(
         raise HTTPException(status_code=500, detail="Failed to verify payment")
 
 
-def process_razorpay_webhook_db(order_id: str, user_id: str, notes: dict):
-    """Synchronous database handler for the webhook."""
+async def process_razorpay_webhook_db(order_id: str, user_id: str, notes: dict):
+    """Database handler for the webhook."""
     from app.api.dependencies import get_service_client
-    service_client = get_service_client()
+    service_client = await get_service_client()
     
     try:
-        service_client.table("processed_transactions").insert({
+        await service_client.table("processed_transactions").insert({
             "order_id": order_id,
             "user_id": user_id,
             "event_type": "order.paid"
@@ -224,7 +224,7 @@ def process_razorpay_webhook_db(order_id: str, user_id: str, notes: dict):
             raise db_err
 
     now = datetime.now(timezone.utc)
-    sub_response = service_client.table("subscriptions").select("*").eq("user_id", user_id).execute()
+    sub_response = await service_client.table("subscriptions").select("*").eq("user_id", user_id).execute()
     
     is_annual = notes.get("type") == "annual_pro"
     days_to_add = 365 if is_annual else 30 
@@ -244,12 +244,12 @@ def process_razorpay_webhook_db(order_id: str, user_id: str, notes: dict):
         else:
             new_expiry = now + timedelta(days=days_to_add)
             
-        service_client.table("subscriptions").update({
+        await service_client.table("subscriptions").update({
             "tier": "pro",
             "trial_ends_at": new_expiry.isoformat()
         }).eq("user_id", user_id).execute()
     else:
-        service_client.table("subscriptions").insert({
+        await service_client.table("subscriptions").insert({
             "user_id": user_id,
             "tier": "pro",
             "trial_ends_at": (now + timedelta(days=days_to_add)).isoformat()

@@ -31,7 +31,7 @@ async def create_notification(
             "link_url": link_url,
             "is_read": False
         }
-        resp = service_client.table("notifications").insert(data).execute()
+        resp = await service_client.table("notifications").insert(data).execute()
         
         if getattr(resp, "data", None):
             logger.info(f"Notification created for user {user_id}: {title}")

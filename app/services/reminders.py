@@ -345,7 +345,7 @@ async def _get_user_email(supabase_admin, user_id: str) -> Optional[str]:
     """Fetch user email from Supabase Auth admin API."""
     try:
         import asyncio
-        resp = await asyncio.to_thread(lambda: supabase_admin.auth.admin.get_user_by_id(user_id))
+        resp = supabase_admin.auth.admin.get_user_by_id(user_id)
         if resp and resp.user and resp.user.email:
             return resp.user.email
         logger.warning("reminders.user_email_not_found", user_id=user_id)
@@ -423,8 +423,7 @@ async def _mark_flag(supabase_admin, campaign_id: str, flag: str, clog) -> None:
     """
     try:
         import asyncio
-        await asyncio.to_thread(
-            lambda: supabase_admin.table("campaigns")
+        await supabase_admin.table("campaigns"
             .update({flag: True})
             .eq("id", campaign_id)
             .execute()
@@ -466,8 +465,7 @@ async def _fetch_campaigns_with_settings(supabase_admin, log) -> list[dict]:
     """
     # ── Step 1: Fetch active campaigns ────────────────────────────────────
     try:
-        campaigns_resp = await asyncio.to_thread(
-            lambda: supabase_admin.table("campaigns")
+        campaigns_resp = await supabase_admin.table("campaigns"
             .select(
                 "id, user_id, influencer_name, influencer_handle, deadline, "
                 "status, reminder_48h_sent, overdue_alert_sent"
@@ -495,8 +493,7 @@ async def _fetch_campaigns_with_settings(supabase_admin, log) -> list[dict]:
 
     if user_ids:
         try:
-            settings_resp = await asyncio.to_thread(
-                lambda: supabase_admin.table("user_settings")
+            settings_resp = await supabase_admin.table("user_settings"
                 .select("user_id, whatsapp_number, telegram_chat_id, email_reminders_enabled, whatsapp_reminders_enabled")
                 .in_("user_id", user_ids)
                 .execute()

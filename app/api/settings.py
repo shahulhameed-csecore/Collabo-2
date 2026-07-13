@@ -56,7 +56,7 @@ async def save_settings(
     try:
         from fastapi.concurrency import run_in_threadpool
         # Check current settings to detect if WhatsApp number changed
-        current_settings = await run_in_threadpool(lambda: client.table("user_settings").select("whatsapp_number").eq("user_id", user_id).execute())
+        current_settings = await client.table("user_settings".select("whatsapp_number").eq("user_id", user_id).execute())
         old_number = current_settings.data[0].get("whatsapp_number") if current_settings.data else None
         
         payload = {
@@ -75,14 +75,14 @@ async def save_settings(
                 tg = f"@{tg}"
             payload["telegram_username"] = tg if tg else None
 
-        await run_in_threadpool(lambda: client.table("user_settings").upsert(payload).execute())
+        await client.table("user_settings".upsert(payload).execute())
         
         # Trigger notification if WhatsApp number was newly linked or updated
         if clean_number and clean_number != old_number:
             try:
                 from app.api.dependencies import get_service_client
                 from app.services.notifications import create_notification
-                service_client = get_service_client()
+                service_client = await get_service_client()
                 await create_notification(
                     service_client=service_client,
                     user_id=user_id,
@@ -124,7 +124,7 @@ async def save_settings(
 
 
 @router.get("/whatsapp")
-def get_settings(
+async def get_settings(
     current_user: AuthenticatedUser = Depends(get_current_user),
     client=Depends(get_user_supabase_client),
 ):
@@ -132,7 +132,7 @@ def get_settings(
 
     try:
         response = (
-            client.table("user_settings")
+            await client.table("user_settings")
             .select("whatsapp_number, email_reminders_enabled, whatsapp_reminders_enabled, username, telegram_username")
             .eq("user_id", user_id)
             .execute()
