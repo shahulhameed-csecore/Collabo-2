@@ -46,6 +46,11 @@ export default function OnboardingTour({ setSidebarOpen }: OnboardingTourProps) 
     }
   }, [userId, pathname]);
 
+  const getTarget = (baseId: string) => {
+    if (typeof window === 'undefined') return 'body';
+    return window.innerWidth < 1024 ? `#${baseId}-mobile` : `#${baseId}-desktop`;
+  };
+
   const steps: CustomStep[] = [
     {
       target: 'body',
@@ -62,7 +67,7 @@ export default function OnboardingTour({ setSidebarOpen }: OnboardingTourProps) 
       disableBeacon: true,
     },
     {
-      target: '[data-tour-target="ai-insight"]',
+      target: getTarget('tour-ai-insight'),
       title: '2. Auto-fill with AI ✨',
       content: 'Skip manual entry! Forward a WhatsApp or Telegram DM to our bot, and we\'ll extract all the details for you instantly.',
       placement: 'right',
@@ -70,7 +75,7 @@ export default function OnboardingTour({ setSidebarOpen }: OnboardingTourProps) 
       disableBeacon: true,
     },
     {
-      target: '[data-tour-target="nav-calendar"]',
+      target: getTarget('tour-nav-calendar'),
       title: '3. Automated Reminders',
       content: 'We visually map your deadlines and send you automated reminders so you never miss a post or a payment.',
       placement: 'right',
@@ -78,7 +83,7 @@ export default function OnboardingTour({ setSidebarOpen }: OnboardingTourProps) 
       disableBeacon: true,
     },
     {
-      target: '[data-tour-target="nav-influencers"]',
+      target: getTarget('tour-nav-influencers'),
       title: '4. Creator CRM',
       content: 'Every creator you work with is automatically added to your built-in CRM for easy future collaborations.',
       placement: 'right',
@@ -86,7 +91,7 @@ export default function OnboardingTour({ setSidebarOpen }: OnboardingTourProps) 
       disableBeacon: true,
     },
     {
-      target: '[data-tour-target="nav-analytics"]',
+      target: getTarget('tour-nav-dashboardanalytics'),
       title: '5. Measure Success',
       content: 'Track your spending, ROI, and see which platforms and campaigns perform best in real-time.',
       placement: 'right',
@@ -94,7 +99,7 @@ export default function OnboardingTour({ setSidebarOpen }: OnboardingTourProps) 
       disableBeacon: true,
     },
     {
-      target: '[data-tour-target="nav-settings"]',
+      target: getTarget('tour-nav-settings'),
       title: '6. Magic Links',
       content: 'Set up your profile here. We use "Magic Links" so creators can securely upload content directly to Collabo for your approval.',
       placement: 'right',
@@ -102,7 +107,7 @@ export default function OnboardingTour({ setSidebarOpen }: OnboardingTourProps) 
       disableBeacon: true,
     },
     {
-      target: '[data-tour-target="nav-billing"]',
+      target: getTarget('tour-nav-billing'),
       title: '7. Unlock Premium',
       content: 'Ready to scale? Upgrade your plan to unlock unlimited campaigns, advanced AI features, and priority support.',
       placement: 'right',

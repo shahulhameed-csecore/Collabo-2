@@ -193,7 +193,7 @@ export default function DashboardLayout({ children, onNewCampaign }: DashboardLa
   };
 
   /* ── Sidebar content component ── */
-  const SidebarContent = () => (
+  const SidebarContent = ({ isMobile = false }: { isMobile?: boolean }) => (
     <div className="flex flex-col h-full overflow-hidden">
       {/* Logo row */}
       <div className="flex items-center gap-3 px-5 py-[18px] border-b border-slate-200 dark:border-slate-800/50 flex-shrink-0">
@@ -248,16 +248,14 @@ export default function DashboardLayout({ children, onNewCampaign }: DashboardLa
             soon={soon}
             isActive={pathname === href || (href !== '/dashboard' && pathname.startsWith(href))}
             onClick={() => setSidebarOpen(false)}
-            id={`tour-nav-${href.replace('/', '') || 'dashboard'}`}
-            data-tour-target={`nav-${href.replace('/', '') || 'dashboard'}`}
+            id={`tour-nav-${href.replace(/\//g, '') || 'dashboard'}-${isMobile ? 'mobile' : 'desktop'}`}
           />
         ))}
       </nav>
 
       {/* AI Insight card */}
       <div
-        id="tour-ai-insight"
-        data-tour-target="ai-insight"
+        id={`tour-ai-insight-${isMobile ? 'mobile' : 'desktop'}`}
         className="mx-3 mb-3 p-3.5 bg-gradient-to-br from-emerald-500/6 to-teal-500/4 border border-emerald-500/15 rounded-xl flex-shrink-0"
       >
         <div className="flex items-start gap-2.5">
@@ -305,7 +303,7 @@ export default function DashboardLayout({ children, onNewCampaign }: DashboardLa
 
       {/* ── Desktop Sidebar ── */}
       <aside className="hidden lg:flex w-60 bg-white dark:bg-slate-900/95 border-r border-slate-200 dark:border-slate-800/50 flex-col flex-shrink-0 fixed h-full z-20 backdrop-blur-xl">
-        <SidebarContent />
+        <SidebarContent isMobile={false} />
       </aside>
 
       {/* ── Mobile Sidebar Overlay ── */}
@@ -328,7 +326,7 @@ export default function DashboardLayout({ children, onNewCampaign }: DashboardLa
             >
               <X className="w-4 h-4" />
             </button>
-            <SidebarContent />
+            <SidebarContent isMobile={true} />
           </aside>
         </div>
       )}
