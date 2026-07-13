@@ -1,18 +1,27 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Joyride, EventData, STATUS, Step, TooltipRenderProps } from 'react-joyride';
+import Joyride, { CallBackProps, STATUS, Step, TooltipRenderProps, EVENTS, ACTIONS } from 'react-joyride';
 import { useTheme } from 'next-themes';
 import { createClient } from '@/lib/supabase';
+import { usePathname } from 'next/navigation';
+import { ArrowRight, ArrowLeft, Check, Sparkles, X } from 'lucide-react';
 
 interface OnboardingTourProps {
-  isReady?: boolean;
+  setSidebarOpen: (open: boolean) => void;
 }
 
-export default function OnboardingTour({ isReady = true }: OnboardingTourProps) {
+interface CustomStep extends Step {
+  requiresSidebar?: boolean;
+}
+
+export default function OnboardingTour({ setSidebarOpen }: OnboardingTourProps) {
   const [run, setRun] = useState(false);
+  const [stepIndex, setStepIndex] = useState(0);
   const [userId, setUserId] = useState<string | null>(null);
+  const [isWaiting, setIsWaiting] = useState(false);
   const { resolvedTheme } = useTheme();
+  const pathname = usePathname();
 
   useEffect(() => {
     const supabase = createClient();
@@ -24,117 +33,156 @@ export default function OnboardingTour({ isReady = true }: OnboardingTourProps) 
   }, []);
 
   useEffect(() => {
-    if (!isReady || !userId) return;
+    if (!userId || pathname !== '/dashboard') return;
     
     // Check if user has already completed or skipped the tour
     const tourKey = `collabo_tour_completed_${userId}`;
     const tourCompleted = localStorage.getItem(tourKey);
     if (!tourCompleted) {
-      // Delay slightly to ensure DOM elements are fully painted and hydrated
       const timer = setTimeout(() => {
         setRun(true);
-      }, 800);
+      }, 1000);
       return () => clearTimeout(timer);
     }
-  }, [isReady, userId]);
+  }, [userId, pathname]);
 
-  const handleJoyrideCallback = (data: EventData) => {
-    const { status } = data;
-    const finishedStatuses: string[] = [STATUS.FINISHED, STATUS.SKIPPED];
-
-    if (finishedStatuses.includes(status)) {
-      // Save to localStorage so it doesn't show again
-      if (userId) {
-        localStorage.setItem(`collabo_tour_completed_${userId}`, 'true');
-      }
-      setRun(false);
-    }
-  };
-
-  const steps: Step[] = [
+  const steps: CustomStep[] = [
     {
       target: 'body',
       title: 'Welcome to Collabo! 👋',
-      content: 'Let\'s take a quick tour to help you manage your micro-influencer campaigns effortlessly.',
+      content: 'Let\'s take a quick tour to see how you can save hours every week managing your influencer campaigns.',
       placement: 'center',
       disableBeacon: true,
     },
     {
-      target: '#new-campaign-header-btn',
-      title: 'Create Campaigns',
-      content: 'Click here to create a new campaign. Log the details, set deadlines, and start tracking!',
+      target: '#tour-first-campaign-btn',
+      title: '1. Launch a Campaign',
+      content: 'Start here. You can manually enter campaign details like influencer handles, deliverables, and deadlines.',
       placement: 'bottom',
+      disableBeacon: true,
     },
     {
-      target: '#stat-total',
-      title: 'Dashboard Stats',
-      content: 'Track your active campaigns, upcoming deadlines, and total spend at a glance.',
-      placement: 'bottom',
-    },
-    {
-      target: '#tour-nav-dashboard',
-      title: 'Your Dashboard',
-      content: 'The central hub for all your ongoing campaigns and quick actions.',
+      target: '[data-tour-target="ai-insight"]',
+      title: '2. Auto-fill with AI ✨',
+      content: 'Skip manual entry! Forward a WhatsApp or Telegram DM to our bot, and we\'ll extract all the details for you instantly.',
       placement: 'right',
+      requiresSidebar: true,
+      disableBeacon: true,
     },
     {
-      target: '#tour-nav-calendar',
-      title: 'Calendar Overview',
-      content: 'Visually track all your deadlines and publishing dates in one place.',
+      target: '[data-tour-target="nav-calendar"]',
+      title: '3. Automated Reminders',
+      content: 'We visually map your deadlines and send you automated reminders so you never miss a post or a payment.',
       placement: 'right',
+      requiresSidebar: true,
+      disableBeacon: true,
     },
     {
-      target: '#tour-nav-influencers',
-      title: 'Influencers CRM',
-      content: 'Automatically builds a database of all creators you work with.',
+      target: '[data-tour-target="nav-influencers"]',
+      title: '4. Creator CRM',
+      content: 'Every creator you work with is automatically added to your built-in CRM for easy future collaborations.',
       placement: 'right',
+      requiresSidebar: true,
+      disableBeacon: true,
     },
     {
-      target: '#tour-nav-analytics',
-      title: 'Analytics',
-      content: 'Measure your ROI, track spending trends, and see which platforms perform best.',
+      target: '[data-tour-target="nav-analytics"]',
+      title: '5. Measure Success',
+      content: 'Track your spending, ROI, and see which platforms and campaigns perform best in real-time.',
       placement: 'right',
+      requiresSidebar: true,
+      disableBeacon: true,
     },
     {
-      target: '#tour-nav-settings',
-      title: 'Settings',
-      content: 'Connect your WhatsApp or Telegram to receive instant AI alerts and reminders.',
+      target: '[data-tour-target="nav-settings"]',
+      title: '6. Magic Links',
+      content: 'Set up your profile here. We use "Magic Links" so creators can securely upload content directly to Collabo for your approval.',
       placement: 'right',
+      requiresSidebar: true,
+      disableBeacon: true,
     },
     {
-      target: '#tour-nav-billing',
-      title: 'Billing & Upgrade',
-      content: 'Manage your subscription to unlock premium features and unlimited campaigns.',
+      target: '[data-tour-target="nav-billing"]',
+      title: '7. Unlock Premium',
+      content: 'Ready to scale? Upgrade your plan to unlock unlimited campaigns, advanced AI features, and priority support.',
       placement: 'right',
-    },
-    {
-      target: '#tour-ai-insight',
-      title: 'AI Extraction ✨',
-      content: 'Just forward a negotiation screenshot to our bot, and we\'ll do the rest! You\'re all set to go.',
-      placement: 'top',
+      requiresSidebar: true,
+      disableBeacon: true,
     }
   ];
 
-  const bgColor = resolvedTheme === 'dark' ? '#1e293b' : '#ffffff';
-  const textColor = resolvedTheme === 'dark' ? '#f1f5f9' : '#0f172a';
-  const primaryColor = '#10b981'; // Emerald 500
+  const handleJoyrideCallback = (data: CallBackProps) => {
+    const { action, index, status, type } = data;
+    const finishedStatuses: string[] = [STATUS.FINISHED, STATUS.SKIPPED];
+
+    if (finishedStatuses.includes(status)) {
+      if (userId) {
+        localStorage.setItem(`collabo_tour_completed_${userId}`, 'true');
+      }
+      setRun(false);
+      setSidebarOpen(false);
+      return;
+    }
+
+    if (type === EVENTS.STEP_AFTER || type === EVENTS.TARGET_NOT_FOUND) {
+      const newIndex = action === ACTIONS.PREV ? index - 1 : index + 1;
+      
+      if (newIndex >= steps.length || newIndex < 0) {
+        setRun(false);
+        setSidebarOpen(false);
+        return;
+      }
+
+      if (type === EVENTS.TARGET_NOT_FOUND && action !== ACTIONS.PREV) {
+        // Skip to next if target not found
+        setStepIndex(newIndex);
+        return;
+      }
+
+      const nextStep = steps[newIndex];
+      
+      if (nextStep.requiresSidebar && window.innerWidth < 1024) {
+        setSidebarOpen(true);
+        setIsWaiting(true);
+        setTimeout(() => {
+          setStepIndex(newIndex);
+          setIsWaiting(false);
+        }, 300);
+      } else {
+        if (window.innerWidth < 1024 && !nextStep.requiresSidebar) {
+          setSidebarOpen(false);
+        }
+        setStepIndex(newIndex);
+      }
+    }
+  };
+
+  const bgColor = resolvedTheme === 'dark' ? '#0f172a' : '#ffffff';
 
   return (
-    <Joyride
-      steps={steps}
-      run={run}
-      continuous
-      scrollToFirstStep
-      onEvent={handleJoyrideCallback}
-      tooltipComponent={CustomTooltip}
-      floaterProps={{
-        disableAnimation: true, // We handle animation in the custom tooltip
-      }}
-      options={{
-        zIndex: 1000,
-        arrowColor: resolvedTheme === 'dark' ? '#0f172a' : '#ffffff', // Match slate-900 or white
-      }}
-    />
+    <>
+      {!isWaiting && (
+        <Joyride
+          steps={steps}
+          run={run}
+          stepIndex={stepIndex}
+          continuous
+          scrollToFirstStep
+          showProgress
+          showSkipButton
+          disableOverlayClose
+          disableCloseOnEsc
+          onEvent={handleJoyrideCallback}
+          tooltipComponent={CustomTooltip}
+          floaterProps={{ disableAnimation: true }}
+          options={{
+            zIndex: 10000,
+            arrowColor: bgColor,
+            primaryColor: '#10b981',
+          }}
+        />
+      )}
+    </>
   );
 }
 
@@ -147,52 +195,72 @@ const CustomTooltip = ({
   skipProps,
   tooltipProps,
   isLastStep,
+  size,
 }: TooltipRenderProps) => {
   return (
     <div
       {...tooltipProps}
-      className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800/80 shadow-2xl rounded-3xl w-full max-w-[340px] overflow-hidden animate-in zoom-in-95 fade-in slide-in-from-bottom-4 duration-500 ease-out"
+      className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl rounded-2xl w-full max-w-[350px] overflow-hidden animate-in zoom-in-95 fade-in duration-300 ease-out"
     >
-      {/* Top Accent Line */}
-      <div className="h-1.5 w-full bg-gradient-to-r from-emerald-400 to-teal-500" />
+      <div className="h-1.5 w-full bg-gradient-to-r from-emerald-500 to-teal-400" />
       
-      <div className="p-5 sm:p-6 space-y-3.5 relative">
-        {/* Glow effect */}
+      <div className="p-5 relative">
         <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/4 pointer-events-none" />
         
-        {step.title && (
-          <h3 className="text-[17px] font-black text-slate-900 dark:text-white tracking-tight flex items-center gap-2">
-            {step.title}
-          </h3>
-        )}
-        <p className="text-sm text-slate-500 dark:text-slate-400 leading-relaxed font-medium">
+        {/* Header */}
+        <div className="flex items-start justify-between mb-3 relative z-10">
+          {step.title && (
+            <h3 className="text-base font-black text-slate-900 dark:text-white tracking-tight flex items-center gap-2">
+              {index === 0 && <Sparkles className="w-4 h-4 text-emerald-500" />}
+              {step.title}
+            </h3>
+          )}
+          <button
+            {...skipProps}
+            className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors p-1"
+            aria-label="Skip tour"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+        
+        {/* Content */}
+        <p className="text-[13px] text-slate-600 dark:text-slate-400 leading-relaxed font-medium mb-5 relative z-10">
           {step.content}
         </p>
 
-        <div className="pt-4 flex items-center justify-between border-t border-slate-100 dark:border-slate-800/60 mt-4">
-          {!isLastStep ? (
-            <button
-              {...skipProps}
-              className="text-[13px] font-bold text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
-            >
-              Skip
-            </button>
-          ) : <div />}
+        {/* Progress & Actions */}
+        <div className="flex items-center justify-between pt-1 relative z-10">
+          <div className="flex items-center gap-1.5">
+            {Array.from({ length: size }).map((_, i) => (
+              <div
+                key={i}
+                className={`h-1.5 rounded-full transition-all duration-300 ${
+                  i === index
+                    ? 'w-4 bg-emerald-500'
+                    : i < index
+                    ? 'w-1.5 bg-emerald-500/40'
+                    : 'w-1.5 bg-slate-200 dark:bg-slate-800'
+                }`}
+              />
+            ))}
+          </div>
           
           <div className="flex items-center gap-2">
             {index > 0 && (
               <button
                 {...backProps}
-                className="text-[13px] font-bold text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 px-3 py-2 rounded-xl transition-colors hover:bg-slate-50 dark:hover:bg-slate-800"
+                className="flex items-center justify-center p-2 rounded-xl text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
               >
-                Back
+                <ArrowLeft className="w-4 h-4" />
               </button>
             )}
             <button
               {...primaryProps}
-              className="bg-slate-900 dark:bg-white text-white dark:text-slate-900 text-[13px] font-bold px-4 py-2 rounded-xl transition-all shadow-md hover:bg-slate-800 dark:hover:bg-slate-100 active:scale-95"
+              className="flex items-center gap-2 bg-slate-900 dark:bg-white text-white dark:text-slate-900 text-[13px] font-bold px-4 py-2 rounded-xl transition-all shadow-md hover:bg-slate-800 dark:hover:bg-slate-100 active:scale-95"
             >
               {isLastStep ? 'Get Started' : 'Next'}
+              {isLastStep ? <Check className="w-3.5 h-3.5" /> : <ArrowRight className="w-3.5 h-3.5" />}
             </button>
           </div>
         </div>
@@ -200,3 +268,4 @@ const CustomTooltip = ({
     </div>
   );
 };
+

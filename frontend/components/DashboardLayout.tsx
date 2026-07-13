@@ -10,13 +10,15 @@ import {
   Sparkles, TrendingUp, Sun, Moon, Calendar, Users, CreditCard
 } from 'lucide-react';
 import { useTheme } from 'next-themes';
-import { useGuidedTour } from './GuidedTourProvider';
 import Link from 'next/link';
 import { toast } from 'sonner';
 import { Logo } from '@/components/Logo';
 import { NotificationDropdown } from '@/components/NotificationDropdown';
 import { ProfileDropdown } from '@/components/ProfileDropdown';
 import { IS_TESTING_PHASE } from '@/lib/config';
+import dynamic from 'next/dynamic';
+
+const OnboardingTour = dynamic(() => import('@/components/OnboardingTour'), { ssr: false });
 
 interface Subscription {
   tier: string;
@@ -89,14 +91,6 @@ export default function DashboardLayout({ children, onNewCampaign }: DashboardLa
   const pathname                            = usePathname();
   const supabase                            = useMemo(() => createClient(), []);
   const { theme, setTheme }                 = useTheme();
-  const { isSidebarForcedOpen }             = useGuidedTour();
-
-  // Force sidebar open if tour requires it
-  useEffect(() => {
-    if (isSidebarForcedOpen) {
-      setSidebarOpen(true);
-    }
-  }, [isSidebarForcedOpen]);
 
   /* ── Auth ── */
   useEffect(() => {
@@ -415,6 +409,8 @@ export default function DashboardLayout({ children, onNewCampaign }: DashboardLa
           {children}
         </main>
       </div>
+
+      <OnboardingTour setSidebarOpen={setSidebarOpen} />
     </div>
   );
 }

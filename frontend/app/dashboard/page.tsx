@@ -8,7 +8,6 @@ import EditCampaignModal from '@/components/EditCampaignModal';
 import dynamic from 'next/dynamic';
 import { getCampaigns, computeDashboardStats, getApiErrorMessage, loadSampleDataApi } from '@/lib/api';
 
-const OnboardingTour = dynamic(() => import('@/components/OnboardingTour'), { ssr: false });
 import type { Campaign, DashboardStats } from '@/lib/types';
 import {
   Plus, RefreshCw, TrendingUp, Users, Clock,
@@ -345,6 +344,7 @@ export default function DashboardPage() {
                 </div>
               </div>
               <button
+                id="tour-first-campaign-btn"
                 onClick={() => setIsModalOpen(true)}
                 className="flex items-center gap-2 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-white font-bold rounded-xl px-5 sm:px-6 py-3 sm:py-3.5 text-sm transition-all shadow-xl shadow-emerald-500/25 active:scale-[0.98] whitespace-nowrap hover:shadow-emerald-500/40"
               >
