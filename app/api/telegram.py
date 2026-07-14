@@ -312,8 +312,35 @@ async def process_telegram_message(update: dict):
                     "mime_type": "image/jpeg",
                     "caption": caption,
                 }
+        elif "document" in message:
+            document = message["document"]
+            file_name = document.get("file_name", "")
+            mime_type = document.get("mime_type", "")
+            file_id = document.get("file_id")
+            
+            allowed_mimes = [
+                "application/pdf",
+                "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                "application/msword"
+            ]
+            
+            if mime_type not in allowed_mimes and not (file_name.endswith(".pdf") or file_name.endswith(".docx") or file_name.endswith(".doc")):
+                await send_telegram_message(chat_id, "🤖 <b>Collabo AI</b>\n\nI can only read PDF and Word documents right now. 😅\nPlease send those, or use text/images.")
+                return
+                
+            await send_telegram_message(chat_id, "🤖 <b>Collabo AI</b>\n\nReading your document... 📄")
+            document_bytes = await download_telegram_media(file_id, max_bytes=_MAX_MEDIA_BYTES)
+            
+            if not document_bytes:
+                content_for_gemini = f"(Telegram document download failed or exceeded size limits.)"
+            else:
+                content_for_gemini = {
+                    "document_bytes": document_bytes,
+                    "mime_type": mime_type,
+                    "file_name": file_name
+                }
         else:
-            await send_telegram_message(chat_id, "🤖 <b>Collabo AI</b>\n\nI can't read this type of message yet. 😅\nPlease send text, voice notes, or screenshots.")
+            await send_telegram_message(chat_id, "🤖 <b>Collabo AI</b>\n\nI can't read this type of message yet. 😅\nPlease send text, voice notes, screenshots, or PDF/Word documents.")
             return
 
         # 4. Process with Gemini AI
@@ -322,6 +349,7 @@ async def process_telegram_message(update: dict):
         
         file_bytes = b""
         mime_type = "text/plain"
+        filename = "telegram_input"
         
         if isinstance(content_for_gemini, str):
             file_bytes = content_for_gemini.encode('utf-8')
@@ -335,9 +363,13 @@ async def process_telegram_message(update: dict):
                 mime_type = content_for_gemini["mime_type"]
                 if content_for_gemini.get("caption"):
                     file_bytes += b"\n" + content_for_gemini["caption"].encode('utf-8')
+            elif "document_bytes" in content_for_gemini:
+                file_bytes = content_for_gemini["document_bytes"]
+                mime_type = content_for_gemini["mime_type"]
+                filename = content_for_gemini.get("file_name", filename)
                     
         logger.info("Calling Gemini extraction", mime_type=mime_type)
-        extracted_data = await extract_campaign_data(file_bytes=file_bytes, filename="telegram_input", mime_type=mime_type)
+        extracted_data = await extract_campaign_data(file_bytes=file_bytes, filename=filename, mime_type=mime_type)
         logger.info("Gemini extraction complete", extracted_data=extracted_data)
         
         if extracted_data:
