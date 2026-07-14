@@ -36,7 +36,7 @@ from typing import Optional, Any
 
 import pytz
 import structlog
-from supabase import create_client
+from app.services.supabase import get_supabase_admin
 import sentry_sdk
 
 from app.core.config import settings
@@ -68,20 +68,7 @@ _IST = pytz.timezone("Asia/Kolkata")
 # Supabase admin client
 # ---------------------------------------------------------------------------
 
-def _get_supabase_admin():
-    """
-    Returns a Supabase client with the SERVICE_ROLE key.
-    This bypasses RLS — only used internally by background jobs.
-    Raises RuntimeError loudly if the key is missing.
-    """
-    service_key = settings.SUPABASE_SERVICE_ROLE_KEY
-    if not service_key:
-        raise RuntimeError(
-            "SUPABASE_SERVICE_ROLE_KEY is not set. "
-            "Add it to your Render environment variables. "
-            "The anon key will NOT work — it reads zero rows due to RLS."
-        )
-    return create_client(settings.SUPABASE_URL, service_key)
+# _get_supabase_admin is removed, using global singleton from app.services.supabase
 
 
 # ---------------------------------------------------------------------------
@@ -558,13 +545,14 @@ async def check_deadlines_job() -> dict:
 
     # ── Admin client ───────────────────────────────────────────────────────
     try:
-        supabase = _get_supabase_admin()
-    except RuntimeError as exc:
+        from app.services.supabase import get_supabase_admin
+        supabase_admin = await get_supabase_admin()
+    except Exception as exc:
         log.error("reminders.job_aborted", reason=str(exc))
         return {"error": str(exc)}
 
     # ── Fetch campaigns + user settings (two-step, no PostgREST join) ─────
-    campaigns = await _fetch_campaigns_with_settings(supabase, log)
+    campaigns = await _fetch_campaigns_with_settings(supabase_admin, log)
 
     if not campaigns:
         log.info("reminders.job_completed", processed=0, reminded=0, overdue=0, errors=0, skipped=0)

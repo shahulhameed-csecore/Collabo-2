@@ -9,21 +9,18 @@ from reportlab.lib import colors
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from app.core.config import settings
-from supabase import create_client
+from app.services.supabase import get_supabase_admin
 
 logger = logging.getLogger(__name__)
 
-async def get_service_client():
-    if not settings.SUPABASE_SERVICE_ROLE_KEY:
-        raise RuntimeError("SUPABASE_SERVICE_ROLE_KEY not set")
-    return create_client(settings.SUPABASE_URL, settings.SUPABASE_SERVICE_ROLE_KEY)
+# get_service_client removed, using get_supabase_admin from app.services.supabase
 
 async def fetch_monthly_metrics(user_id: str, start_date: str, end_date: str) -> Dict[str, Any]:
     """
     Fetch and aggregate metrics for the given user and date range.
     start_date and end_date should be in 'YYYY-MM-DD' format.
     """
-    client = await get_service_client()
+    client = await get_supabase_admin()
     
     # Query all campaigns for this user created in the month range
     # Assuming we filter by created_at or deadline. Let's use created_at.

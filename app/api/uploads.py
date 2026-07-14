@@ -4,7 +4,7 @@ import magic
 from fastapi import APIRouter, UploadFile, File, HTTPException, BackgroundTasks
 from app.core.limiter import limiter
 from fastapi import Request
-from supabase import create_client
+from app.services.supabase import get_supabase_admin
 from app.core.config import settings
 
 logger = logging.getLogger(__name__)
@@ -34,13 +34,10 @@ def get_proof_received_email_html(inf_name: str) -> str:
 </body>
 </html>"""
 
-async def get_service_client():
-    if not settings.SUPABASE_SERVICE_ROLE_KEY:
-        raise HTTPException(status_code=500, detail="Supabase service role key not configured.")
-    return create_client(settings.SUPABASE_URL, settings.SUPABASE_SERVICE_ROLE_KEY)
+# get_service_client removed, using get_supabase_admin directly
 
 async def notify_owner_of_proof(user_id: str, inf_name: str):
-    service_client = await get_service_client()
+    service_client = await get_supabase_admin()
     
     # Fetch user settings
     resp = await service_client.table("user_settings").select("*").eq("user_id", user_id).execute()
@@ -89,8 +86,7 @@ async def upload_proof(
     background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
 ):
-    from fastapi.concurrency import run_in_threadpool
-    service_client = await get_service_client()
+    service_client = await get_supabase_admin()
 
     # 1. Validate Token and Campaign State
     campaign_resp = await service_client.table("campaigns").select("id", "status", "user_id", "influencer_name", "proof_url", "proof_history", "updated_at").eq("magic_link_token", token).execute()
@@ -139,19 +135,25 @@ async def upload_proof(
     ext = ALLOWED_MIME_TYPES[file_mime]
     secure_filename = f"{uuid.uuid4()}{ext}"
 
-    # 5. Upload to Supabase Storage (offloaded to threadpool)
+    # 5. Upload to Supabase Storage (Async)
     try:
-        def upload_to_storage():
-            bucket_name = "proof-uploads"
-            with open(tmp_path, "rb") as f:
-                service_client.storage.from_(bucket_name).upload(
-                    path=secure_filename,
-                    file=f,
-                    file_options={"content-type": file_mime}
-                )
-            return service_client.storage.from_(bucket_name).get_public_url(secure_filename)
+        bucket_name = "proof-uploads"
+        with open(tmp_path, "rb") as f:
+            file_bytes = f.read()
             
-        public_url = await run_in_threadpool(upload_to_storage)
+        await service_client.storage.from_(bucket_name).upload(
+            path=secure_filename,
+            file=file_bytes,
+            file_options={"content-type": file_mime}
+        )
+        
+        # In supabase-py AsyncClient, get_public_url might be synchronous or async depending on the version.
+        # But get_public_url does no network IO (it just constructs a string).
+        # We'll just construct it directly to be safe, or try calling it.
+        try:
+            public_url = await service_client.storage.from_(bucket_name).get_public_url(secure_filename)
+        except TypeError:
+            public_url = service_client.storage.from_(bucket_name).get_public_url(secure_filename)
         
         # Clean up temp file
         import os

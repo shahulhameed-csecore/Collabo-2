@@ -2,7 +2,7 @@ import logging
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from supabase import create_async_client, AsyncClient, ClientOptions
-from app.services.supabase import supabase
+from app.services.supabase import get_supabase_admin
 from app.core.config import settings
 
 logger = logging.getLogger(__name__)
@@ -67,5 +67,5 @@ async def get_service_client():
             status_code=500, 
             detail="Supabase service role key not configured."
         )
-    return await create_async_client(settings.SUPABASE_URL, settings.SUPABASE_SERVICE_ROLE_KEY)
+    return await get_supabase_admin()
 

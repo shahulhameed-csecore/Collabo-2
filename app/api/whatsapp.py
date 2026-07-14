@@ -7,7 +7,7 @@ from fastapi import APIRouter, Request, HTTPException, Response, BackgroundTasks
 import sentry_sdk
 from app.core.config import settings
 from app.core.limiter import limiter
-from supabase import create_client
+from app.services.supabase import get_supabase_admin
 from app.services.gemini import extract_campaign_data
 from app.core.parsers import parse_corrections, parse_date_string
 from app.core.formatters import format_campaign_summary_wa
@@ -20,13 +20,7 @@ router = APIRouter(prefix="/webhook", tags=["WhatsApp Webhook"])
 # Maximum bytes we allow to be downloaded from WhatsApp media (16 MB)
 _MAX_MEDIA_BYTES = 16 * 1024 * 1024
 
-# Initialize Supabase service client (bypasses RLS) — for webhook inserts
-supabase_admin = None
-if settings.SUPABASE_URL and settings.SUPABASE_SERVICE_ROLE_KEY:
-    supabase_admin = create_client(
-        settings.SUPABASE_URL,
-        settings.SUPABASE_SERVICE_ROLE_KEY,
-    )
+# Supabase service client (bypasses RLS) is lazily initialized via get_supabase_admin()
 
 
 def verify_signature(payload: bytes, signature_header: str) -> bool:
@@ -83,6 +77,7 @@ async def process_whatsapp_message(sender_id: str, message: dict):
     """
     try:
         logger.info("Started process_whatsapp_message", sender_id=sender_id)
+        supabase_admin = await get_supabase_admin()
         if not supabase_admin:
             logger.error("Supabase Admin client not initialized — SERVICE_ROLE_KEY missing.")
             return

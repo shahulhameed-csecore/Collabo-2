@@ -6,16 +6,12 @@ Background job — checks for expired trials and automatically downgrades users 
 
 import structlog
 from datetime import datetime, timezone
-from supabase import create_client
+from app.services.supabase import get_supabase_admin
 from app.core.config import settings
 
 logger = structlog.get_logger(__name__)
 
-def _get_supabase_admin():
-    service_key = settings.SUPABASE_SERVICE_ROLE_KEY
-    if not service_key:
-        raise RuntimeError("SUPABASE_SERVICE_ROLE_KEY is not set.")
-    return create_client(settings.SUPABASE_URL, service_key)
+# _get_supabase_admin removed, using get_supabase_admin from app.services.supabase
 
 async def check_expired_trials_job() -> dict:
     """
@@ -28,8 +24,8 @@ async def check_expired_trials_job() -> dict:
     log.info("billing_cron.job_started", now_utc=now_utc.isoformat())
     
     try:
-        supabase = _get_supabase_admin()
-    except RuntimeError as exc:
+        supabase = await get_supabase_admin()
+    except Exception as exc:
         log.error("billing_cron.job_aborted", reason=str(exc))
         return {"error": str(exc)}
 

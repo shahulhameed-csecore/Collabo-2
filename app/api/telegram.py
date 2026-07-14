@@ -8,7 +8,7 @@ import sentry_sdk
 from fastapi import APIRouter, Request, HTTPException, Response, BackgroundTasks, Header
 from app.core.config import settings
 from app.core.limiter import limiter
-from supabase import create_client
+from app.services.supabase import get_supabase_admin
 from app.services.gemini import extract_campaign_data
 from app.services.telegram import send_telegram_message, download_telegram_media
 
@@ -19,13 +19,7 @@ router = APIRouter(prefix="/webhook", tags=["Telegram Webhook"])
 # Maximum bytes we allow to be downloaded from Telegram media (16 MB)
 _MAX_MEDIA_BYTES = 16 * 1024 * 1024
 
-# Initialize Supabase service client (bypasses RLS) — for webhook inserts
-supabase_admin = None
-if settings.SUPABASE_URL and settings.SUPABASE_SERVICE_ROLE_KEY:
-    supabase_admin = create_client(
-        settings.SUPABASE_URL,
-        settings.SUPABASE_SERVICE_ROLE_KEY,
-    )
+# Supabase service client (bypasses RLS) is lazily initialized via get_supabase_admin()
 
 from app.core.parsers import parse_date_string, parse_corrections
 from app.core.formatters import format_campaign_summary
@@ -37,6 +31,7 @@ async def process_telegram_message(update: dict):
     Looks up the user by username, calls Gemini AI, and inserts a campaign into Supabase.
     """
     try:
+        supabase_admin = await get_supabase_admin()
         if not supabase_admin:
             logger.error("Supabase Admin client not initialized — SERVICE_ROLE_KEY missing.")
             return

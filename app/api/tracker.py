@@ -4,7 +4,7 @@ from fastapi.responses import RedirectResponse
 from app.core.limiter import limiter
 from fastapi import Request
 from app.core.config import settings
-from supabase import create_client, Client
+from app.services.supabase import get_supabase_admin
 import urllib.parse
 import ipaddress
 import socket
@@ -42,13 +42,13 @@ def is_safe_url(url: str) -> bool:
 
 router = APIRouter(prefix="/t", tags=["Tracker"])
 
-# Using the service role key to bypass RLS since this is a public unauthenticated route
-supabase_admin: Client = create_client(settings.SUPABASE_URL, settings.SUPABASE_SERVICE_ROLE_KEY)
+# Supabase admin client is initialized lazily via get_supabase_admin()
 
 @router.get("/{short_code}", response_class=RedirectResponse)
 @limiter.limit("60/minute")
 async def track_link(request: Request, short_code: str):
     try:
+        supabase_admin = await get_supabase_admin()
         # Fetch campaign by short_code
         response = await supabase_admin.table("campaigns").select("id, user_id, influencer_handle, influencer_name, destination_url, clicks").eq("short_code", short_code).execute()
         
