@@ -29,7 +29,7 @@ export function ProfileDropdown({
   userEmail,
   userInitials,
   isPro,
-  tier,
+  
   onSignOut,
 }: ProfileDropdownProps) {
   const [isOpen, setIsOpen] = useState(false);

@@ -5,8 +5,8 @@ import { useRouter, usePathname } from 'next/navigation';
 import { createClient } from '@/lib/supabase';
 import type { User } from '@supabase/supabase-js';
 import {
-  Zap, LayoutDashboard, BarChart3, Settings,
-  LogOut, Menu, X, ChevronRight, Bell, Plus,
+  LayoutDashboard, BarChart3, Settings,
+  LogOut, Menu, X, ChevronRight, Plus,
   Sparkles, TrendingUp, Sun, Moon, Calendar, Users, CreditCard
 } from 'lucide-react';
 import { useTheme } from 'next-themes';

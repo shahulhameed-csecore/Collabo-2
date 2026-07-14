@@ -5,7 +5,7 @@ import DashboardLayout from '@/components/DashboardLayout';
 import CampaignTable from '@/components/CampaignTable';
 import CreateCampaignModal from '@/components/CreateCampaignModal';
 import EditCampaignModal from '@/components/EditCampaignModal';
-import dynamic from 'next/dynamic';
+
 import { getCampaigns, computeDashboardStats, getApiErrorMessage, loadSampleDataApi } from '@/lib/api';
 
 import type { Campaign, DashboardStats } from '@/lib/types';

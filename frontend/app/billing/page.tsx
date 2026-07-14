@@ -3,9 +3,9 @@
 import { useState, useEffect } from 'react';
 import DashboardLayout from '@/components/DashboardLayout';
 import { getBillingUsage, BillingUsage, createRazorpayOrder, verifyRazorpayPayment } from '@/lib/api';
-import { CreditCard, Zap, Check, Shield, Sparkles, TrendingUp, Star, ArrowRight, Infinity } from 'lucide-react';
+import { CreditCard, Zap, Check, Sparkles, TrendingUp, Star, ArrowRight, Infinity } from 'lucide-react';
 import { toast } from 'sonner';
-import Link from 'next/link';
+
 import { IS_TESTING_PHASE } from '@/lib/config';
 
 export default function BillingPage() {
@@ -18,7 +18,7 @@ export default function BillingPage() {
       try {
         const data = await getBillingUsage();
         setUsage(data);
-      } catch (err) {
+      } catch (err: any) {
         // Silently handle backend failure by falling back to null state
       } finally {
         setIsLoading(false);
@@ -64,7 +64,7 @@ export default function BillingPage() {
             // Refresh usage
             const data = await getBillingUsage();
             setUsage(data);
-          } catch (err) {
+          } catch (err: any) {
             toast.error("Payment verification failed.");
           }
         },
@@ -78,7 +78,7 @@ export default function BillingPage() {
         toast.error(`Payment failed: ${response.error.description}`);
       });
       rzp.open();
-    } catch (err) {
+    } catch (err: any) {
       toast.error("Failed to initiate payment. Please try again.");
     }
   };

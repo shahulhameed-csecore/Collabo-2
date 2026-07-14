@@ -2,7 +2,7 @@
 
 import DashboardLayout from '@/components/DashboardLayout';
 import { 
-  BarChart3, TrendingUp, Target, Plus, Smartphone, 
+  BarChart3, Target, Plus, Smartphone, 
   Zap, ArrowUpRight, ArrowDownRight, Lightbulb, Calendar as CalendarIcon, MousePointerClick, Download
 } from 'lucide-react';
 import Link from 'next/link';
@@ -54,7 +54,7 @@ export default function AnalyticsPage() {
       };
     }
 
-    const paidCampaigns = campaigns.filter(c => (c.payment_amount || 0) > 0);
+    
     const tSpend = campaigns.reduce((sum, c) => sum + (c.payment_amount || 0), 0);
     const tClicks = campaigns.reduce((sum, c) => sum + (c.clicks || 0), 0);
     

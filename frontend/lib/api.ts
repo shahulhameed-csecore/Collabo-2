@@ -1,6 +1,6 @@
 import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
 import { createClient } from './supabase';
-import { toast } from 'sonner';
+
 import type {
   Campaign,
   CreateCampaignPayload,

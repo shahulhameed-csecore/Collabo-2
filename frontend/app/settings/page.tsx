@@ -3,8 +3,8 @@
 import { useState, useEffect } from 'react';
 import DashboardLayout from '@/components/DashboardLayout';
 import { 
-  Settings, MessageSquare, Phone, AlertCircle, Save, 
-  Bell, Mail, Copy, Check, Info, ShieldCheck, Send, QrCode, Smartphone, Sparkles, CreditCard, ArrowRight
+  Settings, MessageSquare, Phone, AlertCircle, 
+  Bell, Mail, Copy, Check, Info, ShieldCheck, Send, Smartphone, Sparkles, CreditCard, ArrowRight
 } from 'lucide-react';
 import Image from 'next/image';
 import { toast } from 'sonner';
@@ -182,7 +182,7 @@ export default function SettingsPage() {
             // Refresh usage
             const data = await getBillingUsage();
             setUsage(data);
-          } catch (err) {
+          } catch (_err) {
             toast.error("Payment verification failed.");
           }
         },
@@ -196,7 +196,7 @@ export default function SettingsPage() {
         toast.error(`Payment failed: ${response.error.description}`);
       });
       rzp.open();
-    } catch (err) {
+    } catch (_err) {
       toast.error("Failed to initiate payment. Please try again.");
     }
   };

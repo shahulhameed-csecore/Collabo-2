@@ -1,7 +1,7 @@
 'use client';
 
 import { Campaign } from '@/lib/types';
-import { X, Calendar as CalendarIcon, Clock, CheckCircle2, Play, Image as ImageIcon, Video, User } from 'lucide-react';
+import { X, Calendar as CalendarIcon, CheckCircle2, Play, Image as ImageIcon, Video, User } from 'lucide-react';
 
 interface DayViewModalProps {
   isOpen: boolean;

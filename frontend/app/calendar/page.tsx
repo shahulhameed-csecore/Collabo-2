@@ -77,7 +77,7 @@ export default function CalendarPage() {
     cancelled: 'bg-rose-100 text-rose-800 border-rose-200 dark:bg-rose-900/30 dark:text-rose-400 dark:border-rose-800',
   };
 
-  const hasCampaignsThisMonth = stats.thisMonth > 0;
+  
   const isCalendarEmpty = !isLoading && campaigns.length === 0;
 
   return (

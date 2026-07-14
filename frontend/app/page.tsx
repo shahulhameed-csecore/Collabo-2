@@ -2,24 +2,14 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { createClient } from '@/lib/supabase';
 import { Logo } from '@/components/Logo';
 import {
-  MessageSquare,
-  LayoutDashboard,
-  CheckCircle,
   ArrowRight,
-  Shield,
   Smartphone,
   Sparkles,
-  Zap,
-  Star,
   BarChart3,
   Menu,
   X,
-  ChevronRight,
-  Check,
   Wand2,
   BellRing,
   Link as LinkIcon
@@ -29,20 +19,11 @@ import Image from 'next/image';
 export default function LandingPage() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
-  const router = useRouter();
-  const supabase = createClient();
-
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => {
-      if (data?.user) {
-        router.push('/dashboard');
-      }
-    });
-
     const handleScroll = () => setScrolled(window.scrollY > 20);
     window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
-  }, [supabase.auth, router]);
+  }, []);
 
   return (
     <div className="min-h-screen bg-[#020617] text-slate-200 font-sans selection:bg-emerald-500/30 selection:text-emerald-200 overflow-x-hidden">

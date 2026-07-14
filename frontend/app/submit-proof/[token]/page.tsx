@@ -73,7 +73,7 @@ export default function SubmitProofPage() {
       let data;
       try {
         data = await res.json();
-      } catch (parseError) {
+      } catch (_parseError) {
         throw new Error('Server returned an unexpected response. Please try again later.');
       }
 

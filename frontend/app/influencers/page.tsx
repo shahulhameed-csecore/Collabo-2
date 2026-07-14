@@ -38,7 +38,7 @@ export default function InfluencersPage() {
       } else {
         setAllCampaigns([]);
       }
-    } catch (err) {
+    } catch (_err) {
       toast.error('Failed to load CRM data');
     } finally {
       setIsLoading(false);
@@ -62,7 +62,7 @@ export default function InfluencersPage() {
       toast.success('Notes saved successfully');
       setInfluencers(prev => prev.map(inf => inf.handle === selectedInfluencer.handle ? { ...inf, notes } : inf));
       setSelectedInfluencer(null);
-    } catch (err) {
+    } catch (_err) {
       toast.error('Failed to save notes');
     } finally {
       setIsSaving(false);

@@ -6,7 +6,7 @@ import { updateCampaignStatus, deleteCampaign, getApiErrorMessage, bulkUpdateSta
 import {
   ChevronUp, ChevronDown, Trash2,
   Calendar, DollarSign, AlertCircle, CheckCircle2,
-  Clock, XCircle, Plus, Search, Filter,
+  Clock, XCircle, Search, Filter,
   Globe, X, Check, ExternalLink, Edit2, FileSpreadsheet, Database,
   MessageCircle, Download, CheckSquare, Link as LinkIcon, TrendingUp, Loader2
 } from 'lucide-react';
@@ -50,7 +50,7 @@ export default function CampaignTable({ campaigns, isLoading, onRefresh, onCreat
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [showFilters, setShowFilters] = useState(false);
-  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+  
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [isBulkActioning, setIsBulkActioning] = useState(false);
   const [trackingModalCampaign, setTrackingModalCampaign] = useState<Campaign | null>(null);
