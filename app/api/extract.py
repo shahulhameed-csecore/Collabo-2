@@ -22,7 +22,7 @@ async def extract_data(
         
         # Enforce Billing / Trial Limits synchronously via threadpool
         async def verify_subscription(user):
-            client = get_user_supabase_client(user)
+            client = await get_user_supabase_client(user)
             return await client.table("subscriptions").select("tier, trial_ends_at").eq("user_id", user.user.id).execute()
             
         sub_res = await verify_subscription(user)
