@@ -2,7 +2,7 @@ import io
 import os
 import structlog
 from pydantic import BaseModel, Field
-from tenacity import retry, wait_exponential, stop_after_attempt, retry_if_exception
+from tenacity import retry, wait_exponential, stop_after_attempt, retry_if_exception, RetryError
 import asyncio
 import sentry_sdk
 from pypdf import PdfReader
@@ -16,6 +16,15 @@ from google.genai import types
 register_heif_opener()
 
 logger = structlog.get_logger(__name__)
+
+def _get_full_err_str(e: Exception) -> str:
+    err_str = str(e)
+    if isinstance(e, RetryError) and e.last_attempt:
+        try:
+            err_str += " " + str(e.last_attempt.exception())
+        except Exception:
+            pass
+    return err_str.lower()
 
 class ExtractionResult(BaseModel):
     influencer_name: str | None = Field(default=None, description="string or null")
@@ -253,7 +262,7 @@ async def extract_campaign_data(file_bytes: bytes, filename: str, mime_type: str
                 sentry_sdk.capture_exception(e)
                 logger.warning("gemini_stage1_failed", key=key_name, error=str(e))
                 last_error = e
-                err_str = str(e).lower()
+                err_str = _get_full_err_str(e)
                 
                 # We retry quota errors internally now, but if it exhausts 4 attempts and bubbles up here,
                 # we switch to the next key.
@@ -273,7 +282,7 @@ async def extract_campaign_data(file_bytes: bytes, filename: str, mime_type: str
                     except Exception as e2:
                         logger.warning("gemini_stage2_failed", key=key_name, error=str(e2))
                         last_error = e2
-                        err2_str = str(e2).lower()
+                        err2_str = _get_full_err_str(e2)
                         if "429" in err2_str or "quota" in err2_str or "resource_exhausted" in err2_str:
                             logger.warning("quota_exhausted_stage2_switching_keys_after_retries", key=key_name)
                             continue
@@ -291,7 +300,8 @@ async def extract_campaign_data(file_bytes: bytes, filename: str, mime_type: str
         error_msg = f"AI Extraction failed ({str(e)}). Please enter details manually."
         
         # Check for Google API Quota limits (429 RESOURCE_EXHAUSTED)
-        if "429" in str(e) or "quota" in str(e).lower() or "resource_exhausted" in str(e).lower():
+        full_err_str = _get_full_err_str(e)
+        if "429" in full_err_str or "quota" in full_err_str or "resource_exhausted" in full_err_str:
             error_msg = "Google AI Quota exceeded (Rate limit). Please try again in 1 minute."
             
         if mime_type and mime_type.startswith("audio/"):
