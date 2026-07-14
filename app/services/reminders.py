@@ -660,7 +660,7 @@ async def check_deadlines_job() -> dict:
 
                 # Email
                 if email_enabled and user_id:
-                    user_email = await _get_user_email(supabase, user_id)
+                    user_email = await _get_user_email(supabase_admin, user_id)
                     clog.debug("reminders.48h_user_email", email=user_email)
                     if user_email:
                         subject, html = _build_reminder_email(inf_name, deadline_ist_str)
@@ -680,7 +680,7 @@ async def check_deadlines_job() -> dict:
 
                 # Always mark flag — even if no channels are configured,
                 # so we don't flood logs on every job run.
-                await _mark_flag(supabase, campaign_id, "reminder_48h_sent", clog)
+                await _mark_flag(supabase_admin, campaign_id, "reminder_48h_sent", clog)
                 # Send Telegram (if configured, we use the same WA toggle for TG or just send if chat_id exists)
                 if telegram_chat_id:
                     from app.services.telegram import send_telegram_message
@@ -698,7 +698,7 @@ async def check_deadlines_job() -> dict:
                 from app.services.notifications import create_notification
                 if user_id:
                     await create_notification(
-                        service_client=supabase,
+                        service_client=supabase_admin,
                         user_id=user_id,
                         title="Campaign Deadline Approaching",
                         message=f"Campaign for {inf_name} is due in {round(hours_diff, 0):.0f} hours.",
@@ -740,12 +740,12 @@ async def check_deadlines_job() -> dict:
                     wa_ok = await _send_whatsapp(whatsapp_num, wa_body)
 
                 if email_enabled and user_id:
-                    user_email = await _get_user_email(supabase, user_id)
+                    user_email = await _get_user_email(supabase_admin, user_id)
                     if user_email:
                         subject, html = _build_overdue_email(inf_name, deadline_ist_str)
                         email_ok = await _send_email(user_email, subject, html)
 
-                await _mark_flag(supabase, campaign_id, "overdue_alert_sent", clog)
+                await _mark_flag(supabase_admin, campaign_id, "overdue_alert_sent", clog)
                 # Send Telegram
                 if telegram_chat_id:
                     from app.services.telegram import send_telegram_message
