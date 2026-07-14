@@ -20,7 +20,7 @@ const STATUS_COLORS: Record<string, string> = {
   cancelled: 'bg-rose-100 text-rose-800 border-rose-200 dark:bg-rose-900/30 dark:text-rose-400 dark:border-rose-800',
 };
 
-const getPlatformIcon = (platform: string | undefined) => {
+const getPlatformIcon = (platform: string | null | undefined) => {
   const p = platform?.toLowerCase() || '';
   if (p.includes('instagram') || p.includes('reel') || p.includes('story')) return <Play className="w-4 h-4" />;
   if (p.includes('youtube') || p.includes('shorts')) return <Video className="w-4 h-4" />;

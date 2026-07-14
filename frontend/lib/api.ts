@@ -9,6 +9,7 @@ import type {
   DashboardStats,
   ApiError,
   PaginatedCampaigns,
+  CampaignStatus,
 } from './types';
 
 // ─── Base URL Resolution ──────────────────────────────────────────────────────
@@ -29,7 +30,7 @@ if (process.env.NODE_ENV === 'development') {
 // ─── Axios Instance ───────────────────────────────────────────────────────────
 const api = axios.create({
   baseURL,
-  timeout: 120_000, // 120 seconds
+  timeout: 15_000, // 15 seconds for standard API calls
   headers: { 'Content-Type': 'application/json' },
   withCredentials: true,
 });
@@ -64,10 +65,7 @@ api.interceptors.response.use(
       
       // Graceful fallback for redirection
       if (typeof window !== 'undefined') {
-        // We use a short timeout to let the toast render before the redirect happens
-        setTimeout(() => {
-          window.location.assign('/login');
-        }, 1500);
+        window.location.assign('/login');
       }
     }
 

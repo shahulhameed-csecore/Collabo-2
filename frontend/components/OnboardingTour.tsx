@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Joyride, CallBackProps, STATUS, Step, TooltipRenderProps, EVENTS, ACTIONS } from 'react-joyride';
+import { Joyride, STATUS, Step, TooltipRenderProps, EVENTS, ACTIONS } from 'react-joyride';
 import { useTheme } from 'next-themes';
 import { createClient } from '@/lib/supabase';
 import { usePathname } from 'next/navigation';
@@ -57,14 +57,12 @@ export default function OnboardingTour({ setSidebarOpen }: OnboardingTourProps) 
       title: 'Welcome to Collabo! 👋',
       content: 'Let\'s take a quick tour to see how you can save hours every week managing your influencer campaigns.',
       placement: 'center',
-      disableBeacon: true,
     },
     {
       target: '#tour-first-campaign-btn',
       title: '1. Launch a Campaign',
       content: 'Start here. You can manually enter campaign details like influencer handles, deliverables, and deadlines.',
       placement: 'bottom',
-      disableBeacon: true,
     },
     {
       target: getTarget('tour-ai-insight'),
@@ -72,7 +70,6 @@ export default function OnboardingTour({ setSidebarOpen }: OnboardingTourProps) 
       content: 'Skip manual entry! Forward a WhatsApp or Telegram DM to our bot, and we\'ll extract all the details for you instantly.',
       placement: 'right',
       requiresSidebar: true,
-      disableBeacon: true,
     },
     {
       target: getTarget('tour-nav-calendar'),
@@ -80,7 +77,6 @@ export default function OnboardingTour({ setSidebarOpen }: OnboardingTourProps) 
       content: 'We visually map your deadlines and send you automated reminders so you never miss a post or a payment.',
       placement: 'right',
       requiresSidebar: true,
-      disableBeacon: true,
     },
     {
       target: getTarget('tour-nav-influencers'),
@@ -88,7 +84,6 @@ export default function OnboardingTour({ setSidebarOpen }: OnboardingTourProps) 
       content: 'Every creator you work with is automatically added to your built-in CRM for easy future collaborations.',
       placement: 'right',
       requiresSidebar: true,
-      disableBeacon: true,
     },
     {
       target: getTarget('tour-nav-dashboardanalytics'),
@@ -96,7 +91,6 @@ export default function OnboardingTour({ setSidebarOpen }: OnboardingTourProps) 
       content: 'Track your spending, ROI, and see which platforms and campaigns perform best in real-time.',
       placement: 'right',
       requiresSidebar: true,
-      disableBeacon: true,
     },
     {
       target: getTarget('tour-nav-settings'),
@@ -104,7 +98,6 @@ export default function OnboardingTour({ setSidebarOpen }: OnboardingTourProps) 
       content: 'Set up your profile here. We use "Magic Links" so creators can securely upload content directly to Collabo for your approval.',
       placement: 'right',
       requiresSidebar: true,
-      disableBeacon: true,
     },
     {
       target: getTarget('tour-nav-billing'),
@@ -112,11 +105,10 @@ export default function OnboardingTour({ setSidebarOpen }: OnboardingTourProps) 
       content: 'Ready to scale? Upgrade your plan to unlock unlimited campaigns, advanced AI features, and priority support.',
       placement: 'right',
       requiresSidebar: true,
-      disableBeacon: true,
     }
   ];
 
-  const handleJoyrideCallback = (data: CallBackProps) => {
+  const handleJoyrideCallback = (data: any) => {
     const { action, index, status, type } = data;
     const finishedStatuses: string[] = [STATUS.FINISHED, STATUS.SKIPPED];
 
@@ -173,8 +165,6 @@ export default function OnboardingTour({ setSidebarOpen }: OnboardingTourProps) 
           stepIndex={stepIndex}
           continuous
           scrollToFirstStep
-          showProgress
-          showSkipButton
           disableOverlayClose
           disableCloseOnEsc
           onEvent={handleJoyrideCallback}

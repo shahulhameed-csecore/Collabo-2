@@ -60,7 +60,7 @@ export default function CalendarPage() {
   
   const { stats, parseLocalDate } = useCalendarStats(campaigns, currentDate);
 
-  const getPlatformIcon = (platform: string | undefined) => {
+  const getPlatformIcon = (platform: string | null | undefined) => {
     const p = platform?.toLowerCase() || '';
     if (p.includes('instagram') || p.includes('reel') || p.includes('story')) return <Play className="w-3 h-3 flex-shrink-0" />;
     if (p.includes('youtube') || p.includes('shorts')) return <Video className="w-3 h-3 flex-shrink-0" />;
