@@ -86,9 +86,11 @@ async def process_whatsapp_message(sender_id: str, message: dict):
         message_id = message.get("id")
         if message_id:
             try:
+                # Escape wildcards to prevent SQL injection in ILIKE clause
+                safe_message_id = message_id.replace("%", "\\%").replace("_", "\\_")
                 existing = await (supabase_admin.table("campaigns")
                     .select("id")
-                    .ilike("special_notes", f"%[wa_msg:{message_id}]%")
+                    .ilike("special_notes", f"%[wa_msg:{safe_message_id}]%")
                     .limit(1)
                     .execute()
                 )
