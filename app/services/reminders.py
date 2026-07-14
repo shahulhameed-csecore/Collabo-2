@@ -423,7 +423,7 @@ async def _mark_flag(supabase_admin, campaign_id: str, flag: str, clog) -> None:
     """
     try:
         import asyncio
-        await supabase_admin.table("campaigns"
+        await (supabase_admin.table("campaigns")
             .update({flag: True})
             .eq("id", campaign_id)
             .execute()
@@ -465,7 +465,7 @@ async def _fetch_campaigns_with_settings(supabase_admin, log) -> list[dict]:
     """
     # ── Step 1: Fetch active campaigns ────────────────────────────────────
     try:
-        campaigns_resp = await supabase_admin.table("campaigns"
+        campaigns_resp = await (supabase_admin.table("campaigns")
             .select(
                 "id, user_id, influencer_name, influencer_handle, deadline, "
                 "status, reminder_48h_sent, overdue_alert_sent"
@@ -493,7 +493,7 @@ async def _fetch_campaigns_with_settings(supabase_admin, log) -> list[dict]:
 
     if user_ids:
         try:
-            settings_resp = await supabase_admin.table("user_settings"
+            settings_resp = await (supabase_admin.table("user_settings")
                 .select("user_id, whatsapp_number, telegram_chat_id, email_reminders_enabled, whatsapp_reminders_enabled")
                 .in_("user_id", user_ids)
                 .execute()

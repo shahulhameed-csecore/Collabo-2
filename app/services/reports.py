@@ -28,7 +28,7 @@ async def fetch_monthly_metrics(user_id: str, start_date: str, end_date: str) ->
     # Query all campaigns for this user created in the month range
     # Assuming we filter by created_at or deadline. Let's use created_at.
     import asyncio
-    resp = await client.table("campaigns".select(
+    resp = await (client.table("campaigns").select(
         "status, payment_amount, platform"
     ).eq("user_id", user_id).gte("created_at", f"{start_date}T00:00:00Z").lte("created_at", f"{end_date}T23:59:59Z").execute())
     

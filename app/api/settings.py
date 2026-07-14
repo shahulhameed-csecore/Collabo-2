@@ -56,7 +56,7 @@ async def save_settings(
     try:
         from fastapi.concurrency import run_in_threadpool
         # Check current settings to detect if WhatsApp number changed
-        current_settings = await client.table("user_settings".select("whatsapp_number").eq("user_id", user_id).execute())
+        current_settings = await (client.table("user_settings").select("whatsapp_number").eq("user_id", user_id).execute())
         old_number = current_settings.data[0].get("whatsapp_number") if current_settings.data else None
         
         payload = {
@@ -75,7 +75,7 @@ async def save_settings(
                 tg = f"@{tg}"
             payload["telegram_username"] = tg if tg else None
 
-        await client.table("user_settings".upsert(payload).execute())
+        await (client.table("user_settings").upsert(payload).execute())
         
         # Trigger notification if WhatsApp number was newly linked or updated
         if clean_number and clean_number != old_number:

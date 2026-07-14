@@ -91,7 +91,7 @@ async def process_whatsapp_message(sender_id: str, message: dict):
         message_id = message.get("id")
         if message_id:
             try:
-                existing = await supabase_admin.table("campaigns"
+                existing = await (supabase_admin.table("campaigns")
                     .select("id")
                     .ilike("special_notes", f"%[wa_msg:{message_id}]%")
                     .limit(1)
@@ -121,7 +121,7 @@ async def process_whatsapp_message(sender_id: str, message: dict):
             
         possible_numbers = list(set(possible_numbers)) # Remove duplicates
 
-        user_response = await supabase_admin.table("user_settings"
+        user_response = await (supabase_admin.table("user_settings")
             .select("user_id")
             .in_("whatsapp_number", possible_numbers)
             .execute()
@@ -154,7 +154,7 @@ async def process_whatsapp_message(sender_id: str, message: dict):
             
             # Check for short confirmation intents
             if len(text_lower) < 20 and text_lower in ["yes", "correct", "y", "yep", "draft", "no", "wrong", "delete", "cancel", "remove"]:
-                recent_draft_resp = await supabase_admin.table("campaigns"
+                recent_draft_resp = await (supabase_admin.table("campaigns")
                     .select("*")
                     .eq("user_id", user_id)
                     .eq("status", "draft")
@@ -168,7 +168,7 @@ async def process_whatsapp_message(sender_id: str, message: dict):
                     name = draft.get("influencer_name") or draft.get("influencer_handle") or "Unknown"
                     
                     if text_lower in ["yes", "correct", "y", "yep"]:
-                        await supabase_admin.table("campaigns".update({"status": "active"}).eq("id", draft["id"]).execute())
+                        await (supabase_admin.table("campaigns").update({"status": "active"}).eq("id", draft["id"]).execute())
                         await send_whatsapp_message(sender_id, f"✅ Done! The campaign for *{name}* is now Active.")
                         return
                     elif text_lower == "draft":
@@ -178,7 +178,7 @@ async def process_whatsapp_message(sender_id: str, message: dict):
                         await send_whatsapp_message(sender_id, f"Got it. The campaign for *{name}* is saved as a Draft. Please edit the details manually in your Collabo dashboard.")
                         return
                     elif text_lower in ["delete", "cancel", "remove"]:
-                        await supabase_admin.table("campaigns".delete().eq("id", draft["id"]).execute())
+                        await (supabase_admin.table("campaigns").delete().eq("id", draft["id"]).execute())
                         await send_whatsapp_message(sender_id, f"🗑️ Campaign Deleted. I've removed the draft for *{name}*.")
                         return
                 else:
@@ -189,7 +189,7 @@ async def process_whatsapp_message(sender_id: str, message: dict):
             if len(text_val) < 200:
                 corrections, unparsed_date = parse_corrections(text_val)
                 if corrections or unparsed_date:
-                    recent_draft_resp = await supabase_admin.table("campaigns"
+                    recent_draft_resp = await (supabase_admin.table("campaigns")
                         .select("*")
                         .eq("user_id", user_id)
                         .eq("status", "draft")
@@ -201,7 +201,7 @@ async def process_whatsapp_message(sender_id: str, message: dict):
                     if recent_draft_resp.data:
                         draft = recent_draft_resp.data[0]
                         if corrections:
-                            await supabase_admin.table("campaigns".update(corrections).eq("id", draft["id"]).execute())
+                            await (supabase_admin.table("campaigns").update(corrections).eq("id", draft["id"]).execute())
                         
                         updated_draft = {**draft, **corrections}
                     else:
@@ -215,7 +215,7 @@ async def process_whatsapp_message(sender_id: str, message: dict):
                         if corrections:
                             campaign_data.update(corrections)
                         
-                        insert_response = await supabase_admin.table("campaigns".insert(campaign_data).execute())
+                        insert_response = await (supabase_admin.table("campaigns").insert(campaign_data).execute())
                         if insert_response.data:
                             updated_draft = insert_response.data[0]
                         else:
@@ -398,7 +398,7 @@ async def process_whatsapp_message(sender_id: str, message: dict):
             existing_notes = campaign_data.get("special_notes") or ""
             campaign_data["special_notes"] = f"{existing_notes} [wa_msg:{message_id}]".strip()
 
-        insert_response = await supabase_admin.table("campaigns".insert(campaign_data).execute())
+        insert_response = await (supabase_admin.table("campaigns").insert(campaign_data).execute())
 
         if insert_response.data:
             inserted_campaign = insert_response.data[0]
@@ -445,7 +445,7 @@ async def process_whatsapp_message(sender_id: str, message: dict):
         # Log to DB so we can see it!
         if supabase_admin:
             try:
-                await supabase_admin.table("campaigns".insert({
+                await (supabase_admin.table("campaigns").insert({
                     "status": "draft",
                     "special_notes": f"CRASH: {err_msg}",
                     "influencer_name": "DEBUG CRASH WA",
