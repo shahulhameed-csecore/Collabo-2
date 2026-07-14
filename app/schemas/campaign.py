@@ -84,6 +84,11 @@ class CampaignBase(BaseModel):
             v = html.escape(v, quote=True)
             # Remove javascript:/data: protocol handlers
             v = re.sub(r'(javascript:|data:)', '', v, flags=re.IGNORECASE)
+            
+            # Remove internal tracking tags like [wa_msg:...] to prevent them from showing in the UI
+            v = re.sub(r'\[wa_msg:[^\]]+\]', '', v)
+            v = re.sub(r'\[tg_update:[^\]]+\]', '', v)
+            
             stripped = v.strip()
             return stripped if stripped else None
         return v
