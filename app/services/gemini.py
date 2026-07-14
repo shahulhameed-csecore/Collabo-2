@@ -47,7 +47,7 @@ JSON format:
   "special_notes": "string or null"
 }"""
 
-def compress_image(image_bytes: bytes, max_size_kb: int = 500, max_dim: int = 1600) -> bytes:
+def compress_image(image_bytes: bytes, max_size_kb: int = 500, max_dim: int = 1600) -> bytes | None:
     """Compresses an image to be under max_size_kb and max dimensions while keeping text readable."""
     try:
         # If already small enough and standard format, avoid re-compressing
@@ -80,7 +80,7 @@ def compress_image(image_bytes: bytes, max_size_kb: int = 500, max_dim: int = 16
         return out_io.getvalue()
     except Exception as e:
         logger.error("image_compression_failed", error=str(e))
-        return image_bytes # Fallback to original if compression fails
+        return None # Return None if compression fails to prevent sending invalid image bytes to Gemini
 
 def parse_pdf(file_bytes: bytes) -> tuple[str, list[bytes]]:
     """Extracts text from first 4 pages, and up to 2 images."""
@@ -98,7 +98,9 @@ def parse_pdf(file_bytes: bytes) -> tuple[str, list[bytes]]:
             if len(extracted_images) < 2:
                 for img_obj in page.images:
                     if len(extracted_images) < 2:
-                        extracted_images.append(compress_image(img_obj.data))
+                        compressed = compress_image(img_obj.data)
+                        if compressed:
+                            extracted_images.append(compressed)
                     else:
                         break
                         
@@ -196,10 +198,15 @@ async def extract_campaign_data(file_bytes: bytes, filename: str, mime_type: str
         elif mime_type.startswith("image/") or mime_type.startswith("audio/"):
             if mime_type.startswith("image/"):
                 compressed = await asyncio.to_thread(compress_image, file_bytes)
-                final_mime = "image/jpeg" if compressed != file_bytes else mime_type
-                contents.append(
-                    types.Part.from_bytes(data=compressed, mime_type=final_mime)
-                )
+                if compressed:
+                    final_mime = "image/jpeg" if compressed != file_bytes else mime_type
+                    contents.append(
+                        types.Part.from_bytes(data=compressed, mime_type=final_mime)
+                    )
+                else:
+                    contents.append(
+                        types.Part.from_bytes(data=file_bytes, mime_type=mime_type)
+                    )
             else:
                 contents.append(
                     types.Part.from_bytes(data=file_bytes, mime_type=mime_type)
@@ -216,6 +223,10 @@ async def extract_campaign_data(file_bytes: bytes, filename: str, mime_type: str
         if text_content:
             contents.append(text_content)
             text_fallback += "\n" + text_content
+            
+        # Ensure contents is never empty to prevent 400 ClientError from Gemini
+        if not contents:
+            contents.append("The uploaded file was empty, unreadable, or contained no supported text/images.")
 
         last_error = None
         for key_name, api_key in keys_to_try:
