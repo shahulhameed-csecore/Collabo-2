@@ -52,6 +52,14 @@ export default function SettingsPage() {
           setEmailEnabled(settings.email_reminders_enabled);
           setWaEnabled(settings.whatsapp_reminders_enabled);
         }
+        if (settings.verification_status) {
+          setWaVerificationStatus(settings.verification_status as any);
+        }
+        if (settings.whatsapp_verified_at) {
+          setLastVerifiedAt(new Date(settings.whatsapp_verified_at).toLocaleString());
+        } else {
+          setLastVerifiedAt(null);
+        }
         const usageData = await getBillingUsage().catch(() => null);
         if (usageData) {
           setUsage(usageData);
@@ -75,6 +83,8 @@ export default function SettingsPage() {
         whatsapp_reminders_enabled: waEnabled
       });
       setWhatsappNumber(response.whatsapp_number || '');
+      setWaVerificationStatus('not_connected');
+      setLastVerifiedAt(null);
       toast.success('WhatsApp integration updated successfully!');
     } catch (error) {
       toast.error(getApiErrorMessage(error, 'Failed to save settings. Please try again.'));
@@ -417,22 +427,31 @@ export default function SettingsPage() {
                       </div>
                       
                       <div className="w-full md:w-auto flex gap-3">
-                        {waVerificationStatus === 'failed' && (
-                          <button
-                            onClick={handleVerifyWA}
-                            disabled={isVerifyingWA}
-                            className="flex-1 md:flex-none flex items-center justify-center gap-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 active:scale-95 font-bold rounded-2xl px-6 py-3 text-sm transition-all"
-                          >
-                            Retry
-                          </button>
+                        {waVerificationStatus === 'connected' ? (
+                          <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400 font-medium text-sm">
+                            <ShieldCheck className="w-5 h-5" />
+                            Your WhatsApp integration is working properly.
+                          </div>
+                        ) : (
+                          <>
+                            {waVerificationStatus === 'failed' && (
+                              <button
+                                onClick={handleVerifyWA}
+                                disabled={isVerifyingWA}
+                                className="flex-1 md:flex-none flex items-center justify-center gap-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 active:scale-95 font-bold rounded-2xl px-6 py-3 text-sm transition-all"
+                              >
+                                Retry
+                              </button>
+                            )}
+                            <button
+                              onClick={handleVerifyWA}
+                              disabled={isVerifyingWA}
+                              className="flex-1 md:flex-none flex items-center justify-center gap-2 bg-emerald-500 hover:bg-emerald-400 text-white active:scale-95 font-bold rounded-2xl px-6 py-3 text-sm transition-all shadow-lg shadow-emerald-500/25 disabled:opacity-60 disabled:cursor-not-allowed"
+                            >
+                              {isVerifyingWA ? 'Sending...' : 'Verify via WhatsApp'}
+                            </button>
+                          </>
                         )}
-                        <button
-                          onClick={handleVerifyWA}
-                          disabled={isVerifyingWA || waVerificationStatus === 'connected'}
-                          className="flex-1 md:flex-none flex items-center justify-center gap-2 bg-emerald-500 hover:bg-emerald-400 text-white active:scale-95 font-bold rounded-2xl px-6 py-3 text-sm transition-all shadow-lg shadow-emerald-500/25 disabled:opacity-60 disabled:cursor-not-allowed"
-                        >
-                          {isVerifyingWA ? 'Sending...' : waVerificationStatus === 'connected' ? 'Verified' : 'Verify via WhatsApp'}
-                        </button>
                       </div>
                     </div>
                   )}

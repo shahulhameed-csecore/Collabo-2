@@ -205,13 +205,15 @@ export async function extractFromFile(file: File): Promise<ExtractedData> {
 }
 
 // ─── Settings API Calls ─────────────────────────────────────────────────────────
-
 export interface UserSettings {
   whatsapp_number: string | null;
   email_reminders_enabled: boolean;
   whatsapp_reminders_enabled: boolean;
   username: string | null;
   telegram_username: string | null;
+  whatsapp_verified?: boolean;
+  whatsapp_verified_at?: string | null;
+  verification_status?: 'connected' | 'pending' | 'failed' | 'not_connected';
 }
 
 export async function saveWhatsAppNumber(payload: { 
