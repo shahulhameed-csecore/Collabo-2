@@ -168,12 +168,10 @@ export default function OnboardingTour({ setMobileSidebarOpen, setDesktopSidebar
     }
   };
 
-  const bgColor = resolvedTheme === 'dark' ? '#0f172a' : '#ffffff';
 
   return (
     <>
       {!isWaiting && (
-        // @ts-ignore
         <Joyride
           steps={steps}
           run={run}
