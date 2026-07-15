@@ -67,6 +67,18 @@ async def save_settings(
         }
         if clean_number is not None:
             payload["whatsapp_number"] = clean_number
+            if clean_number != old_number:
+                # Reset verification if number changed
+                payload["whatsapp_verified"] = False
+                payload["whatsapp_verified_at"] = None
+                payload["verification_status"] = "not_connected"
+        elif "whatsapp_number" in input_data.model_dump(exclude_unset=True) and clean_number is None:
+             # It means we're unlinking
+             payload["whatsapp_number"] = None
+             payload["whatsapp_verified"] = False
+             payload["whatsapp_verified_at"] = None
+             payload["verification_status"] = "not_connected"
+
         if input_data.username is not None:
             payload["username"] = input_data.username
         if input_data.telegram_username is not None:
@@ -134,7 +146,7 @@ async def get_settings(
     try:
         response = (
             await client.table("user_settings")
-            .select("whatsapp_number, email_reminders_enabled, whatsapp_reminders_enabled, username, telegram_username")
+            .select("whatsapp_number, email_reminders_enabled, whatsapp_reminders_enabled, username, telegram_username, whatsapp_verified, whatsapp_verified_at, verification_status")
             .eq("user_id", user_id)
             .execute()
         )
@@ -146,6 +158,9 @@ async def get_settings(
             "whatsapp_reminders_enabled": True,
             "username": None,
             "telegram_username": None,
+            "whatsapp_verified": False,
+            "whatsapp_verified_at": None,
+            "verification_status": "not_connected"
         }
     except Exception as e:
         logger.error("Failed to fetch user settings", user_id=user_id, error=type(e).__name__)
@@ -154,6 +169,9 @@ async def get_settings(
             "email_reminders_enabled": True,
             "whatsapp_reminders_enabled": True,
             "telegram_username": None,
+            "whatsapp_verified": False,
+            "whatsapp_verified_at": None,
+            "verification_status": "not_connected"
         }
 
 @router.post("/whatsapp/verify")
@@ -162,8 +180,9 @@ async def verify_whatsapp_connection(
     client=Depends(get_user_supabase_client),
 ):
     """
-    Sends a test WhatsApp message to verify the connection.
+    Sends a test WhatsApp message to verify the connection and updates the database state.
     """
+    import datetime
     user_id = current_user.user.id
     
     # 1. Fetch user settings
@@ -183,6 +202,18 @@ async def verify_whatsapp_connection(
     success = await send_whatsapp_message(to_number=whatsapp_number, body=test_msg)
     
     if not success:
+        # Update state to failed
+        await client.table("user_settings").update({
+            "whatsapp_verified": False,
+            "verification_status": "failed"
+        }).eq("user_id", user_id).execute()
         raise HTTPException(status_code=500, detail="Failed to send verification message. Please check the number and try again.")
+        
+    # Update state to connected
+    await client.table("user_settings").update({
+        "whatsapp_verified": True,
+        "whatsapp_verified_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+        "verification_status": "connected"
+    }).eq("user_id", user_id).execute()
         
     return {"message": "Verification message sent successfully!", "status": "connected"}
