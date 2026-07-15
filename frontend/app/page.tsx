@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Logo } from '@/components/Logo';
+import { FAQ } from '@/components/FAQ';
 import {
   ArrowRight,
   Smartphone,
@@ -321,6 +322,8 @@ export default function LandingPage() {
             </div>
           </div>
         </section>
+
+        <FAQ />
 
         {/* ── Pricing & CTA ──────────────────────────────────────────────── */}
         <section id="pricing" className="py-24 relative overflow-hidden">

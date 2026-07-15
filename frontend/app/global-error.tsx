@@ -1,9 +1,9 @@
 'use client';
 
-import * as Sentry from "@sentry/nextjs";
-import { useEffect } from "react";
+import { Inter } from 'next/font/google';
 import { AlertCircle, RefreshCw } from 'lucide-react';
-import Link from 'next/link';
+
+const inter = Inter({ subsets: ['latin'] });
 
 export default function GlobalError({
   error,
@@ -12,36 +12,28 @@ export default function GlobalError({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
-  useEffect(() => {
-    Sentry.captureException(error);
-  }, [error]);
-
   return (
     <html lang="en">
-      <body className="bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex items-center justify-center min-h-screen p-4">
-        <div className="w-full max-w-md bg-white dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800/60 rounded-2xl shadow-xl p-8 text-center animate-fade-in">
-          <div className="w-16 h-16 bg-rose-50 dark:bg-rose-500/10 rounded-full flex items-center justify-center mx-auto mb-6 border border-rose-100 dark:border-rose-500/20">
+      <body className={`${inter.className} bg-slate-950 min-h-screen flex items-center justify-center`}>
+        <div className="bg-slate-900 border border-slate-800 rounded-3xl p-8 max-w-md w-full text-center shadow-2xl m-4">
+          <div className="w-16 h-16 bg-rose-500/10 rounded-full flex items-center justify-center mx-auto mb-6">
             <AlertCircle className="w-8 h-8 text-rose-500" />
           </div>
-          <h1 className="text-2xl font-bold mb-2">We ran into a slight issue!</h1>
-          <p className="text-slate-500 dark:text-slate-400 text-sm mb-8">
-            Don't worry, your data is safe. A temporary error occurred while rendering this page, and our engineering team has been notified.
+          
+          <h1 className="text-2xl font-bold text-white mb-2">
+            Critical System Error
+          </h1>
+          
+          <p className="text-slate-400 text-sm mb-8 leading-relaxed">
+            The application encountered a critical error. We apologize for the inconvenience.
           </p>
-          <div className="flex flex-col sm:flex-row gap-3 justify-center">
-            <button
-              onClick={() => reset()}
-              className="flex items-center justify-center gap-2 bg-slate-900 hover:bg-slate-800 dark:bg-white dark:hover:bg-slate-200 text-white dark:text-slate-900 font-bold rounded-xl px-5 py-2.5 transition-colors"
-            >
-              <RefreshCw className="w-4 h-4" />
-              Try again
-            </button>
-            <Link
-              href="/"
-              className="flex items-center justify-center gap-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold rounded-xl px-5 py-2.5 transition-colors"
-            >
-              Go home
-            </Link>
-          </div>
+
+          <button
+            onClick={() => reset()}
+            className="flex items-center justify-center gap-2 w-full bg-emerald-500 hover:bg-emerald-400 text-white font-bold py-3 px-4 rounded-xl transition-colors"
+          >
+            <RefreshCw className="w-4 h-4" /> Restart Application
+          </button>
         </div>
       </body>
     </html>

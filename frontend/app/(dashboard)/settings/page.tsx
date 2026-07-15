@@ -7,7 +7,7 @@ import {
 } from 'lucide-react';
 import Image from 'next/image';
 import { toast } from 'sonner';
-import { saveWhatsAppNumber, getWhatsAppNumber, getApiErrorMessage, getBillingUsage, BillingUsage, createRazorpayOrder, verifyRazorpayPayment } from '@/lib/api';
+import { saveWhatsAppNumber, getWhatsAppNumber, verifyWhatsAppConnection, getApiErrorMessage, getBillingUsage, BillingUsage } from '@/lib/api';
 import { IS_TESTING_PHASE } from '@/lib/config';
 
 export default function SettingsPage() {
@@ -21,7 +21,11 @@ export default function SettingsPage() {
   const [isSavingReminders, setIsSavingReminders] = useState(false);
   const [copied, setCopied] = useState(false);
   const [usage, setUsage] = useState<BillingUsage | null>(null);
-  // Removed isAnnual state
+  
+  // Verification states
+  const [waVerificationStatus, setWaVerificationStatus] = useState<'none' | 'pending' | 'connected' | 'failed'>('none');
+  const [isVerifyingWA, setIsVerifyingWA] = useState(false);
+  const [lastVerifiedAt, setLastVerifiedAt] = useState<string | null>(null);
 
   // Updated fallback Bot Number as requested
   const botNumber = process.env.NEXT_PUBLIC_BOT_NUMBER || "+91 6374771074";
@@ -130,6 +134,22 @@ export default function SettingsPage() {
       toast.error(getApiErrorMessage(error, 'Failed to unlink WhatsApp account.'));
     } finally {
       setIsSavingWA(false);
+    }
+  };
+
+  const handleVerifyWA = async () => {
+    setIsVerifyingWA(true);
+    setWaVerificationStatus('pending');
+    try {
+      await verifyWhatsAppConnection();
+      setWaVerificationStatus('connected');
+      setLastVerifiedAt(new Date().toLocaleString());
+      toast.success('Test message sent successfully! Your WhatsApp is connected.');
+    } catch (error) {
+      setWaVerificationStatus('failed');
+      toast.error(getApiErrorMessage(error, 'Failed to verify connection.'));
+    } finally {
+      setIsVerifyingWA(false);
     }
   };
 
@@ -362,19 +382,62 @@ export default function SettingsPage() {
                     </div>
                   </div>
 
-                  {botNumber.includes("+1") && (
-                    <div className="p-5 bg-gradient-to-r from-amber-50 to-amber-100/50 dark:from-amber-950/40 dark:to-amber-900/20 border border-amber-200 dark:border-amber-800/50 rounded-2xl flex items-start gap-3 shadow-inner mt-4">
-                      <AlertCircle className="w-5 h-5 text-amber-600 dark:text-amber-500 shrink-0 mt-0.5" />
-                      <div>
-                        <strong className="text-sm font-bold text-amber-900 dark:text-amber-400 block mb-1">Testing with Meta Sandbox?</strong>
-                        <p className="text-xs text-amber-800/80 dark:text-amber-500/80 font-medium leading-relaxed">
-                          Because this is a US Test Number, Meta restricts inbound messages unless you initiate a chat from the Meta Dashboard first. Upgrade to a production Indian number to remove this restriction.
-                        </p>
+                  {/* ── CONNECTION STATUS UI ── */}
+                  {whatsappNumber && (
+                    <div className="mt-8 p-5 bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-800/60 rounded-3xl shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-5 transition-all">
+                      <div className="flex items-center gap-4">
+                        <div className={`w-12 h-12 rounded-full flex items-center justify-center shrink-0 shadow-inner ${
+                          waVerificationStatus === 'connected' ? 'bg-emerald-100 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400' :
+                          waVerificationStatus === 'pending' ? 'bg-amber-100 dark:bg-amber-500/20 text-amber-600 dark:text-amber-400' :
+                          waVerificationStatus === 'failed' ? 'bg-rose-100 dark:bg-rose-500/20 text-rose-600 dark:text-rose-400' :
+                          'bg-slate-100 dark:bg-slate-800 text-slate-500'
+                        }`}>
+                          {waVerificationStatus === 'connected' ? <ShieldCheck className="w-6 h-6" /> :
+                           waVerificationStatus === 'pending' ? <div className="w-5 h-5 border-2 border-amber-500/30 border-t-amber-500 rounded-full animate-spin" /> :
+                           waVerificationStatus === 'failed' ? <AlertCircle className="w-6 h-6" /> :
+                           <Phone className="w-6 h-6" />}
+                        </div>
+                        <div>
+                          <h3 className="font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                            Connection Status
+                            <span className={`text-[10px] uppercase font-black tracking-wider px-2 py-0.5 rounded-full ${
+                              waVerificationStatus === 'connected' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400' :
+                              waVerificationStatus === 'pending' ? 'bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-400' :
+                              waVerificationStatus === 'failed' ? 'bg-rose-100 text-rose-700 dark:bg-rose-500/20 dark:text-rose-400' :
+                              'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400'
+                            }`}>
+                              {waVerificationStatus === 'none' ? 'Not Verified' : waVerificationStatus}
+                            </span>
+                          </h3>
+                          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 font-medium">
+                            {whatsappNumber}
+                            {lastVerifiedAt && <span className="ml-2 pl-2 border-l border-slate-300 dark:border-slate-700">Last verified: {lastVerifiedAt}</span>}
+                          </p>
+                        </div>
+                      </div>
+                      
+                      <div className="w-full md:w-auto flex gap-3">
+                        {waVerificationStatus === 'failed' && (
+                          <button
+                            onClick={handleVerifyWA}
+                            disabled={isVerifyingWA}
+                            className="flex-1 md:flex-none flex items-center justify-center gap-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 active:scale-95 font-bold rounded-2xl px-6 py-3 text-sm transition-all"
+                          >
+                            Retry
+                          </button>
+                        )}
+                        <button
+                          onClick={handleVerifyWA}
+                          disabled={isVerifyingWA || waVerificationStatus === 'connected'}
+                          className="flex-1 md:flex-none flex items-center justify-center gap-2 bg-emerald-500 hover:bg-emerald-400 text-white active:scale-95 font-bold rounded-2xl px-6 py-3 text-sm transition-all shadow-lg shadow-emerald-500/25 disabled:opacity-60 disabled:cursor-not-allowed"
+                        >
+                          {isVerifyingWA ? 'Sending...' : waVerificationStatus === 'connected' ? 'Verified' : 'Verify via WhatsApp'}
+                        </button>
                       </div>
                     </div>
                   )}
 
-                  <div className="pt-6 border-t border-slate-200/60 dark:border-slate-800/60 flex justify-end gap-4">
+                  <div className="pt-6 border-t border-slate-200/60 dark:border-slate-800/60 flex justify-end gap-4 mt-6">
                     {whatsappNumber && (
                       <button
                         onClick={handleUnlinkWA}

@@ -225,6 +225,24 @@ export async function saveWhatsAppNumber(payload: {
   return res.data;
 }
 
+export async function getUserSettings(): Promise<any> {
+  try {
+    const res = await api.get('/settings/whatsapp');
+    return res.data;
+  } catch (err: unknown) {
+    throw new Error(getApiErrorMessage(err, 'Failed to fetch user settings.'));
+  }
+}
+
+export async function verifyWhatsAppConnection(): Promise<any> {
+  try {
+    const res = await api.post('/settings/whatsapp/verify');
+    return res.data;
+  } catch (err: unknown) {
+    throw new Error(getApiErrorMessage(err, 'Failed to verify WhatsApp connection.'));
+  }
+}
+
 export async function getWhatsAppNumber(): Promise<UserSettings> {
   const res = await api.get('/settings/whatsapp');
   return res.data;

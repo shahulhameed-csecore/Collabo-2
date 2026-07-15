@@ -120,13 +120,38 @@ export default function PrivacyPolicy() {
               <p>We use cookies and similar technologies (like local storage) to manage sessions, remember your preferences, and track analytics. You can control cookie preferences through your browser settings, though disabling them may affect platform functionality.</p>
             </section>
 
+            <section id="refund">
+              <h2 className="text-2xl font-bold text-white mb-4">7. Refund and Cancellation Policy</h2>
+              <p className="mb-4">We strive to provide the best experience for all Collabo users. Our refund and cancellation terms are as follows:</p>
+              
+              <h3 className="text-xl font-semibold text-emerald-400 mb-2 mt-6">7.1 Subscription Cancellations</h3>
+              <ul className="list-disc pl-6 space-y-2">
+                <li>You may cancel your subscription at any time through your Billing dashboard.</li>
+                <li>Upon cancellation, you will retain access to Pro features until the end of your current billing cycle.</li>
+                <li>We do not offer pro-rated refunds for mid-cycle cancellations.</li>
+              </ul>
+
+              <h3 className="text-xl font-semibold text-emerald-400 mb-2 mt-6">7.2 Refund Eligibility</h3>
+              <ul className="list-disc pl-6 space-y-2">
+                <li><strong>Trial Periods:</strong> If you cancel during a free trial, you will not be charged.</li>
+                <li><strong>Accidental Charges:</strong> If you believe you were charged in error, please contact us within 7 days of the charge date.</li>
+                <li><strong>Service Unavailability:</strong> If the Collabo platform is unavailable for an extended period preventing you from managing campaigns, you may be eligible for a partial refund or service credit at our discretion.</li>
+              </ul>
+
+              <h3 className="text-xl font-semibold text-emerald-400 mb-2 mt-6">7.3 Failed Payments (Razorpay)</h3>
+              <p>If a payment fails, your account will temporarily downgrade to the Free Tier until the payment is successfully processed. You will not lose any historical data during this period.</p>
+
+              <h3 className="text-xl font-semibold text-emerald-400 mb-2 mt-6">7.4 Contacting Us for Refunds</h3>
+              <p>To request a refund under the eligible criteria, please email <strong>billing@collabo.app</strong> with your account email and transaction ID. We process eligible requests within 5-7 business days.</p>
+            </section>
+
             <section>
-              <h2 className="text-2xl font-bold text-white mb-4">7. Changes to This Privacy Policy</h2>
+              <h2 className="text-2xl font-bold text-white mb-4">8. Changes to This Privacy Policy</h2>
               <p>We may update this Privacy Policy from time to time. We will notify you of any significant changes by posting the new Privacy Policy on this page and updating the "Last Updated" date.</p>
             </section>
 
             <section>
-              <h2 className="text-2xl font-bold text-white mb-4">8. Contact Us</h2>
+              <h2 className="text-2xl font-bold text-white mb-4">9. Contact Us</h2>
               <p>If you have any questions or concerns about this Privacy Policy, please contact our Data Protection Officer at:</p>
               <p className="mt-2">
                 <strong>Email:</strong> privacy@collabo.app<br/>

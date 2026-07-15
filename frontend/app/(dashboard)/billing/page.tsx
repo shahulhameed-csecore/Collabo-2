@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { getBillingUsage, BillingUsage, createRazorpayOrder, verifyRazorpayPayment } from '@/lib/api';
 import { CreditCard, Zap, Check, Sparkles, TrendingUp, Star, ArrowRight, Infinity } from 'lucide-react';
 import { toast } from 'sonner';
+import { createClient } from '@/utils/supabase/client';
 
 import { IS_TESTING_PHASE } from '@/lib/config';
 
@@ -43,6 +44,32 @@ export default function BillingPage() {
       toast.info('Payments are currently disabled during the testing phase.');
       return;
     }
+    
+    // Security Check: Revalidate session before sensitive action
+    try {
+      const supabase = createClient();
+      const { data: { session }, error } = await supabase.auth.getSession();
+      
+      if (error || !session) {
+        toast.error('Session expired. Please sign in again to continue.');
+        window.location.href = '/login?next=/billing';
+        return;
+      }
+      
+      // Enforce re-authentication if the session is older than 30 minutes
+      const signInTime = new Date(session.user.last_sign_in_at || '').getTime();
+      const nowTime = new Date().getTime();
+      if ((nowTime - signInTime) > 30 * 60 * 1000) {
+        toast.error('For security reasons, please re-authenticate to manage billing.');
+        await supabase.auth.signOut();
+        window.location.href = '/login?next=/billing';
+        return;
+      }
+    } catch (err) {
+      toast.error('Security check failed. Please refresh the page.');
+      return;
+    }
+
     try {
       const order = await createRazorpayOrder();
       const options = {
