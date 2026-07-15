@@ -6,20 +6,19 @@ import Link from 'next/link';
 
 export function FinalCta() {
   return (
-    <section className="py-32 relative overflow-hidden bg-[#0F172A] border-t border-slate-800">
+    <section className="py-32 relative bg-[#030712] border-t border-[#1E293B] overflow-hidden">
       
-      {/* Massive Glows */}
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-4xl h-[400px] bg-indigo-500/20 blur-[150px] rounded-full pointer-events-none" />
-      <div className="absolute top-0 right-0 w-[400px] h-[400px] bg-emerald-500/10 blur-[100px] rounded-full pointer-events-none" />
-      
+      {/* Dashboard-esque subtle background lines */}
+      <div className="absolute inset-0 bg-[linear-gradient(to_right,#1e293b_1px,transparent_1px),linear-gradient(to_bottom,#1e293b_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)] opacity-20 pointer-events-none" />
+
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center relative z-10">
         <motion.h2 
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
-          className="text-4xl md:text-6xl font-extrabold text-white tracking-tight mb-8 leading-tight"
+          className="text-4xl md:text-6xl font-bold text-white tracking-tight mb-8 leading-tight"
         >
-          Your next influencer campaign shouldn't live in a <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-indigo-400">spreadsheet.</span>
+          Your next influencer campaign shouldn't live in a <span className="text-[#00D4A5]">spreadsheet.</span>
         </motion.h2>
         
         <motion.p 
@@ -27,9 +26,9 @@ export function FinalCta() {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ delay: 0.1 }}
-          className="text-xl text-slate-400 mb-12 max-w-2xl mx-auto"
+          className="text-xl text-[#94A3B8] mb-12 max-w-2xl mx-auto"
         >
-          Stop managing creators manually. Start managing campaigns the smart way.
+          Your brand has grown. Your workflow should too. Log in to the ultimate campaign dashboard today.
         </motion.p>
         
         <motion.div
@@ -37,10 +36,9 @@ export function FinalCta() {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ delay: 0.2 }}
-          className="flex flex-col sm:flex-row items-center justify-center gap-4"
         >
-          <Link href="/signup" className="px-10 py-5 bg-white text-slate-950 font-bold text-lg rounded-full hover:scale-105 active:scale-95 transition-all flex items-center justify-center gap-2 shadow-[0_0_40px_rgba(255,255,255,0.15)] w-full sm:w-auto">
-            Get Started Now <ArrowRight className="w-5 h-5" />
+          <Link href="/signup" className="inline-flex items-center justify-center gap-2 px-10 py-5 bg-[#00D4A5] text-[#030712] font-bold text-lg rounded-xl hover:bg-[#00FFC8] active:scale-95 transition-all shadow-[0_0_30px_rgba(0,212,165,0.2)]">
+            Enter Dashboard <ArrowRight className="w-5 h-5" />
           </Link>
         </motion.div>
       </div>
