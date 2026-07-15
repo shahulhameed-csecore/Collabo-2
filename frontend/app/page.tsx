@@ -362,21 +362,18 @@ export default function LandingPage() {
               <div>
                 <p className="text-[11px] font-bold text-white uppercase tracking-widest mb-4">Product</p>
                 <ul className="space-y-3">
-                  {['Features', 'Pricing', 'Login', 'Sign Up'].map((l) => (
-                    <li key={l}>
-                      <Link href="#" className="text-sm text-slate-400 hover:text-white transition-colors">{l}</Link>
-                    </li>
-                  ))}
+                  <li><Link href="/#features" className="text-sm text-slate-400 hover:text-white transition-colors">Features</Link></li>
+                  <li><Link href="/#pricing" className="text-sm text-slate-400 hover:text-white transition-colors">Pricing</Link></li>
+                  <li><Link href="/login" className="text-sm text-slate-400 hover:text-white transition-colors">Login</Link></li>
+                  <li><Link href="/login" className="text-sm text-slate-400 hover:text-white transition-colors">Sign Up</Link></li>
                 </ul>
               </div>
               <div>
                 <p className="text-[11px] font-bold text-white uppercase tracking-widest mb-4">Legal</p>
                 <ul className="space-y-3">
-                  {['Privacy Policy', 'Terms of Service', 'Refund Policy'].map((l) => (
-                    <li key={l}>
-                      <Link href="#" className="text-sm text-slate-400 hover:text-white transition-colors">{l}</Link>
-                    </li>
-                  ))}
+                  <li><Link href="/privacy" className="text-sm text-slate-400 hover:text-white transition-colors">Privacy Policy</Link></li>
+                  <li><Link href="/terms" className="text-sm text-slate-400 hover:text-white transition-colors">Terms of Service</Link></li>
+                  <li><Link href="/privacy#refund" className="text-sm text-slate-400 hover:text-white transition-colors">Refund Policy</Link></li>
                 </ul>
               </div>
             </div>
