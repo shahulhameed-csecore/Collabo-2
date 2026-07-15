@@ -87,6 +87,14 @@ if settings.SENTRY_DSN:
     )
 
 # ─── Scheduler ────────────────────────────────────────────────────────────────
+# SCALING NOTE: Duplicate Cron Jobs
+# Currently, this runs inside the single web server process. It is free and safe for the MVP.
+# However, if you scale to 2+ Render instances, EVERY instance will run this scheduler,
+# meaning influencers will receive duplicate reminder emails and WhatsApp messages.
+# 
+# How to fix for 50k+ users:
+# 1. Use a separate Render Background Worker Dyno specifically for the scheduler.
+# 2. Or, use a distributed lock (e.g., Redis via redis-lock) to ensure only one instance executes the job.
 _executors = {"default": AsyncIOExecutor()}
 scheduler = AsyncIOScheduler(executors=_executors)
 
@@ -188,6 +196,16 @@ app = FastAPI(
 
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+# SCALING NOTE: Distributed Rate Limiting
+# `slowapi` is currently using in-memory storage (defined in app/core/limiter.py).
+# This means if you have 3 servers, users get 3x their rate limit because memory is isolated.
+# 
+# How to fix for 50k+ users:
+# Change the storage backend in `limiter.py` to Redis storage:
+# from slowapi.util import get_remote_address
+# from slowapi import Limiter
+# limiter = Limiter(key_func=get_remote_address, storage_uri="redis://...")
 
 app.add_middleware(GZipMiddleware, minimum_size=1000)
 

@@ -11,6 +11,23 @@ from starlette.concurrency import run_in_threadpool
 
 # Toggle this to False when integrating real payments (Stripe/Razorpay)
 # When True, all users get a 'pro' plan by default.
+
+# SCALING NOTE: Razorpay Live Mode Migration
+# You are currently using Razorpay in Test Mode, which is perfect and safe for your MVP.
+# When you complete business verification and want to process real money:
+# 
+# 1. Update Render Environment Variables:
+#    Change `RAZORPAY_KEY_ID` to your live key (starts with `rzp_live_`).
+#    Change `RAZORPAY_KEY_SECRET` to your live secret.
+# 
+# 2. Update Webhooks in Razorpay Dashboard:
+#    Go to Settings -> Webhooks in Razorpay Live mode.
+#    Add your endpoint: `https://api.mycollabo.online/billing/razorpay-webhook`
+#    Generate a new Webhook Secret and update `RAZORPAY_WEBHOOK_SECRET` in Render.
+# 
+# No actual code changes are required here. The backend automatically switches 
+# based on the environment variables provided.
+
 IS_TESTING_PHASE = False
 
 router = APIRouter(prefix="/billing", tags=["Billing"])
