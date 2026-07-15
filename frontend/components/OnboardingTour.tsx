@@ -180,14 +180,15 @@ export default function OnboardingTour({ setMobileSidebarOpen, setDesktopSidebar
           stepIndex={stepIndex}
           continuous
           scrollToFirstStep
-          onEvent={handleJoyrideCallback}
+          callback={handleJoyrideCallback}
           tooltipComponent={CustomTooltip}
-          floaterProps={{ disableAnimation: true }}
-          options={{
-            zIndex: 10000,
-            arrowColor: bgColor,
-            primaryColor: '#10b981',
-          }}
+          styles={{
+            options: {
+              zIndex: 10000,
+              arrowColor: resolvedTheme === 'dark' ? '#0f172a' : '#ffffff',
+              primaryColor: '#10b981',
+            },
+          } as any}
         />
       )}
     </>
