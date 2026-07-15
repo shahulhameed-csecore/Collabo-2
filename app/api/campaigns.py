@@ -28,6 +28,9 @@ async def bulk_update_status(
     payload: BulkStatusUpdate,
     client=Depends(get_user_supabase_client),
 ):
+    if not payload.campaign_ids:
+        raise HTTPException(status_code=400, detail="No campaigns specified")
+
     current_campaigns = await client.table("campaigns").select("id, status, user_id, influencer_handle, influencer_name").in_("id", payload.campaign_ids).execute()
     if not current_campaigns.data:
         return {"message": "No valid campaigns found"}
@@ -84,6 +87,9 @@ async def bulk_delete(
     payload: BulkDelete,
     client=Depends(get_user_supabase_client),
 ):
+    if not payload.campaign_ids:
+        raise HTTPException(status_code=400, detail="No campaigns specified")
+
     response = await client.table("campaigns").delete().in_("id", payload.campaign_ids).execute()
     return {"message": f"Deleted {len(response.data)} campaigns"}
 
@@ -94,6 +100,9 @@ async def bulk_remind(
     payload: BulkDelete,
     client=Depends(get_user_supabase_client),
 ):
+    if not payload.campaign_ids:
+        raise HTTPException(status_code=400, detail="No campaigns specified")
+
     return {"message": f"Reminders queued for {len(payload.campaign_ids)} campaigns"}
 
 @router.get("/", response_model=PaginatedCampaigns)

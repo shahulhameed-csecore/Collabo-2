@@ -118,7 +118,7 @@ async def create_razorpay_order(
     }
     
     try:
-        order = client.order.create(data=data)
+        order = await run_in_threadpool(client.order.create, data=data)
         return {"order_id": order["id"], "amount": amount, "currency": "INR"}
     except Exception as e:
         import structlog
@@ -138,14 +138,17 @@ async def verify_payment(
     
     try:
         # Verify Signature
-        client.utility.verify_payment_signature({
-            'razorpay_payment_id': req.razorpay_payment_id,
-            'razorpay_order_id': req.razorpay_order_id,
-            'razorpay_signature': req.razorpay_signature
-        })
+        await run_in_threadpool(
+            client.utility.verify_payment_signature,
+            {
+                'razorpay_payment_id': req.razorpay_payment_id,
+                'razorpay_order_id': req.razorpay_order_id,
+                'razorpay_signature': req.razorpay_signature
+            }
+        )
         
         # Payment is valid. We need to fetch the order details to verify ownership and plan type.
-        order = client.order.fetch(req.razorpay_order_id)
+        order = await run_in_threadpool(client.order.fetch, req.razorpay_order_id)
         
         # SECURITY PATCH: Verify the order was explicitly created for the authenticated user.
         # This prevents an attacker from using a valid order from Account A to upgrade Account B.
@@ -297,8 +300,8 @@ async def razorpay_webhook(request: Request):
         
         if user_id and order_id:
             try:
-                # Offload the synchronous Supabase DB logic to the threadpool
-                result = await run_in_threadpool(process_razorpay_webhook_db, order_id, user_id, notes)
+                # process_razorpay_webhook_db is async, so we await it directly
+                result = await process_razorpay_webhook_db(order_id, user_id, notes)
                 return result
             except Exception as e:
                 import structlog
