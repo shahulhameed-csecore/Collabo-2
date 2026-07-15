@@ -7,7 +7,8 @@ import type { User } from '@supabase/supabase-js';
 import {
   LayoutDashboard, BarChart3, Settings,
   LogOut, Menu, X, ChevronRight, Plus,
-  Sparkles, TrendingUp, Sun, Moon, Calendar, Users, CreditCard
+  Sparkles, TrendingUp, Sun, Moon, Calendar, Users, CreditCard,
+  ChevronsLeft, ChevronsRight
 } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import Link from 'next/link';
@@ -41,19 +42,21 @@ const navItems = [
 
 /* ── NavLink ─────────────────────────────────────────────────────────────── */
 function NavLink({
-  href, label, icon: Icon, disabled, soon, isActive, onClick, id,
+  href, label, icon: Icon, disabled, soon, isActive, onClick, id, isCollapsed
 }: {
   href: string; label: string; icon: React.ElementType;
-  disabled?: boolean; soon?: boolean; isActive: boolean; onClick: () => void; id?: string;
+  disabled?: boolean; soon?: boolean; isActive: boolean; onClick: () => void; id?: string; isCollapsed?: boolean;
 }) {
   return (
     <Link
       id={id}
       href={disabled ? '#' : href}
       onClick={disabled ? undefined : onClick}
+      title={isCollapsed ? label : undefined}
       className={`
-        group flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium
+        group flex items-center gap-3 rounded-xl font-medium
         transition-all duration-200 select-none relative overflow-hidden
+        ${isCollapsed ? 'justify-center p-3' : 'px-3.5 py-2.5 text-sm'}
         ${isActive
           ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 shadow-sm shadow-emerald-500/10'
           : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800/60 border border-transparent'}
@@ -61,15 +64,18 @@ function NavLink({
       `}
     >
       {/* Active left indicator */}
-      {isActive && (
+      {isActive && !isCollapsed && (
         <span className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 bg-emerald-400 rounded-r-full shadow-sm shadow-emerald-400/50" />
       )}
-      <Icon className={`w-4 h-4 flex-shrink-0 transition-all ${
+      {isActive && isCollapsed && (
+        <span className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-5 bg-emerald-400 rounded-r-full shadow-sm shadow-emerald-400/50" />
+      )}
+      <Icon className={`flex-shrink-0 transition-all ${isCollapsed ? 'w-5 h-5' : 'w-4 h-4'} ${
         isActive ? 'text-emerald-400' : 'text-slate-500 group-hover:text-slate-700 dark:group-hover:text-slate-300'
       }`} />
-      <span className="flex-1 leading-none">{label}</span>
-      {isActive && <ChevronRight className="w-3.5 h-3.5 text-emerald-500/70" />}
-      {soon && !isActive && (
+      {!isCollapsed && <span className="flex-1 leading-none">{label}</span>}
+      {isActive && !isCollapsed && <ChevronRight className="w-3.5 h-3.5 text-emerald-500/70" />}
+      {soon && !isActive && !isCollapsed && (
         <span className="text-[9px] font-bold bg-slate-100 dark:bg-slate-700/80 text-slate-500 px-1.5 py-0.5 rounded-md border border-slate-200 dark:border-slate-600/30 tracking-wide">
           SOON
         </span>
@@ -194,19 +200,21 @@ export default function DashboardLayout({ children, onNewCampaign }: DashboardLa
   };
 
   /* ── Sidebar content component ── */
-  const SidebarContent = ({ isMobile = false }: { isMobile?: boolean }) => (
+  const SidebarContent = ({ isMobile = false, isCollapsed = false, toggleCollapse }: { isMobile?: boolean, isCollapsed?: boolean, toggleCollapse?: () => void }) => (
     <div className="flex flex-col h-full overflow-hidden">
       {/* Logo row */}
-      <div className="flex items-center gap-3 px-5 py-[18px] border-b border-slate-200 dark:border-slate-800/50 flex-shrink-0">
-        <Logo variant="full" size={24} href="/dashboard" />
-        <div className={`flex items-center gap-1 ml-auto px-2 py-1 rounded-lg border ${isPro ? 'bg-emerald-500/8 border-emerald-500/15' : 'bg-amber-500/8 border-amber-500/15'}`}>
-          <Sparkles className={`w-2.5 h-2.5 ${isPro ? 'text-emerald-400' : 'text-amber-400'}`} />
-          <p className={`text-[9px] font-bold tracking-wide ${isPro ? 'text-emerald-400' : 'text-amber-400'}`}>{displayTier}</p>
-        </div>
+      <div className={`flex items-center gap-3 py-[18px] border-b border-slate-200 dark:border-slate-800/50 flex-shrink-0 transition-all duration-300 ${isCollapsed ? 'px-4 justify-center' : 'px-5'}`}>
+        <Logo variant={isCollapsed ? 'icon' : 'full'} size={24} href="/dashboard" />
+        {!isCollapsed && (
+          <div className={`flex items-center gap-1 ml-auto px-2 py-1 rounded-lg border ${isPro ? 'bg-emerald-500/8 border-emerald-500/15' : 'bg-amber-500/8 border-amber-500/15'}`}>
+            <Sparkles className={`w-2.5 h-2.5 ${isPro ? 'text-emerald-400' : 'text-amber-400'}`} />
+            <p className={`text-[9px] font-bold tracking-wide ${isPro ? 'text-emerald-400' : 'text-amber-400'}`}>{displayTier}</p>
+          </div>
+        )}
       </div>
 
       {/* Trial Expiry Banner */}
-      {isTrialActive && (
+      {!isCollapsed && isTrialActive && (
         <div className="mx-3 mt-3 px-3 py-2 bg-gradient-to-r from-emerald-500/10 to-teal-500/5 border border-emerald-500/20 rounded-lg flex items-center justify-between">
           <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">Free Trial</span>
           <span className="text-[10px] font-semibold text-emerald-500 dark:text-emerald-300">{daysLeftInTrial} days left</span>
@@ -215,30 +223,33 @@ export default function DashboardLayout({ children, onNewCampaign }: DashboardLa
 
       {/* New Campaign CTA */}
       {onNewCampaign && (
-        <div className="px-3 pt-4 pb-1 flex-shrink-0">
+        <div className={`pt-4 pb-1 flex-shrink-0 transition-all duration-300 ${isCollapsed ? 'px-2' : 'px-3'}`}>
           <button
             id="new-campaign-btn"
             onClick={() => { onNewCampaign(); if(isMobile) setMobileSidebarOpen(false); }}
-            className="
+            className={`
               w-full flex items-center justify-center gap-2
               bg-gradient-to-r from-emerald-500 to-teal-500
               hover:from-emerald-400 hover:to-teal-400
-              active:scale-[0.98] text-white text-sm font-bold rounded-xl py-2.5
+              active:scale-[0.98] text-white font-bold rounded-xl
               transition-all duration-200 shadow-lg shadow-emerald-500/25
               hover:shadow-emerald-500/40 hover:shadow-xl glow-emerald-sm
-            "
+              ${isCollapsed ? 'py-3 aspect-square' : 'py-2.5 text-sm'}
+            `}
           >
-            <Plus className="w-4 h-4" />
-            New Campaign
+            <Plus className="w-5 h-5 flex-shrink-0" />
+            {!isCollapsed && <span className="whitespace-nowrap">New Campaign</span>}
           </button>
         </div>
       )}
 
       {/* Nav */}
-      <nav className="flex-1 px-3 py-3 space-y-0.5 overflow-y-auto">
-        <p className="text-[10px] font-bold text-slate-400 dark:text-slate-600 uppercase tracking-widest px-3 pb-2 pt-1">
-          Navigation
-        </p>
+      <nav className={`flex-1 py-3 space-y-1 overflow-y-auto ${isCollapsed ? 'px-2' : 'px-3'}`}>
+        {!isCollapsed && (
+          <p className="text-[10px] font-bold text-slate-400 dark:text-slate-600 uppercase tracking-widest px-3 pb-2 pt-1">
+            Navigation
+          </p>
+        )}
         {navItems.map(({ href, label, icon, disabled, soon }: any) => (
           <NavLink
             key={href}
@@ -250,50 +261,74 @@ export default function DashboardLayout({ children, onNewCampaign }: DashboardLa
             isActive={pathname === href || (href !== '/dashboard' && pathname.startsWith(href))}
             onClick={() => isMobile && setMobileSidebarOpen(false)}
             id={`tour-nav-${href.replace(/\//g, '') || 'dashboard'}-${isMobile ? 'mobile' : 'desktop'}`}
+            isCollapsed={isCollapsed}
           />
         ))}
       </nav>
 
       {/* AI Insight card */}
-      <div
-        id={`tour-ai-insight-${isMobile ? 'mobile' : 'desktop'}`}
-        className="mx-3 mb-3 p-3.5 bg-gradient-to-br from-emerald-500/6 to-teal-500/4 border border-emerald-500/15 rounded-xl flex-shrink-0"
-      >
-        <div className="flex items-start gap-2.5">
-          <div className="p-1.5 bg-emerald-500/15 rounded-lg flex-shrink-0">
-            <Sparkles className="w-3 h-3 text-emerald-400" />
+      {!isCollapsed && (
+        <div
+          id={`tour-ai-insight-${isMobile ? 'mobile' : 'desktop'}`}
+          className="mx-3 mb-3 p-3.5 bg-gradient-to-br from-emerald-500/6 to-teal-500/4 border border-emerald-500/15 rounded-xl flex-shrink-0"
+        >
+          <div className="flex items-start gap-2.5">
+            <div className="p-1.5 bg-emerald-500/15 rounded-lg flex-shrink-0">
+              <Sparkles className="w-3 h-3 text-emerald-400" />
+            </div>
+            <div>
+              <p className="text-xs font-bold text-emerald-400 mb-0.5">AI Extraction</p>
+              <p className="text-[11px] text-slate-500 leading-relaxed">
+                Upload a DM screenshot to auto-fill campaign details in seconds.
+              </p>
+            </div>
           </div>
-          <div>
-            <p className="text-xs font-bold text-emerald-400 mb-0.5">AI Extraction</p>
-            <p className="text-[11px] text-slate-500 leading-relaxed">
-              Upload a DM screenshot to auto-fill campaign details in seconds.
-            </p>
+          <div className="mt-2.5 flex items-center gap-1.5">
+            <TrendingUp className="w-3 h-3 text-emerald-500" />
+            <span className="text-[10px] text-emerald-500 font-semibold">Saves ~20 min per campaign</span>
           </div>
         </div>
-        <div className="mt-2.5 flex items-center gap-1.5">
-          <TrendingUp className="w-3 h-3 text-emerald-500" />
-          <span className="text-[10px] text-emerald-500 font-semibold">Saves ~20 min per campaign</span>
+      )}
+
+      {/* Collapse Toggle */}
+      {!isMobile && toggleCollapse && (
+        <div className="px-3 pb-2 flex justify-center">
+          <button
+            onClick={toggleCollapse}
+            className="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/60 rounded-lg transition-colors"
+          >
+            {isCollapsed ? <ChevronsRight className="w-4 h-4" /> : <ChevronsLeft className="w-4 h-4" />}
+          </button>
         </div>
-      </div>
+      )}
 
       {/* User profile */}
-      <div className="px-3 pb-4 border-t border-slate-200 dark:border-slate-800/50 pt-3 flex-shrink-0">
-        <div className="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-white dark:bg-slate-800/40 mb-2 border border-slate-200 dark:border-slate-700/25 hover:border-slate-300 dark:hover:border-slate-600/40 transition-all shadow-sm dark:shadow-none">
-          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center flex-shrink-0 shadow-md shadow-emerald-500/20 ring-2 ring-emerald-500/20">
-            <span className="text-xs font-bold text-white">{userInitials}</span>
+      <div className={`pb-4 border-t border-slate-200 dark:border-slate-800/50 pt-3 flex-shrink-0 transition-all duration-300 ${isCollapsed ? 'px-2' : 'px-3'}`}>
+        {!isCollapsed ? (
+          <div className="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-white dark:bg-slate-800/40 mb-2 border border-slate-200 dark:border-slate-700/25 hover:border-slate-300 dark:hover:border-slate-600/40 transition-all shadow-sm dark:shadow-none">
+            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center flex-shrink-0 shadow-md shadow-emerald-500/20 ring-2 ring-emerald-500/20">
+              <span className="text-xs font-bold text-white">{userInitials}</span>
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-xs font-semibold text-slate-900 dark:text-white truncate capitalize">{userName}</p>
+              <p className="text-[11px] text-slate-500 truncate">{user?.email}</p>
+            </div>
           </div>
-          <div className="min-w-0 flex-1">
-            <p className="text-xs font-semibold text-slate-900 dark:text-white truncate capitalize">{userName}</p>
-            <p className="text-[11px] text-slate-500 truncate">{user?.email}</p>
+        ) : (
+          <div className="flex justify-center mb-2">
+            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center flex-shrink-0 shadow-md shadow-emerald-500/20 ring-2 ring-emerald-500/20">
+              <span className="text-sm font-bold text-white">{userInitials}</span>
+            </div>
           </div>
-        </div>
+        )}
         <button
           id="sign-out-btn"
           onClick={handleSignOut}
-          className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm text-slate-500 dark:text-slate-500 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-500/8 transition-all duration-200 group"
+          title={isCollapsed ? "Sign out" : undefined}
+          className={`w-full flex items-center text-slate-500 dark:text-slate-500 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-500/8 transition-all duration-200 group ${isCollapsed ? 'justify-center p-2 rounded-lg' : 'gap-2.5 px-3 py-2 rounded-xl text-sm'}`}
         >
-          <LogOut className="w-3.5 h-3.5 group-hover:scale-110 transition-transform" />
-          <span>Sign out</span>
+          <LogOut className="w-4 h-4 flex-shrink-0 group-hover:scale-110 transition-transform" />
+          {!isCollapsed && <span className="whitespace-nowrap">Sign out</span>}
         </button>
       </div>
     </div>
@@ -303,8 +338,8 @@ export default function DashboardLayout({ children, onNewCampaign }: DashboardLa
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex">
 
       {/* ── Desktop Sidebar ── */}
-      <aside className={`hidden lg:flex w-60 bg-white dark:bg-slate-900/95 border-r border-slate-200 dark:border-slate-800/50 flex-col flex-shrink-0 fixed h-full z-20 backdrop-blur-xl transition-transform duration-300 ease-in-out ${desktopSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
-        <SidebarContent isMobile={false} />
+      <aside className={`hidden lg:flex flex-col bg-white dark:bg-slate-900/95 border-r border-slate-200 dark:border-slate-800/50 flex-shrink-0 fixed h-full z-20 backdrop-blur-xl transition-all duration-300 ease-in-out ${desktopSidebarOpen ? 'w-60' : 'w-[72px]'}`}>
+        <SidebarContent isMobile={false} isCollapsed={!desktopSidebarOpen} toggleCollapse={() => setDesktopSidebarOpen(!desktopSidebarOpen)} />
       </aside>
 
       {/* ── Mobile Sidebar Overlay ── */}
@@ -333,22 +368,16 @@ export default function DashboardLayout({ children, onNewCampaign }: DashboardLa
       )}
 
       {/* ── Main Content ── */}
-      <div className={`flex-1 flex flex-col min-w-0 transition-all duration-300 ease-in-out ${desktopSidebarOpen ? 'lg:ml-60' : 'lg:ml-0'}`}>
+      <div className={`flex-1 flex flex-col min-w-0 transition-all duration-300 ease-in-out ${desktopSidebarOpen ? 'lg:ml-60' : 'lg:ml-[72px]'}`}>
 
         {/* ── Top Header ── */}
         <header className="sticky top-0 z-10 h-14 bg-white/90 dark:bg-slate-950/90 backdrop-blur-xl border-b border-slate-200 dark:border-slate-800/40 flex items-center justify-between px-4 lg:px-6 gap-3">
 
-          {/* Toggle menu button (Mobile & Desktop) */}
+          {/* Mobile menu button */}
           <button
-            onClick={() => {
-              if (window.innerWidth >= 1024) {
-                setDesktopSidebarOpen(!desktopSidebarOpen);
-              } else {
-                setMobileSidebarOpen(true);
-              }
-            }}
-            className="p-2 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors flex-shrink-0"
-            aria-label="Toggle menu"
+            onClick={() => setMobileSidebarOpen(true)}
+            className="lg:hidden p-2 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors flex-shrink-0"
+            aria-label="Open menu"
           >
             <Menu className="w-5 h-5" />
           </button>
