@@ -83,7 +83,8 @@ export default function DashboardLayout({ children, onNewCampaign }: DashboardLa
   const [user, setUser]                     = useState<User | null>(null);
   const [subscription, setSubscription]     = useState<Subscription | null>(null);
   const [customUsername, setCustomUsername] = useState<string | null>(null);
-  const [sidebarOpen, setSidebarOpen]       = useState(false);
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  const [desktopSidebarOpen, setDesktopSidebarOpen] = useState(true);
   const [loading, setLoading]               = useState(true);
   const [mounted, setMounted]               = useState(false);
   const sidebarRef                          = useRef<HTMLElement>(null);
@@ -131,7 +132,7 @@ export default function DashboardLayout({ children, onNewCampaign }: DashboardLa
 
   /* ── Close sidebar on Escape ── */
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setSidebarOpen(false); };
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setMobileSidebarOpen(false); };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
   }, []);
@@ -217,7 +218,7 @@ export default function DashboardLayout({ children, onNewCampaign }: DashboardLa
         <div className="px-3 pt-4 pb-1 flex-shrink-0">
           <button
             id="new-campaign-btn"
-            onClick={() => { onNewCampaign(); setSidebarOpen(false); }}
+            onClick={() => { onNewCampaign(); if(isMobile) setMobileSidebarOpen(false); }}
             className="
               w-full flex items-center justify-center gap-2
               bg-gradient-to-r from-emerald-500 to-teal-500
@@ -247,7 +248,7 @@ export default function DashboardLayout({ children, onNewCampaign }: DashboardLa
             disabled={disabled}
             soon={soon}
             isActive={pathname === href || (href !== '/dashboard' && pathname.startsWith(href))}
-            onClick={() => setSidebarOpen(false)}
+            onClick={() => isMobile && setMobileSidebarOpen(false)}
             id={`tour-nav-${href.replace(/\//g, '') || 'dashboard'}-${isMobile ? 'mobile' : 'desktop'}`}
           />
         ))}
@@ -302,17 +303,17 @@ export default function DashboardLayout({ children, onNewCampaign }: DashboardLa
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex">
 
       {/* ── Desktop Sidebar ── */}
-      <aside className="hidden lg:flex w-60 bg-white dark:bg-slate-900/95 border-r border-slate-200 dark:border-slate-800/50 flex-col flex-shrink-0 fixed h-full z-20 backdrop-blur-xl">
+      <aside className={`hidden lg:flex w-60 bg-white dark:bg-slate-900/95 border-r border-slate-200 dark:border-slate-800/50 flex-col flex-shrink-0 fixed h-full z-20 backdrop-blur-xl transition-transform duration-300 ease-in-out ${desktopSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
         <SidebarContent isMobile={false} />
       </aside>
 
       {/* ── Mobile Sidebar Overlay ── */}
-      {sidebarOpen && (
+      {mobileSidebarOpen && (
         <div className="lg:hidden fixed inset-0 z-40 animate-fade-in">
           {/* Backdrop */}
           <div
             className="absolute inset-0 bg-slate-900/60 dark:bg-black/70 backdrop-blur-sm"
-            onClick={() => setSidebarOpen(false)}
+            onClick={() => setMobileSidebarOpen(false)}
           />
           {/* Drawer */}
           <aside
@@ -320,7 +321,7 @@ export default function DashboardLayout({ children, onNewCampaign }: DashboardLa
             className="absolute left-0 top-0 bottom-0 w-72 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800/60 flex flex-col z-50 animate-slide-in-left shadow-2xl shadow-slate-900/10 dark:shadow-slate-900/50"
           >
             <button
-              onClick={() => setSidebarOpen(false)}
+              onClick={() => setMobileSidebarOpen(false)}
               className="absolute right-3 top-3 p-1.5 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-all z-10"
               aria-label="Close sidebar"
             >
@@ -332,16 +333,22 @@ export default function DashboardLayout({ children, onNewCampaign }: DashboardLa
       )}
 
       {/* ── Main Content ── */}
-      <div className="flex-1 flex flex-col lg:ml-60 min-w-0">
+      <div className={`flex-1 flex flex-col min-w-0 transition-all duration-300 ease-in-out ${desktopSidebarOpen ? 'lg:ml-60' : 'lg:ml-0'}`}>
 
         {/* ── Top Header ── */}
         <header className="sticky top-0 z-10 h-14 bg-white/90 dark:bg-slate-950/90 backdrop-blur-xl border-b border-slate-200 dark:border-slate-800/40 flex items-center justify-between px-4 lg:px-6 gap-3">
 
-          {/* Mobile menu button */}
+          {/* Toggle menu button (Mobile & Desktop) */}
           <button
-            onClick={() => setSidebarOpen(true)}
-            className="lg:hidden p-2 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors flex-shrink-0"
-            aria-label="Open menu"
+            onClick={() => {
+              if (window.innerWidth >= 1024) {
+                setDesktopSidebarOpen(!desktopSidebarOpen);
+              } else {
+                setMobileSidebarOpen(true);
+              }
+            }}
+            className="p-2 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors flex-shrink-0"
+            aria-label="Toggle menu"
           >
             <Menu className="w-5 h-5" />
           </button>
@@ -408,7 +415,11 @@ export default function DashboardLayout({ children, onNewCampaign }: DashboardLa
         </main>
       </div>
 
-      <OnboardingTour setSidebarOpen={setSidebarOpen} />
+      <OnboardingTour 
+        setMobileSidebarOpen={setMobileSidebarOpen} 
+        setDesktopSidebarOpen={setDesktopSidebarOpen} 
+        desktopSidebarOpen={desktopSidebarOpen} 
+      />
     </div>
   );
 }

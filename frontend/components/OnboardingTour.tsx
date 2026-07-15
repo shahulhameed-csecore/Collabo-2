@@ -8,14 +8,16 @@ import { usePathname } from 'next/navigation';
 import { ArrowRight, ArrowLeft, Check, Sparkles, X } from 'lucide-react';
 
 interface OnboardingTourProps {
-  setSidebarOpen: (open: boolean) => void;
+  setMobileSidebarOpen: (open: boolean) => void;
+  setDesktopSidebarOpen: (open: boolean) => void;
+  desktopSidebarOpen: boolean;
 }
 
 interface CustomStep extends Step {
   requiresSidebar?: boolean;
 }
 
-export default function OnboardingTour({ setSidebarOpen }: OnboardingTourProps) {
+export default function OnboardingTour({ setMobileSidebarOpen, setDesktopSidebarOpen, desktopSidebarOpen }: OnboardingTourProps) {
   const [run, setRun] = useState(false);
   const [stepIndex, setStepIndex] = useState(0);
   const [userId, setUserId] = useState<string | null>(null);
@@ -117,7 +119,7 @@ export default function OnboardingTour({ setSidebarOpen }: OnboardingTourProps) 
         localStorage.setItem(`collabo_tour_completed_${userId}`, 'true');
       }
       setRun(false);
-      setSidebarOpen(false);
+      setMobileSidebarOpen(false);
       return;
     }
 
@@ -126,7 +128,7 @@ export default function OnboardingTour({ setSidebarOpen }: OnboardingTourProps) 
       
       if (newIndex >= steps.length || newIndex < 0) {
         setRun(false);
-        setSidebarOpen(false);
+        setMobileSidebarOpen(false);
         return;
       }
 
@@ -137,17 +139,29 @@ export default function OnboardingTour({ setSidebarOpen }: OnboardingTourProps) 
       }
 
       const nextStep = steps[newIndex];
+      const isMobile = window.innerWidth < 1024;
       
-      if (nextStep.requiresSidebar && window.innerWidth < 1024) {
-        setSidebarOpen(true);
-        setIsWaiting(true);
-        setTimeout(() => {
+      if (nextStep.requiresSidebar) {
+        if (isMobile) {
+          setMobileSidebarOpen(true);
+          setIsWaiting(true);
+          setTimeout(() => {
+            setStepIndex(newIndex);
+            setIsWaiting(false);
+          }, 300);
+        } else if (!desktopSidebarOpen) {
+          setDesktopSidebarOpen(true);
+          setIsWaiting(true);
+          setTimeout(() => {
+            setStepIndex(newIndex);
+            setIsWaiting(false);
+          }, 300);
+        } else {
           setStepIndex(newIndex);
-          setIsWaiting(false);
-        }, 300);
+        }
       } else {
-        if (window.innerWidth < 1024 && !nextStep.requiresSidebar) {
-          setSidebarOpen(false);
+        if (isMobile && !nextStep.requiresSidebar) {
+          setMobileSidebarOpen(false);
         }
         setStepIndex(newIndex);
       }
