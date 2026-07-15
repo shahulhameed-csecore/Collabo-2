@@ -763,7 +763,7 @@ async def check_deadlines_job() -> dict:
                 from app.services.notifications import create_notification
                 if user_id:
                     await create_notification(
-                        service_client=supabase,
+                        service_client=supabase_admin,
                         user_id=user_id,
                         title="Campaign Overdue",
                         message=f"Campaign for {inf_name} missed its deadline.",
