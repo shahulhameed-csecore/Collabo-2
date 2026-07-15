@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { getBillingUsage, BillingUsage, createRazorpayOrder, verifyRazorpayPayment } from '@/lib/api';
 import { CreditCard, Zap, Check, Sparkles, TrendingUp, Star, ArrowRight, Infinity } from 'lucide-react';
 import { toast } from 'sonner';
-import { createClient } from '@/utils/supabase/client';
+import { createClient } from '@/lib/supabase';
 
 import { IS_TESTING_PHASE } from '@/lib/config';
 
