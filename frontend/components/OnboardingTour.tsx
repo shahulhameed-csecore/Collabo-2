@@ -37,6 +37,11 @@ export default function OnboardingTour({ setMobileSidebarOpen, setDesktopSidebar
   useEffect(() => {
     if (!userId || pathname !== '/dashboard') return;
     
+    // Do not run the onboarding tour on mobile devices
+    if (typeof window !== 'undefined' && window.innerWidth < 1024) {
+      return;
+    }
+    
     // Check if user has already completed or skipped the tour
     const tourKey = `collabo_tour_completed_${userId}`;
     const tourCompleted = localStorage.getItem(tourKey);
