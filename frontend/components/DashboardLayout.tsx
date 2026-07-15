@@ -203,12 +203,23 @@ export default function DashboardLayout({ children, onNewCampaign }: DashboardLa
   const SidebarContent = ({ isMobile = false, isCollapsed = false, toggleCollapse }: { isMobile?: boolean, isCollapsed?: boolean, toggleCollapse?: () => void }) => (
     <div className="flex flex-col h-full overflow-hidden">
       {/* Logo row */}
-      <div className={`flex items-center gap-3 py-[18px] border-b border-slate-200 dark:border-slate-800/50 flex-shrink-0 transition-all duration-300 ${isCollapsed ? 'px-4 justify-center' : 'px-5'}`}>
+      <div className={`flex items-center gap-3 py-[18px] border-b border-slate-200 dark:border-slate-800/50 flex-shrink-0 transition-all duration-300 ${isCollapsed ? 'px-4 justify-center' : 'px-4'}`}>
         <Logo variant={isCollapsed ? 'icon' : 'full'} size={24} href="/dashboard" />
         {!isCollapsed && (
-          <div className={`flex items-center gap-1 ml-auto px-2 py-1 rounded-lg border ${isPro ? 'bg-emerald-500/8 border-emerald-500/15' : 'bg-amber-500/8 border-amber-500/15'}`}>
-            <Sparkles className={`w-2.5 h-2.5 ${isPro ? 'text-emerald-400' : 'text-amber-400'}`} />
-            <p className={`text-[9px] font-bold tracking-wide ${isPro ? 'text-emerald-400' : 'text-amber-400'}`}>{displayTier}</p>
+          <div className="flex items-center gap-1.5 ml-auto">
+            <div className={`flex items-center gap-1 px-2 py-1 rounded-lg border ${isPro ? 'bg-emerald-500/8 border-emerald-500/15' : 'bg-amber-500/8 border-amber-500/15'}`}>
+              <Sparkles className={`w-2.5 h-2.5 ${isPro ? 'text-emerald-400' : 'text-amber-400'}`} />
+              <p className={`text-[9px] font-bold tracking-wide ${isPro ? 'text-emerald-400' : 'text-amber-400'}`}>{displayTier}</p>
+            </div>
+            {!isMobile && toggleCollapse && (
+              <button
+                onClick={toggleCollapse}
+                className="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/60 rounded-lg transition-colors flex-shrink-0"
+                aria-label="Collapse sidebar"
+              >
+                <ChevronsLeft className="w-4 h-4" />
+              </button>
+            )}
           </div>
         )}
       </div>
@@ -290,14 +301,15 @@ export default function DashboardLayout({ children, onNewCampaign }: DashboardLa
         </div>
       )}
 
-      {/* Collapse Toggle */}
-      {!isMobile && toggleCollapse && (
+      {/* Collapse Toggle (Bottom) */}
+      {!isMobile && toggleCollapse && isCollapsed && (
         <div className="px-3 pb-2 flex justify-center">
           <button
             onClick={toggleCollapse}
             className="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/60 rounded-lg transition-colors"
+            aria-label="Expand sidebar"
           >
-            {isCollapsed ? <ChevronsRight className="w-4 h-4" /> : <ChevronsLeft className="w-4 h-4" />}
+            <ChevronsRight className="w-5 h-5" />
           </button>
         </div>
       )}
