@@ -29,7 +29,15 @@ export const inputCls = (highlight = false) =>
      ? 'border-amber-500/40 focus:border-amber-500/60 focus:ring-amber-500/15'
      : 'border-slate-700/50 focus:border-emerald-500/50 focus:ring-emerald-500/15'}`;
 
+import { useState, useEffect } from 'react';
+
 export function AiThinkingAnimation() {
+  const [elapsed, setElapsed] = useState(0);
+
+  useEffect(() => {
+    const timer = setInterval(() => setElapsed(e => e + 1), 1000);
+    return () => clearInterval(timer);
+  }, []);
   return (
     <div className="flex flex-col items-center justify-center py-16 gap-6 animate-fade-in">
       <div className="relative">
@@ -40,8 +48,14 @@ export function AiThinkingAnimation() {
         </div>
       </div>
       <div className="text-center">
-        <p className="text-white font-bold text-base mb-1">AI is analyzing your file</p>
-        <p className="text-slate-500 text-sm">Extracting influencer details, deliverables, deadline & payment...</p>
+        <p className="text-white font-bold text-base mb-1">Analyzing your file with AI...</p>
+        <p className="text-slate-500 text-sm h-10">
+          {elapsed < 5 
+            ? "Extracting influencer details, deliverables, deadline & payment..."
+            : elapsed < 15
+            ? "This usually takes 5-15 seconds..."
+            : "Still analyzing your screenshot. Large files may take longer."}
+        </p>
       </div>
       <div className="flex items-center gap-1.5">
         {[0, 1, 2, 3].map(i => (

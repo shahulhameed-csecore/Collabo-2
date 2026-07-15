@@ -275,9 +275,13 @@ export default function LoginPage() {
                     <button
                       onClick={handleSendCode}
                       disabled={loading}
-                      className="text-sm text-emerald-400 hover:text-emerald-300 font-medium transition-colors"
+                      className="flex items-center justify-center gap-2 mx-auto text-sm text-emerald-400 hover:text-emerald-300 font-medium transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
                     >
-                      Resend Code
+                      {loading ? (
+                        <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Sending...</>
+                      ) : (
+                        "Resend Code"
+                      )}
                     </button>
                   )}
                 </div>
