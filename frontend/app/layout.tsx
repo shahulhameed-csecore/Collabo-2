@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import { Toaster } from "sonner";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { GoogleOAuthProvider } from "@react-oauth/google";
+import { CampaignModalProvider } from "@/contexts/CampaignModalContext";
 import Script from 'next/script';
 import "./globals.css";
 
@@ -95,7 +96,9 @@ export default function RootLayout({
       <body className="min-h-full flex flex-col bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-50 transition-colors duration-200">
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
           <GoogleOAuthProvider clientId={process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || ''}>
-            {children}
+            <CampaignModalProvider>
+              {children}
+            </CampaignModalProvider>
           </GoogleOAuthProvider>
           <Toaster
             position="bottom-right"

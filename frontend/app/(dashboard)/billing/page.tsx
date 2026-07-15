@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import DashboardLayout from '@/components/DashboardLayout';
 import { getBillingUsage, BillingUsage, createRazorpayOrder, verifyRazorpayPayment } from '@/lib/api';
 import { CreditCard, Zap, Check, Sparkles, TrendingUp, Star, ArrowRight, Infinity } from 'lucide-react';
 import { toast } from 'sonner';
@@ -84,7 +83,7 @@ export default function BillingPage() {
   };
 
   return (
-    <DashboardLayout>
+    <>
       <div className="max-w-5xl mx-auto space-y-8 animate-fade-in pb-12">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
@@ -292,6 +291,6 @@ export default function BillingPage() {
           </div>
         </div>
       </div>
-    </DashboardLayout>
+    </>
   );
 }

@@ -1,10 +1,10 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import DashboardLayout from '@/components/DashboardLayout';
 import CampaignTable from '@/components/CampaignTable';
 import CreateCampaignModal from '@/components/CreateCampaignModal';
 import EditCampaignModal from '@/components/EditCampaignModal';
+import { useCampaignModal } from '@/contexts/CampaignModalContext';
 
 import { getCampaigns, computeDashboardStats, getApiErrorMessage, loadSampleDataApi } from '@/lib/api';
 
@@ -164,7 +164,7 @@ export default function DashboardPage() {
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  const { isModalOpen, openModal, closeModal } = useCampaignModal();
   const [editingCampaign, setEditingCampaign] = useState<Campaign | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isDownloading, setIsDownloading] = useState(false);
@@ -223,7 +223,7 @@ export default function DashboardPage() {
   const isFirstTime = !isLoading && campaigns.length === 0 && !error;
 
   return (
-    <DashboardLayout onNewCampaign={() => setIsModalOpen(true)}>
+    <>
       {/* ── Page header ── */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
         <div>
@@ -286,7 +286,7 @@ export default function DashboardPage() {
           </button>
           <button
             id="new-campaign-header-btn"
-            onClick={() => setIsModalOpen(true)}
+            onClick={openModal}
             className="flex items-center gap-2 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 active:scale-[0.98] text-white font-bold rounded-xl px-4 py-2.5 text-sm transition-all shadow-lg shadow-emerald-500/25 hover:shadow-emerald-500/40"
           >
             <Plus className="w-4 h-4" />
@@ -345,7 +345,7 @@ export default function DashboardPage() {
               </div>
               <button
                 id="tour-first-campaign-btn"
-                onClick={() => setIsModalOpen(true)}
+                onClick={openModal}
                 className="flex items-center gap-2 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-white font-bold rounded-xl px-5 sm:px-6 py-3 sm:py-3.5 text-sm transition-all shadow-xl shadow-emerald-500/25 active:scale-[0.98] whitespace-nowrap hover:shadow-emerald-500/40"
               >
                 <Plus className="w-4 h-4" />
@@ -413,7 +413,7 @@ export default function DashboardPage() {
             {!isLoading && campaigns.length > 0 && (
               <button
                 id="table-add-btn"
-                onClick={() => setIsModalOpen(true)}
+                onClick={openModal}
                 className="flex items-center gap-1 text-xs text-emerald-400 hover:text-emerald-300 font-semibold transition-colors hover:bg-emerald-500/10 px-2 py-1 rounded-lg"
               >
                 <Plus className="w-3.5 h-3.5" />
@@ -426,7 +426,7 @@ export default function DashboardPage() {
               campaigns={campaigns}
               isLoading={isLoading}
               onRefresh={() => fetchCampaigns(true)}
-              onCreateNew={() => setIsModalOpen(true)}
+              onCreateNew={openModal}
               onEdit={setEditingCampaign}
               onLoadSampleData={loadSampleData}
             />
@@ -565,7 +565,7 @@ export default function DashboardPage() {
       {/* Create Campaign Modal */}
       <CreateCampaignModal
         isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
+        onClose={closeModal}
         onSuccess={() => fetchCampaigns(true)}
       />
 
@@ -579,6 +579,6 @@ export default function DashboardPage() {
           setEditingCampaign(null);
         }}
       />
-    </DashboardLayout>
+    </>
   );
 }

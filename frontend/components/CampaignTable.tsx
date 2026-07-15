@@ -169,7 +169,6 @@ export default function CampaignTable({ campaigns, isLoading, onRefresh, onCreat
 
   const handleStatusChange = async (id: string, status: CampaignStatus) => {
     setUpdatingId(id);
-    setOpenMenuId(null);
     try {
       const campaign = campaigns.find(c => c.id === id);
       await updateCampaignStatus(id, { status });
@@ -190,7 +189,6 @@ export default function CampaignTable({ campaigns, isLoading, onRefresh, onCreat
   const handleDelete = async (id: string, name: string) => {
     if (!window.confirm(`Delete campaign for ${name}? This cannot be undone.`)) return;
     setDeletingId(id);
-    setOpenMenuId(null);
     try {
       await deleteCampaign(id);
       toast.success('Campaign deleted.');

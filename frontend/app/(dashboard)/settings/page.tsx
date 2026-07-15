@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import DashboardLayout from '@/components/DashboardLayout';
 import { 
   Settings, MessageSquare, Phone, AlertCircle, 
   Bell, Mail, Copy, Check, Info, ShieldCheck, Send, Smartphone, Sparkles, CreditCard, ArrowRight
@@ -202,7 +201,7 @@ export default function SettingsPage() {
   };
 
   return (
-    <DashboardLayout onNewCampaign={() => {}}>
+    <>
       <div className="max-w-6xl mx-auto pb-16 animate-fade-in px-2 sm:px-4">
         
         {/* Premium Page Header */}
@@ -641,6 +640,6 @@ export default function SettingsPage() {
         </div>
         )}
       </div>
-    </DashboardLayout>
+    </>
   );
 }

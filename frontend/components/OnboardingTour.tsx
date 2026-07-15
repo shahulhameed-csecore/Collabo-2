@@ -173,14 +173,13 @@ export default function OnboardingTour({ setMobileSidebarOpen, setDesktopSidebar
   return (
     <>
       {!isWaiting && (
+        // @ts-ignore
         <Joyride
           steps={steps}
           run={run}
           stepIndex={stepIndex}
           continuous
           scrollToFirstStep
-          disableOverlayClose
-          disableCloseOnEsc
           onEvent={handleJoyrideCallback}
           tooltipComponent={CustomTooltip}
           floaterProps={{ disableAnimation: true }}

@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import DashboardLayout from '@/components/DashboardLayout';
 import { getInfluencers, InfluencerProfile, updateInfluencerProfile, getCampaigns } from '@/lib/api';
 import type { Campaign } from '@/lib/types';
 import { toast } from 'sonner';
@@ -79,7 +78,7 @@ export default function InfluencersPage() {
   const platforms = ['All', 'Instagram', 'YouTube', 'TikTok', 'Twitter', 'X', 'LinkedIn'];
 
   return (
-    <DashboardLayout>
+    <>
       <div className="max-w-6xl mx-auto space-y-5 animate-fade-in">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -377,6 +376,6 @@ export default function InfluencersPage() {
           </div>
         </div>
       )}
-    </DashboardLayout>
+    </>
   );
 }

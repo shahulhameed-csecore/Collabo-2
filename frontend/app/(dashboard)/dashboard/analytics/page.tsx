@@ -1,6 +1,5 @@
 'use client';
 
-import DashboardLayout from '@/components/DashboardLayout';
 import { 
   BarChart3, Target, Plus, Smartphone, 
   Zap, ArrowUpRight, ArrowDownRight, Lightbulb, Calendar as CalendarIcon, MousePointerClick, Download
@@ -167,7 +166,7 @@ export default function AnalyticsPage() {
   const isEmpty = !isLoading && campaigns.length === 0;
 
   return (
-    <DashboardLayout>
+    <>
       <div className="max-w-6xl mx-auto space-y-6 animate-fade-in pb-12">
         
         {/* Header */}
@@ -313,6 +312,6 @@ export default function AnalyticsPage() {
           </>
         )}
       </div>
-    </DashboardLayout>
+    </>
   );
 }

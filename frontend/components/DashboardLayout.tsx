@@ -18,6 +18,7 @@ import { NotificationDropdown } from '@/components/NotificationDropdown';
 import { ProfileDropdown } from '@/components/ProfileDropdown';
 import { IS_TESTING_PHASE } from '@/lib/config';
 import dynamic from 'next/dynamic';
+import { useCampaignModal } from '@/contexts/CampaignModalContext';
 
 const OnboardingTour = dynamic(() => import('@/components/OnboardingTour'), { ssr: false });
 
@@ -28,7 +29,6 @@ interface Subscription {
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
-  onNewCampaign?: () => void;
 }
 
 const navItems = [
@@ -85,7 +85,7 @@ function NavLink({
 }
 
 /* ── Main Layout ─────────────────────────────────────────────────────────── */
-export default function DashboardLayout({ children, onNewCampaign }: DashboardLayoutProps) {
+export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const [user, setUser]                     = useState<User | null>(null);
   const [subscription, setSubscription]     = useState<Subscription | null>(null);
   const [customUsername, setCustomUsername] = useState<string | null>(null);
@@ -98,6 +98,7 @@ export default function DashboardLayout({ children, onNewCampaign }: DashboardLa
   const pathname                            = usePathname();
   const supabase                            = useMemo(() => createClient(), []);
   const { theme, setTheme }                 = useTheme();
+  const { openModal }                       = useCampaignModal();
 
   /* ── Auth ── */
   useEffect(() => {
@@ -233,26 +234,24 @@ export default function DashboardLayout({ children, onNewCampaign }: DashboardLa
       )}
 
       {/* New Campaign CTA */}
-      {onNewCampaign && (
-        <div className={`pt-4 pb-1 flex-shrink-0 transition-all duration-300 ${isCollapsed ? 'px-2' : 'px-3'}`}>
-          <button
-            id="new-campaign-btn"
-            onClick={() => { onNewCampaign(); if(isMobile) setMobileSidebarOpen(false); }}
-            className={`
-              w-full flex items-center justify-center gap-2
-              bg-gradient-to-r from-emerald-500 to-teal-500
-              hover:from-emerald-400 hover:to-teal-400
-              active:scale-[0.98] text-white font-bold rounded-xl
-              transition-all duration-200 shadow-lg shadow-emerald-500/25
-              hover:shadow-emerald-500/40 hover:shadow-xl glow-emerald-sm
-              ${isCollapsed ? 'py-3 aspect-square' : 'py-2.5 text-sm'}
-            `}
-          >
-            <Plus className="w-5 h-5 flex-shrink-0" />
-            {!isCollapsed && <span className="whitespace-nowrap">New Campaign</span>}
-          </button>
-        </div>
-      )}
+      <div className={`pt-4 pb-1 flex-shrink-0 transition-all duration-300 ${isCollapsed ? 'px-2' : 'px-3'}`}>
+        <button
+          id="new-campaign-btn"
+          onClick={() => { openModal(); if(isMobile) setMobileSidebarOpen(false); }}
+          className={`
+            w-full flex items-center justify-center gap-2
+            bg-gradient-to-r from-emerald-500 to-teal-500
+            hover:from-emerald-400 hover:to-teal-400
+            active:scale-[0.98] text-white font-bold rounded-xl
+            transition-all duration-200 shadow-lg shadow-emerald-500/25
+            hover:shadow-emerald-500/40 hover:shadow-xl glow-emerald-sm
+            ${isCollapsed ? 'py-3 aspect-square' : 'py-2.5 text-sm'}
+          `}
+        >
+          <Plus className="w-5 h-5 flex-shrink-0" />
+          {!isCollapsed && <span className="whitespace-nowrap">New Campaign</span>}
+        </button>
+      </div>
 
       {/* Nav */}
       <nav className={`flex-1 py-3 space-y-1 overflow-y-auto ${isCollapsed ? 'px-2' : 'px-3'}`}>
@@ -412,15 +411,13 @@ export default function DashboardLayout({ children, onNewCampaign }: DashboardLa
           <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
 
             {/* New Campaign (header shortcut on desktop) */}
-            {onNewCampaign && (
-              <button
-                onClick={onNewCampaign}
-                className="hidden sm:flex items-center gap-1.5 bg-emerald-500/10 hover:bg-emerald-500/18 border border-emerald-500/20 text-emerald-500 dark:text-emerald-400 hover:text-emerald-600 dark:hover:text-emerald-300 text-xs font-bold rounded-xl px-3 py-1.5 transition-all"
-              >
-                <Plus className="w-3.5 h-3.5" />
-                New
-              </button>
-            )}
+            <button
+              onClick={openModal}
+              className="hidden sm:flex items-center gap-1.5 bg-emerald-500/10 hover:bg-emerald-500/18 border border-emerald-500/20 text-emerald-500 dark:text-emerald-400 hover:text-emerald-600 dark:hover:text-emerald-300 text-xs font-bold rounded-xl px-3 py-1.5 transition-all"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              New
+            </button>
 
             {/* Theme Toggle */}
             <button
