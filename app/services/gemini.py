@@ -26,6 +26,40 @@ def _get_full_err_str(e: Exception) -> str:
             pass
     return err_str.lower()
 
+def detect_prompt_injection(text: str) -> bool:
+    """
+    Checks for explicit prompt injection patterns.
+    Uses multi-word phrases to avoid false positives on words like 'system' or 'ignore'.
+    """
+    if not text:
+        return False
+        
+    lower_text = text.lower()
+    suspicious_phrases = [
+        "ignore previous instructions",
+        "disregard all instructions",
+        "system prompt",
+        "you are now an",
+        "override instructions",
+        "output the preceding",
+        "print your instructions",
+        "forget previous",
+        "bypass security",
+        "new rule:"
+    ]
+    
+    # Check for direct phrase matches
+    for phrase in suspicious_phrases:
+        if phrase in lower_text:
+            logger.warning("prompt_injection_detected", phrase=phrase)
+            return True
+            
+    # Check for suspicious JSON structure injection
+    if '{"influencer_name":' in lower_text and '}' in lower_text and "ignore" in lower_text:
+        return True
+        
+    return False
+
 class ExtractionResult(BaseModel):
     influencer_name: str | None = Field(default=None, description="string or null")
     brand_name: str | None = Field(default=None, description="string or null")
@@ -237,6 +271,21 @@ async def extract_campaign_data(file_bytes: bytes, filename: str, mime_type: str
         if not contents:
             contents.append("The uploaded file was empty, unreadable, or contained no supported text/images.")
 
+        # Stage 0: Pre-flight Prompt Injection Check
+        if detect_prompt_injection(text_fallback):
+            return {
+                "influencer_name": None,
+                "brand_name": None,
+                "platform": None,
+                "deliverables": None,
+                "deadline": None,
+                "payment_amount": 0.0,
+                "special_notes": "Security Alert: Suspicious instructions detected in the uploaded file. Please upload a legitimate screenshot or text.",
+                "status": "draft",
+                "influencer_handle": "N/A",
+                "requires_human_review": True
+            }
+
         last_error = None
         for key_name, api_key in keys_to_try:
             logger.info(f"attempting_gemini_extraction_with_{key_name.lower().replace(' ', '_')}")
@@ -247,6 +296,13 @@ async def extract_campaign_data(file_bytes: bytes, filename: str, mime_type: str
                 result = await _call_gemini_with_fallback(client, contents)
                 
                 result_dict = result.model_dump()
+                
+                # Output Validation
+                if result_dict.get("payment_amount") and result_dict["payment_amount"] < 0:
+                    result_dict["payment_amount"] = 0.0
+                    
+                if result_dict.get("influencer_name") and len(result_dict["influencer_name"]) > 100:
+                    result_dict["influencer_name"] = result_dict["influencer_name"][:100]
                 
                 # Post-process to ensure requires_human_review is true if critical fields are missing
                 if not result.influencer_name or not result.deadline or not result.deliverables:

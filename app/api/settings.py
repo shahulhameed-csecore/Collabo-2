@@ -13,6 +13,7 @@ _PHONE_RE = re.compile(r"^\d{8,15}$")
 
 
 from typing import Optional
+from app.services.whatsapp import send_whatsapp_message
 
 class SettingsInput(BaseModel):
     whatsapp_number: Optional[str] = None
@@ -154,3 +155,34 @@ async def get_settings(
             "whatsapp_reminders_enabled": True,
             "telegram_username": None,
         }
+
+@router.post("/whatsapp/verify")
+async def verify_whatsapp_connection(
+    current_user: AuthenticatedUser = Depends(get_current_user),
+    client=Depends(get_user_supabase_client),
+):
+    """
+    Sends a test WhatsApp message to verify the connection.
+    """
+    user_id = current_user.user.id
+    
+    # 1. Fetch user settings
+    response = await client.table("user_settings").select("whatsapp_number").eq("user_id", user_id).execute()
+    if not response.data or not response.data[0].get("whatsapp_number"):
+        raise HTTPException(status_code=400, detail="No WhatsApp number linked. Please save your number first.")
+        
+    whatsapp_number = response.data[0]["whatsapp_number"]
+    
+    # 2. Send test message
+    test_msg = (
+        "✅ *Collabo Verification Successful*\n\n"
+        "Your WhatsApp is successfully connected to your Collabo account! "
+        "You can now forward chats, voice notes, and screenshots here to instantly extract campaign data."
+    )
+    
+    success = await send_whatsapp_message(to_number=whatsapp_number, body=test_msg)
+    
+    if not success:
+        raise HTTPException(status_code=500, detail="Failed to send verification message. Please check the number and try again.")
+        
+    return {"message": "Verification message sent successfully!", "status": "connected"}
