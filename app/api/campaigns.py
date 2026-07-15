@@ -114,7 +114,7 @@ async def get_campaigns(
     client=Depends(get_user_supabase_client),
 ):
     try:
-        response = await client.table("campaigns").select("*", count="exact").range(offset, offset + limit - 1).execute()
+        response = await client.table("campaigns").select("*", count="planned").range(offset, offset + limit - 1).execute()
         
         data = response.data if response and hasattr(response, 'data') else []
         count = response.count if response and hasattr(response, 'count') and response.count is not None else 0
