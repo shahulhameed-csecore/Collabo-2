@@ -1,76 +1,16 @@
-import asyncio
-import hmac
-import hashlib
-import structlog
-import json
-from fastapi import APIRouter, Request, HTTPException, Response, BackgroundTasks
-import sentry_sdk
-from app.core.config import settings
-from app.core.limiter import limiter
-from app.services.supabase import get_supabase_admin
-from app.services.gemini import extract_campaign_data
-from app.services.ai_manager import process_with_ai_manager, IntentType
-from app.core.parsers import parse_corrections, parse_date_string
-from app.core.formatters import format_campaign_summary_wa
-from app.services.whatsapp import send_whatsapp_message, download_whatsapp_media
+import re
 
-logger = structlog.get_logger(__name__)
+with open("app/api/whatsapp.py", "r", encoding="utf-8") as f:
+    content = f.read()
 
-router = APIRouter(prefix="/webhook", tags=["WhatsApp Webhook"])
+# Add import
+if "from app.services.ai_manager import" not in content:
+    content = content.replace(
+        "from app.services.gemini import extract_campaign_data",
+        "from app.services.gemini import extract_campaign_data\nfrom app.services.ai_manager import process_with_ai_manager, IntentType"
+    )
 
-# Maximum bytes we allow to be downloaded from WhatsApp media (16 MB)
-_MAX_MEDIA_BYTES = 16 * 1024 * 1024
-
-# Supabase service client (bypasses RLS) is lazily initialized via get_supabase_admin()
-
-
-def verify_signature(payload: bytes, signature_header: str) -> bool:
-    """
-    Validates the X-Hub-Signature-256 header sent by Meta.
-    Returns False if the secret is not configured OR signature is wrong.
-    """
-    if not settings.WHATSAPP_APP_SECRET:
-        logger.warning("WHATSAPP_APP_SECRET is not set. Rejecting webhook request.")
-        return False
-
-    if not signature_header:
-        return False
-
-    parts = signature_header.split("=", 1)
-    if len(parts) != 2 or parts[0] != "sha256":
-        return False
-
-    expected_sig = hmac.new(
-        settings.WHATSAPP_APP_SECRET.encode("utf-8"),
-        msg=payload,
-        digestmod=hashlib.sha256,
-    ).hexdigest()
-
-    is_valid = hmac.compare_digest(expected_sig, parts[1])
-    if not is_valid:
-        logger.warning(f"Signature mismatch. Expected: {expected_sig}, Got: {parts[1]}")
-    return is_valid
-
-
-@router.get("/whatsapp")
-async def verify_webhook(request: Request):
-    """
-    Required by Meta to verify the webhook URL during registration.
-    """
-    mode = request.query_params.get("hub.mode")
-    token = request.query_params.get("hub.verify_token")
-    challenge = request.query_params.get("hub.challenge")
-
-    if not mode or not token:
-        raise HTTPException(status_code=400, detail="Missing parameters")
-
-    if mode == "subscribe" and token == settings.WHATSAPP_WEBHOOK_VERIFY_TOKEN:
-        return Response(content=challenge, status_code=200)
-
-    raise HTTPException(status_code=403, detail="Verification failed")
-
-
-@sentry_sdk.trace(op="webhook", name="Process WhatsApp Message")
+new_func = '''@sentry_sdk.trace(op="webhook", name="Process WhatsApp Message")
 async def process_whatsapp_message(sender_id: str, message: dict):
     """
     Background task to process the incoming WhatsApp message.
@@ -87,7 +27,7 @@ async def process_whatsapp_message(sender_id: str, message: dict):
         message_id = message.get("id")
         if message_id:
             try:
-                safe_message_id = message_id.replace("%", "\\%").replace("_", "\\_")
+                safe_message_id = message_id.replace("%", "\\\\%").replace("_", "\\\\_")
                 existing = await (supabase_admin.table("campaigns")
                     .select("id")
                     .ilike("special_notes", f"%[wa_msg:{safe_message_id}]%")
@@ -121,7 +61,12 @@ async def process_whatsapp_message(sender_id: str, message: dict):
 
         if not user_response.data:
             unlinked_msg = (
-                ("👋 *Hi! I'm Collabo AI.*\n\n" "I noticed your WhatsApp number isn't linked to a Collabo account yet.\n\n" "To start tracking campaigns automatically:\n" "1. Go to your Collabo dashboard 👉 *Settings*.\n" "2. Save this exact number.\n\n" "Once linked, you can forward me chats or voice notes and I'll do the rest! ✨")
+                "👋 *Hi! I'm Collabo AI.*\\n\\n"
+                "I noticed your WhatsApp number isn't linked to a Collabo account yet.\\n\\n"
+                "To start tracking campaigns automatically:\\n"
+                "1. Go to your Collabo dashboard 👉 *Settings*.\\n"
+                "2. Save this exact number.\\n\\n"
+                "Once linked, you can forward me chats or voice notes and I'll do the rest! ✨"
             )
             await send_whatsapp_message(sender_id, unlinked_msg)
             return
@@ -242,7 +187,7 @@ async def process_whatsapp_message(sender_id: str, message: dict):
                 missing_str = "\\n- ".join([f.field_name for f in intent_res.missing_fields])
                 await send_whatsapp_message(sender_id, f"📝 *Draft Saved*\\n\\nI'm missing some details:\\n- {missing_str}\\n\\nWould you like to add them?")
             else:
-                await send_whatsapp_message(sender_id, "🎉 *Campaign Created Successfully!*\n\nReply with *Activate* to make it live.")
+                await send_whatsapp_message(sender_id, "🎉 *Campaign Created Successfully!*\\n\\nReply with *Activate* to make it live.")
 
         elif intent_res.intent == IntentType.UPDATE:
             if recent_campaigns.data:
@@ -255,10 +200,10 @@ async def process_whatsapp_message(sender_id: str, message: dict):
                 await send_whatsapp_message(sender_id, "❌ I couldn't find a recent campaign to update.")
 
         elif intent_res.intent == IntentType.QUERY:
-            await send_whatsapp_message(sender_id, f"📊 *Summary*\n\n{intent_res.recommendation_text or 'Here is the data.'}")
+            await send_whatsapp_message(sender_id, f"📊 *Summary*\\n\\n{intent_res.recommendation_text or 'Here is the data.'}")
 
         elif intent_res.intent == IntentType.RECOMMENDATION:
-            await send_whatsapp_message(sender_id, f"💡 *Suggestion*\n\n{intent_res.recommendation_text}")
+            await send_whatsapp_message(sender_id, f"💡 *Suggestion*\\n\\n{intent_res.recommendation_text}")
 
         else:
             await send_whatsapp_message(sender_id, intent_res.recommendation_text or "Sorry, I didn't catch that. Could you rephrase?")
@@ -266,47 +211,12 @@ async def process_whatsapp_message(sender_id: str, message: dict):
     except Exception as e:
         logger.error("WhatsApp processing error", error=str(e), exc_info=True)
         await send_whatsapp_message(sender_id, "🤖 *Oops!* My servers hit a snag. Please try again.")
+'''
 
-@router.post("/whatsapp")
-@limiter.limit("60/minute")
-async def meta_whatsapp_webhook(request: Request, background_tasks: BackgroundTasks):
-    """
-    Receives incoming WhatsApp messages via Meta Cloud API.
-    Always returns 200 OK quickly; heavy work is offloaded to a background task.
-    """
-    payload_bytes = await request.body()
-    signature_header = request.headers.get("X-Hub-Signature-256", "")
-    
-    # 1. Signature Verification
-    # If signature is wrong, we reject with 403. This stops random scanners.
-    if not verify_signature(payload_bytes, signature_header):
-        logger.warning("Meta signature validation failed - unauthorized access attempt.")
-        raise HTTPException(status_code=403, detail="Invalid signature")
+# Use regex to replace the function
+pattern = r'@sentry_sdk\.trace\(op="webhook", name="Process WhatsApp Message"\).*?async def meta_whatsapp_webhook'
+# We want to replace everything from the decorator up to (but not including) meta_whatsapp_webhook
+new_content = re.sub(pattern, new_func + '\n@router.post("/whatsapp")', content, flags=re.DOTALL)
 
-    logger.info("Webhook signature verified successfully.")
-
-    # 2. Payload parsing
-    # Meta requires a 200 OK for ALL validly signed webhooks, even if we can't parse it.
-    try:
-        data = json.loads(payload_bytes)
-    except (json.JSONDecodeError, ValueError):
-        logger.error("Received validly signed webhook, but body is invalid JSON.")
-        return Response(content="OK", status_code=200)
-
-    if data.get("object") != "whatsapp_business_account":
-        return Response(content="OK", status_code=200)
-
-    # 3. Offload processing to background task to guarantee < 3s response time
-    try:
-        for entry in data.get("entry", []):
-            for change in entry.get("changes", []):
-                value = change.get("value", {})
-                for message in value.get("messages", []):
-                    sender_id = message.get("from", "")
-                    logger.info("Queueing WhatsApp message to background", sender_id=sender_id, msg_id=message.get("id"))
-                    # Send to background task
-                    background_tasks.add_task(process_whatsapp_message, sender_id, message)
-    except Exception as e:
-        logger.error("Error queueing Meta webhook payload for processing", error=str(e))
-
-    return Response(content="OK", status_code=200)
+with open("app/api/whatsapp.py", "w", encoding="utf-8") as f:
+    f.write(new_content)

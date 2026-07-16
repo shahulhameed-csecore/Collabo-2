@@ -1,31 +1,16 @@
-import asyncio
-import structlog
-import json
-import html
-import httpx
-from pydantic import ValidationError
-import sentry_sdk
-from fastapi import APIRouter, Request, HTTPException, Response, BackgroundTasks, Header
-from app.core.config import settings
-from app.core.limiter import limiter
-from app.services.supabase import get_supabase_admin
-from app.services.gemini import extract_campaign_data
-from app.services.ai_manager import process_with_ai_manager, IntentType
-from app.services.telegram import send_telegram_message, download_telegram_media
+import re
 
-logger = structlog.get_logger(__name__)
+with open("app/api/telegram.py", "r", encoding="utf-8") as f:
+    content = f.read()
 
-router = APIRouter(prefix="/webhook", tags=["Telegram Webhook"])
+# Add import
+if "from app.services.ai_manager import" not in content:
+    content = content.replace(
+        "from app.services.gemini import extract_campaign_data",
+        "from app.services.gemini import extract_campaign_data\nfrom app.services.ai_manager import process_with_ai_manager, IntentType"
+    )
 
-# Maximum bytes we allow to be downloaded from Telegram media (16 MB)
-_MAX_MEDIA_BYTES = 16 * 1024 * 1024
-
-# Supabase service client (bypasses RLS) is lazily initialized via get_supabase_admin()
-
-from app.core.parsers import parse_date_string, parse_corrections
-from app.core.formatters import format_campaign_summary
-
-@sentry_sdk.trace(op="webhook", name="Process Telegram Message")
+new_func = '''@sentry_sdk.trace(op="webhook", name="Process Telegram Message")
 async def process_telegram_message(update: dict):
     """
     Background task to process the incoming Telegram message.
@@ -94,7 +79,12 @@ async def process_telegram_message(update: dict):
         
         if not user_id:
             unlinked_msg = (
-                ("👋 <b>Hi! I'm Collabo AI.</b>\n\n" "I noticed your Telegram account isn't linked to Collabo yet.\n\n" "To start tracking campaigns automatically:\n" f"1. Go to your dashboard 👉 <b>Settings</b>.\n" f"2. Save your username <code>{html.escape('@' + username) if username else 'YOUR_USERNAME'}</code>.\n\n" "Once linked, you can forward me chats and I'll do the rest! ✨")
+                "👋 <b>Hi! I'm Collabo AI.</b>\\n\\n"
+                "I noticed your Telegram account isn't linked to Collabo yet.\\n\\n"
+                "To start tracking campaigns automatically:\\n"
+                f"1. Go to your dashboard 👉 <b>Settings</b>.\\n"
+                f"2. Save your username <code>{html.escape('@' + username) if username else 'YOUR_USERNAME'}</code>.\\n\\n"
+                "Once linked, you can forward me chats and I'll do the rest! ✨"
             )
             await send_telegram_message(chat_id, unlinked_msg)
             return
@@ -254,10 +244,10 @@ async def process_telegram_message(update: dict):
                 await send_telegram_message(chat_id, "❌ No recent campaigns to update.")
                 
         elif intent_res.intent == IntentType.QUERY:
-            await send_telegram_message(chat_id, f"📊 <b>Summary</b>\n\n{intent_res.recommendation_text or 'Here is your data.'}")
+            await send_telegram_message(chat_id, f"📊 <b>Summary</b>\\n\\n{intent_res.recommendation_text or 'Here is your data.'}")
             
         elif intent_res.intent == IntentType.RECOMMENDATION:
-            await send_telegram_message(chat_id, f"💡 <b>Suggestion</b>\n\n{intent_res.recommendation_text}")
+            await send_telegram_message(chat_id, f"💡 <b>Suggestion</b>\\n\\n{intent_res.recommendation_text}")
             
         else:
             await send_telegram_message(chat_id, intent_res.recommendation_text or "Sorry, I didn't catch that.")
@@ -265,36 +255,11 @@ async def process_telegram_message(update: dict):
     except Exception as e:
         logger.error("Telegram processing error", error=str(e), exc_info=True)
         await send_telegram_message(chat_id, "🤖 <b>Oops!</b> My servers hit a snag.")
+'''
 
-@router.post("/telegram")
-@limiter.limit("60/minute")
-async def telegram_webhook(
-    request: Request, 
-    background_tasks: BackgroundTasks,
-    x_telegram_bot_api_secret_token: str | None = Header(default=None)
-):
-    """
-    Receives incoming Telegram messages via Webhook.
-    Always returns 200 OK quickly; heavy work is offloaded to a background task.
-    """
-    # Verify the secret token to ensure the request actually came from Telegram
-    if settings.TELEGRAM_WEBHOOK_SECRET and x_telegram_bot_api_secret_token != settings.TELEGRAM_WEBHOOK_SECRET:
-        logger.warning("Telegram secret token validation failed - unauthorized access attempt.")
-        raise HTTPException(status_code=403, detail="Invalid signature")
+# Use regex to replace the function
+pattern = r'@sentry_sdk\.trace\(op="webhook", name="Process Telegram Message"\).*?async def telegram_webhook'
+new_content = re.sub(pattern, new_func + '\n@router.post("/telegram")', content, flags=re.DOTALL)
 
-    try:
-        payload_bytes = await request.body()
-        data = json.loads(payload_bytes)
-    except (json.JSONDecodeError, ValueError):
-        logger.error("Received webhook, but body is invalid JSON.")
-        return Response(content="OK", status_code=200)
-
-    # Offload processing to background task
-    try:
-        if data.get("update_id"):
-            logger.info("Queueing Telegram update to background", update_id=data.get("update_id"))
-            background_tasks.add_task(process_telegram_message, data)
-    except Exception as e:
-        logger.error("Error queueing Telegram webhook payload for processing", error=str(e))
-
-    return Response(content="OK", status_code=200)
+with open("app/api/telegram.py", "w", encoding="utf-8") as f:
+    f.write(new_content)
