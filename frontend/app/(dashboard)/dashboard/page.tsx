@@ -6,18 +6,18 @@ import CreateCampaignModal from '@/components/CreateCampaignModal';
 import EditCampaignModal from '@/components/EditCampaignModal';
 import { useCampaignModal } from '@/contexts/CampaignModalContext';
 
-import { getCampaigns, computeDashboardStats, getApiErrorMessage, loadSampleDataApi } from '@/lib/api';
+import { getCampaigns, computeDashboardStats, computeHealthAndInsights, getApiErrorMessage, loadSampleDataApi } from '@/lib/api';
 
-import type { Campaign, DashboardStats } from '@/lib/types';
+import type { Campaign, DashboardStats, DashboardInsights, CampaignAction } from '@/lib/types';
 import {
   Plus, RefreshCw, TrendingUp, Users, Clock,
   DollarSign, AlertCircle, Calendar,
-  Zap, CheckCircle2, BarChart2,
-  FileText, Table as TableIcon, Download, ChevronDown
+  Zap, CheckCircle2, BarChart2, Check,
+  FileText, Table as TableIcon, Download, ChevronDown, HeartPulse, ShieldCheck, ArrowRight, X
 } from 'lucide-react';
 import { toast } from 'sonner';
 
-// ─── Stat Card ────────────────────────────────────────────────────────────────
+// ─── Stat Card (Campaign Overview) ────────────────────────────────────────────
 function StatCard({
   label, value, sub, icon: Icon, accent, trend, id,
 }: {
@@ -30,145 +30,80 @@ function StatCard({
   id?: string;
 }) {
   const accentMap = {
-    emerald: {
-      bg: 'bg-emerald-500/12', text: 'text-emerald-400',
-      border: 'border-emerald-500/20', hover: 'hover:border-emerald-500/35 hover:shadow-emerald-500/12',
-      iconBg: 'bg-emerald-500/12 border-emerald-500/20',
-      blob: 'bg-emerald-400/20',
-    },
-    amber: {
-      bg: 'bg-amber-500/12', text: 'text-amber-400',
-      border: 'border-amber-500/20', hover: 'hover:border-amber-500/35 hover:shadow-amber-500/12',
-      iconBg: 'bg-amber-500/12 border-amber-500/20',
-      blob: 'bg-amber-400/18',
-    },
-    rose: {
-      bg: 'bg-rose-500/12', text: 'text-rose-400',
-      border: 'border-rose-500/20', hover: 'hover:border-rose-500/35 hover:shadow-rose-500/12',
-      iconBg: 'bg-rose-500/12 border-rose-500/20',
-      blob: 'bg-rose-400/18',
-    },
-    slate: {
-      bg: 'bg-slate-700/40', text: 'text-slate-300',
-      border: 'border-slate-700/40', hover: 'hover:border-slate-600/50 hover:shadow-slate-500/8',
-      iconBg: 'bg-slate-700/40 border-slate-700/40',
-      blob: 'bg-slate-500/15',
-    },
-    blue: {
-      bg: 'bg-blue-500/12', text: 'text-blue-400',
-      border: 'border-blue-500/20', hover: 'hover:border-blue-500/35 hover:shadow-blue-500/12',
-      iconBg: 'bg-blue-500/12 border-blue-500/20',
-      blob: 'bg-blue-400/18',
-    },
+    emerald: { bg: 'bg-emerald-500/12', text: 'text-emerald-400', border: 'border-emerald-500/20', iconBg: 'bg-emerald-500/12' },
+    amber: { bg: 'bg-amber-500/12', text: 'text-amber-400', border: 'border-amber-500/20', iconBg: 'bg-amber-500/12' },
+    rose: { bg: 'bg-rose-500/12', text: 'text-rose-400', border: 'border-rose-500/20', iconBg: 'bg-rose-500/12' },
+    slate: { bg: 'bg-slate-700/40', text: 'text-slate-300', border: 'border-slate-700/40', iconBg: 'bg-slate-700/40' },
+    blue: { bg: 'bg-blue-500/12', text: 'text-blue-400', border: 'border-blue-500/20', iconBg: 'bg-blue-500/12' },
   };
   const a = accentMap[accent];
   return (
-    <div
-      id={id}
-      className={`
-        relative bg-white dark:bg-slate-900/60 border ${a.border} ${a.hover}
-        rounded-2xl p-5 overflow-hidden transition-all duration-250
-        hover:shadow-xl hover:-translate-y-0.5 group
-        shadow-sm dark:shadow-none
-      `}
-    >
-      {/* Glow blob */}
-      <div
-        className={`absolute -top-6 -right-6 w-28 h-28 ${a.blob} rounded-full blur-2xl pointer-events-none opacity-70 group-hover:opacity-100 transition-opacity duration-300`}
-      />
-
+    <div id={id} className={`flex-shrink-0 w-64 md:w-auto relative bg-slate-900/40 border ${a.border} rounded-2xl p-5`}>
       <div className="relative flex items-start justify-between gap-3">
         <div className="flex-1 min-w-0">
-          <p className="text-[10px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-3 leading-none">
-            {label}
-          </p>
+          <p className="text-[10px] font-extrabold text-slate-500 uppercase tracking-widest mb-3 leading-none">{label}</p>
           <p className={`text-2xl sm:text-3xl font-extrabold ${a.text} leading-none mb-2`}>{value}</p>
-          {sub && (
-            <p className="text-[11px] text-slate-400 dark:text-slate-600 leading-relaxed mt-1 truncate">{sub}</p>
-          )}
+          {sub && <p className="text-[11px] text-slate-500 mt-1 truncate">{sub}</p>}
           {trend && (
-            <div className={`flex items-center gap-1 mt-2.5 text-xs font-bold ${trend.positive ? 'text-emerald-500 dark:text-emerald-400' : 'text-rose-500 dark:text-rose-400'}`}>
+            <div className={`flex items-center gap-1 mt-2.5 text-xs font-bold ${trend.positive ? 'text-emerald-400' : 'text-rose-400'}`}>
               <TrendingUp className={`w-3 h-3 ${!trend.positive ? 'rotate-180' : ''}`} />
               {trend.value}
             </div>
           )}
         </div>
-        <div className={`p-2.5 sm:p-3 rounded-xl border flex-shrink-0 ${a.iconBg} group-hover:scale-110 transition-transform duration-200`}>
-          <Icon className={`w-4 h-4 sm:w-5 sm:h-5 ${a.text}`} />
+        <div className={`p-2.5 rounded-xl border ${a.border} ${a.iconBg}`}>
+          <Icon className={`w-4 h-4 ${a.text}`} />
         </div>
       </div>
     </div>
   );
 }
 
-// ─── Skeleton Stat Card ───────────────────────────────────────────────────────
-function StatCardSkeleton() {
+// ─── Mobile Campaign Card ──────────────────────────────────────────────────────
+function MobileCampaignCard({ campaign, onEdit }: { campaign: Campaign, onEdit: (c: Campaign) => void }) {
+  const deadline = campaign.deadline ? new Date(campaign.deadline) : null;
+  const overdue = deadline ? (deadline.getTime() - new Date().getTime()) / 86400000 < 0 : false;
+  
   return (
-    <div className="bg-white dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800/50 rounded-2xl p-5 shadow-sm dark:shadow-none">
-      <div className="skeleton h-2.5 w-20 rounded mb-4" />
-      <div className="skeleton h-8 w-16 rounded mb-2" />
-      <div className="skeleton h-2.5 w-24 rounded" />
-    </div>
-  );
-}
-
-// ─── Upcoming Deadline Item ───────────────────────────────────────────────────
-function DeadlineItem({ campaign }: { campaign: Campaign }) {
-  const deadline = new Date(campaign.deadline!);
-  const now = new Date();
-  const daysLeft = Math.ceil((deadline.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-  const overdue = daysLeft < 0;
-  const urgent  = daysLeft >= 0 && daysLeft <= 2;
-  const today   = daysLeft === 0;
-
-  const badgeClass = overdue
-    ? 'bg-rose-500 text-white'
-    : urgent
-    ? 'bg-rose-500/15 text-rose-400 border border-rose-500/25'
-    : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400';
-
-  return (
-    <div className={`flex items-center gap-3 p-3 rounded-xl border transition-all hover:bg-slate-50 dark:hover:bg-slate-800/30 group cursor-default ${
-      overdue ? 'border-rose-500/25 bg-rose-500/5' :
-      urgent  ? 'border-amber-500/20 bg-amber-500/4' :
-                'border-slate-200 dark:border-slate-800/40 bg-transparent'
-    }`}>
-      <div className={`flex-shrink-0 p-2 rounded-lg ${
-        overdue ? 'bg-rose-500/15' : urgent ? 'bg-amber-500/12' : 'bg-slate-100 dark:bg-slate-800/60'
-      }`}>
-        <Calendar className={`w-3.5 h-3.5 ${
-          overdue ? 'text-rose-400' : urgent ? 'text-amber-400' : 'text-slate-400'
-        }`} />
+    <div onClick={() => onEdit(campaign)} className="bg-slate-800/40 border border-slate-700/50 rounded-xl p-4 active:scale-[0.98] transition-transform">
+      <div className="flex justify-between items-start mb-2">
+        <div>
+          <h3 className="font-bold text-white text-sm">{campaign.influencer_name || campaign.influencer_handle}</h3>
+          <p className="text-xs text-slate-400">{campaign.platform || 'Unknown platform'}</p>
+        </div>
+        <div className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+          campaign.status === 'paid' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' :
+          campaign.status === 'active' ? 'bg-blue-500/10 text-blue-400 border border-blue-500/20' :
+          'bg-slate-700 text-slate-300'
+        }`}>
+          {campaign.status.toUpperCase()}
+        </div>
       </div>
-      <div className="flex-1 min-w-0">
-        <p className="text-sm font-semibold text-slate-900 dark:text-white truncate">
-          {campaign.influencer_name ?? campaign.influencer_handle}
-        </p>
-        <p className="text-xs text-slate-500 truncate">{campaign.deliverables ?? 'No deliverables set'}</p>
-      </div>
-      <div className="flex-shrink-0 text-right space-y-1">
-        <span className={`inline-block text-[10px] font-bold px-2 py-0.5 rounded-full ${badgeClass}`}>
-          {overdue ? `${Math.abs(daysLeft)}d overdue` : today ? 'Today!' : daysLeft === 1 ? 'Tomorrow' : `${daysLeft}d left`}
-        </span>
-        <p className="text-[10px] text-slate-500 text-right">
-          {deadline.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}
-        </p>
+      <div className="flex justify-between items-center mt-4">
+        <div className="text-xs">
+          <span className="text-slate-500 block mb-0.5">Payment</span>
+          <span className="font-semibold text-slate-300">₹{campaign.payment_amount.toLocaleString()}</span>
+        </div>
+        <div className="text-xs text-right">
+          <span className="text-slate-500 block mb-0.5">Deadline</span>
+          <span className={`font-semibold ${overdue ? 'text-rose-400' : 'text-slate-300'}`}>
+            {deadline ? deadline.toLocaleDateString('en-IN', { month: 'short', day: 'numeric' }) : 'None'}
+          </span>
+        </div>
       </div>
     </div>
   );
 }
 
-// ─── Main Dashboard Page ──────────────────────────────────────────────────────
 export default function DashboardPage() {
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [stats, setStats] = useState<DashboardStats | null>(null);
+  const [insights, setInsights] = useState<DashboardInsights | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const { isModalOpen, openModal, closeModal } = useCampaignModal();
   const [editingCampaign, setEditingCampaign] = useState<Campaign | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [isDownloading, setIsDownloading] = useState(false);
-  const [showDownloadMenu, setShowDownloadMenu] = useState(false);
 
   const fetchCampaigns = useCallback(async (silent = false) => {
     if (!silent) setIsLoading(true);
@@ -178,10 +113,9 @@ export default function DashboardPage() {
       const data = await getCampaigns();
       setCampaigns(data.data);
       setStats(computeDashboardStats(data.data));
+      setInsights(computeHealthAndInsights(data.data));
     } catch (err) {
-      const msg = getApiErrorMessage(err, 'Failed to load campaigns.');
-      if (!silent) setError(msg);
-      else toast.error(msg);
+      setError(getApiErrorMessage(err, 'Failed to load campaigns.'));
     } finally {
       setIsLoading(false);
       setIsRefreshing(false);
@@ -189,6 +123,27 @@ export default function DashboardPage() {
   }, []);
 
   useEffect(() => { fetchCampaigns(); }, [fetchCampaigns]);
+
+  // Derived banner text
+  let bannerText = "You're all caught up today.";
+  let bannerIcon = <CheckCircle2 className="w-5 h-5 text-emerald-400" />;
+  let bannerColor = "border-emerald-500/20 bg-emerald-500/10";
+  
+  if (insights) {
+    if (insights.criticalCount > 0) {
+      bannerText = `${insights.criticalCount} campaign${insights.criticalCount > 1 ? 's' : ''} requires immediate attention.`;
+      bannerIcon = <AlertCircle className="w-5 h-5 text-rose-400" />;
+      bannerColor = "border-rose-500/20 bg-rose-500/10";
+    } else if (insights.needsAttentionCount > 0) {
+      bannerText = `${insights.needsAttentionCount} campaign${insights.needsAttentionCount > 1 ? 's' : ''} needs attention.`;
+      bannerIcon = <Clock className="w-5 h-5 text-amber-400" />;
+      bannerColor = "border-amber-500/20 bg-amber-500/10";
+    } else if (campaigns.length === 0) {
+      bannerText = "Welcome to Collabo. Create your first campaign to get started.";
+      bannerIcon = <Zap className="w-5 h-5 text-blue-400" />;
+      bannerColor = "border-blue-500/20 bg-blue-500/10";
+    }
+  }
 
   const loadSampleData = async () => {
     try {
@@ -202,383 +157,176 @@ export default function DashboardPage() {
     }
   };
 
-  const handleDownload = async (format: 'pdf' | 'excel') => {
-    try {
-      setIsDownloading(true);
-      setShowDownloadMenu(false);
-      // Format current month as YYYY-MM
-      const now = new Date();
-      const monthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-      
-      const { downloadReport } = await import('@/lib/api');
-      await downloadReport(monthStr, format);
-      toast.success(`${format.toUpperCase()} report downloaded!`);
-    } catch (err) {
-      toast.error(getApiErrorMessage(err, 'Failed to download report'));
-    } finally {
-      setIsDownloading(false);
-    }
-  };
-
-  const isFirstTime = !isLoading && campaigns.length === 0 && !error;
-
   return (
-    <>
-      {/* ── Page header ── */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-        <div>
-          <h1 className="text-xl font-extrabold text-slate-900 dark:text-white tracking-tight">Campaign Dashboard</h1>
-          <p className="text-slate-500 dark:text-slate-500 text-sm mt-0.5">
-            {isLoading
-              ? 'Loading your campaigns...'
-              : campaigns.length === 0
-              ? 'No campaigns yet — create your first one!'
-              : `${campaigns.length} campaign${campaigns.length !== 1 ? 's' : ''} tracked`}
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          {/* Download Report Button */}
-          {!isFirstTime && (
-            <div className="relative">
-              <button
-                onClick={() => setShowDownloadMenu(!showDownloadMenu)}
-                disabled={isDownloading || isLoading}
-                className="flex items-center gap-1.5 bg-slate-800/80 hover:bg-slate-800 border border-slate-700/50 text-slate-300 hover:text-white font-semibold rounded-xl px-3.5 py-2.5 text-sm transition-all disabled:opacity-50"
-              >
-                {isDownloading ? (
-                  <RefreshCw className="w-4 h-4 animate-spin text-emerald-400" />
-                ) : (
-                  <Download className="w-4 h-4 text-emerald-400" />
-                )}
-                <span className="hidden sm:inline">Report</span>
-                <ChevronDown className="w-3.5 h-3.5 opacity-50" />
-              </button>
-              
-              {showDownloadMenu && (
-                <div className="absolute right-0 mt-2 w-48 bg-slate-800 border border-slate-700 rounded-xl shadow-xl py-1 z-50 animate-fade-in">
-                  <button
-                    onClick={() => handleDownload('pdf')}
-                    className="w-full text-left px-4 py-2.5 text-sm text-slate-300 hover:text-white hover:bg-slate-700/50 flex items-center gap-2"
-                  >
-                    <FileText className="w-4 h-4 text-rose-400" />
-                    Download PDF
-                  </button>
-                  <button
-                    onClick={() => handleDownload('excel')}
-                    className="w-full text-left px-4 py-2.5 text-sm text-slate-300 hover:text-white hover:bg-slate-700/50 flex items-center gap-2"
-                  >
-                    <TableIcon className="w-4 h-4 text-emerald-400" />
-                    Download Excel
-                  </button>
-                </div>
-              )}
-            </div>
-          )}
-          
-          <button
-            id="refresh-btn"
-            onClick={() => fetchCampaigns(true)}
-            disabled={isRefreshing || isLoading}
-            className="flex items-center gap-1.5 bg-slate-800/80 hover:bg-slate-800 border border-slate-700/50 text-slate-300 hover:text-white font-semibold rounded-xl px-3.5 py-2.5 text-sm transition-all disabled:opacity-50"
-          >
-            <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
-            <span className="hidden sm:inline">Refresh</span>
+    <div className="pb-20 md:pb-8">
+      {/* ── 1. Executive Brief Banner ── */}
+      <div className={`mb-6 p-4 rounded-2xl border flex items-center gap-3 ${bannerColor}`}>
+        {bannerIcon}
+        <h2 className="font-bold text-white text-sm">{bannerText}</h2>
+      </div>
+
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-xl font-extrabold text-white">Dashboard</h1>
+        <div className="flex gap-2">
+          <button onClick={() => fetchCampaigns(true)} className="p-2.5 bg-slate-800 rounded-xl border border-slate-700 text-slate-300">
+            <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
           </button>
-          <button
-            id="new-campaign-header-btn"
-            onClick={openModal}
-            className="flex items-center gap-2 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 active:scale-[0.98] text-white font-bold rounded-xl px-4 py-2.5 text-sm transition-all shadow-lg shadow-emerald-500/25 hover:shadow-emerald-500/40"
-          >
-            <Plus className="w-4 h-4" />
-            New Campaign
+          <button onClick={openModal} className="flex items-center gap-2 bg-emerald-500 text-white font-bold rounded-xl px-4 py-2 text-sm shadow-lg shadow-emerald-500/20">
+            <Plus className="w-4 h-4" /> New
           </button>
         </div>
       </div>
 
-      {/* ── Error state ── */}
-      {error && (
-        <div className="flex items-center gap-3 p-4 bg-rose-500/8 border border-rose-500/20 rounded-xl mb-6 animate-slide-down">
-          <AlertCircle className="w-5 h-5 text-rose-400 flex-shrink-0" />
-          <div className="flex-1">
-            <p className="text-sm font-semibold text-rose-400">{error}</p>
-            <p className="text-xs text-slate-500 mt-0.5">Check your internet connection or try refreshing.</p>
-          </div>
-          <button
-            onClick={() => fetchCampaigns()}
-            className="text-xs text-rose-400 hover:text-rose-300 font-semibold underline transition-colors"
-          >
-            Retry
+      {isLoading ? (
+        <div className="animate-pulse space-y-6">
+          <div className="h-32 bg-slate-800/50 rounded-2xl" />
+          <div className="h-32 bg-slate-800/50 rounded-2xl" />
+          <div className="h-64 bg-slate-800/50 rounded-2xl" />
+        </div>
+      ) : error ? (
+        <div className="p-4 bg-rose-500/10 border border-rose-500/20 rounded-xl text-rose-400 text-sm">
+          {error}
+        </div>
+      ) : campaigns.length === 0 ? (
+        <div className="text-center py-20 bg-slate-900/40 border border-slate-800/50 rounded-3xl">
+          <Zap className="w-12 h-12 text-slate-600 mx-auto mb-4" />
+          <h2 className="text-lg font-bold text-white mb-2">No Campaigns Yet</h2>
+          <p className="text-slate-400 text-sm mb-6 max-w-sm mx-auto">Your AI Campaign Manager is ready. Add your first campaign to see the magic.</p>
+          <button onClick={openModal} className="bg-emerald-500 text-white font-bold rounded-xl px-6 py-3 text-sm">
+            Create Campaign
           </button>
+          <button onClick={loadSampleData} className="block mx-auto mt-4 text-xs text-slate-500 underline">Load Sample Data</button>
         </div>
-      )}
-
-      {/* ── First-time welcome ── */}
-      {isFirstTime && (
-        <div className="mb-6 relative overflow-hidden rounded-3xl border border-emerald-500/20 animate-fade-in">
-          {/* Background gradient */}
-          <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/8 via-teal-500/4 to-transparent" />
-          <div className="absolute top-0 right-0 w-80 h-80 bg-emerald-500/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/4 pointer-events-none" />
-          <div className="absolute bottom-0 left-0 w-60 h-60 bg-teal-500/6 rounded-full blur-2xl translate-y-1/2 -translate-x-1/4 pointer-events-none" />
+      ) : (
+        <div className="space-y-6">
           
-          <div className="relative p-6 sm:p-8">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
-              <div className="flex items-start gap-4 sm:gap-5">
-                <div className="p-3.5 bg-gradient-to-br from-emerald-500/25 to-teal-500/15 rounded-2xl border border-emerald-500/30 flex-shrink-0 animate-float shadow-lg shadow-emerald-500/15">
-                  <Zap className="w-7 h-7 text-emerald-400" />
-                </div>
-                <div>
-                  <h2 className="text-lg sm:text-xl font-black text-slate-900 dark:text-white mb-1.5 tracking-tight">Welcome to Collabo! 👋</h2>
-                  <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed max-w-lg">
-                    Track every influencer deal in one place. Create campaigns, upload DMs,
-                    and build your ultimate creator CRM. Let's make influencer marketing effortless.
-                  </p>
-                  {/* Quick tips */}
-                  <div className="flex flex-wrap gap-2 mt-3">
-                    {['Set deadlines', 'Track payments', 'Auto-reminders'].map(tip => (
-                      <span key={tip} className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded-full">
-                        <CheckCircle2 className="w-3 h-3" />
-                        {tip}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              </div>
-              <button
-                id="tour-first-campaign-btn"
-                onClick={openModal}
-                className="flex items-center gap-2 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-white font-bold rounded-xl px-5 sm:px-6 py-3 sm:py-3.5 text-sm transition-all shadow-xl shadow-emerald-500/25 active:scale-[0.98] whitespace-nowrap hover:shadow-emerald-500/40"
-              >
-                <Plus className="w-4 h-4" />
-                Create First Campaign
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ── Stats Grid ── */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
-        {isLoading ? (
-          Array.from({ length: 4 }).map((_, i) => <StatCardSkeleton key={i} />)
-        ) : stats ? (
-          <>
-            <StatCard
-              id="stat-total"
-              label="Total Campaigns"
-              value={String(stats.total)}
-              sub={`${stats.completed} paid · ${stats.cancelled} cancelled`}
-              icon={Users}
-              accent="slate"
-            />
-            <StatCard
-              id="stat-active"
-              label="Active Now"
-              value={String(stats.active)}
-              sub={stats.upcomingDeadlines.length > 0 ? `${stats.upcomingDeadlines.length} due this week` : 'No upcoming deadlines'}
-              icon={TrendingUp}
-              accent="emerald"
-              trend={stats.active > 0 ? { value: 'In progress', positive: true } : undefined}
-            />
-            <StatCard
-              id="stat-overdue"
-              label="Overdue"
-              value={String(stats.overdue)}
-              sub={stats.overdue > 0 ? 'Action required' : 'All on track 🎉'}
-              icon={stats.overdue > 0 ? AlertCircle : CheckCircle2}
-              accent={stats.overdue > 0 ? 'rose' : 'emerald'}
-            />
-            <StatCard
-              id="stat-spend"
-              label="Pending Spend"
-              value={`₹${(stats.pendingSpend / 1000).toFixed(0)}K`}
-              sub={`₹${(stats.totalSpend / 1000).toFixed(0)}K total budget`}
-              icon={DollarSign}
-              accent="amber"
-            />
-          </>
-        ) : null}
-      </div>
-
-      {/* ── Main Content: Table + Sidebar ── */}
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-5">
-        {/* Campaign Table */}
-        <div className="xl:col-span-2 bg-slate-900/40 border border-slate-800/50 rounded-2xl overflow-hidden">
-          <div className="flex items-center justify-between px-5 py-4 border-b border-slate-800/40">
-            <div className="flex items-center gap-2">
-              <h2 className="text-sm font-bold text-white">All Campaigns</h2>
-              {!isLoading && (
-                <span className="text-xs text-slate-600 font-medium">({campaigns.length})</span>
-              )}
-            </div>
-            {!isLoading && campaigns.length > 0 && (
-              <button
-                id="table-add-btn"
-                onClick={openModal}
-                className="flex items-center gap-1 text-xs text-emerald-400 hover:text-emerald-300 font-semibold transition-colors hover:bg-emerald-500/10 px-2 py-1 rounded-lg"
-              >
-                <Plus className="w-3.5 h-3.5" />
-                Add
-              </button>
-            )}
-          </div>
-          <div className="p-4">
-            <CampaignTable
-              campaigns={campaigns}
-              isLoading={isLoading}
-              onRefresh={() => fetchCampaigns(true)}
-              onCreateNew={openModal}
-              onEdit={setEditingCampaign}
-              onLoadSampleData={loadSampleData}
-            />
-          </div>
-        </div>
-
-        {/* Sidebar Widgets */}
-        <div className="space-y-4">
-          {/* Upcoming Deadlines */}
-          <div className="bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-800/50 rounded-2xl overflow-hidden shadow-sm">
-            <div className="flex items-center gap-2 px-4 py-3.5 border-b border-slate-100 dark:border-slate-800/40">
-              <Clock className="w-4 h-4 text-amber-500 dark:text-amber-400" />
-              <h3 className="text-sm font-bold text-slate-900 dark:text-white">Upcoming Deadlines</h3>
-              {stats && stats.upcomingDeadlines.length > 0 && (
-                <span className="ml-auto text-xs font-bold bg-amber-50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-500/20 px-2 py-0.5 rounded-md">
-                  {stats.upcomingDeadlines.length}
-                </span>
-              )}
-            </div>
-            <div className="p-3 space-y-2">
-              {isLoading ? (
-                Array.from({ length: 3 }).map((_, i) => (
-                  <div key={i} className="flex items-center gap-3 p-3">
-                    <div className="skeleton w-8 h-8 rounded-lg flex-shrink-0" />
-                    <div className="flex-1 space-y-1.5">
-                      <div className="skeleton h-3 rounded w-3/4" />
-                      <div className="skeleton h-2.5 rounded w-1/2" />
+          {/* ── 2. Today's Priorities ── */}
+          {insights && insights.todayPriorities.length > 0 && (
+            <div>
+              <h2 className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-3">Today's Priorities</h2>
+              <div className="flex md:grid md:grid-cols-3 gap-4 overflow-x-auto pb-2 snap-x">
+                {insights.todayPriorities.map(p => (
+                  <div key={p.id} className="snap-start flex-shrink-0 w-72 md:w-auto bg-rose-500/5 border border-rose-500/20 rounded-2xl p-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <AlertCircle className="w-4 h-4 text-rose-400" />
+                      <span className="text-xs font-bold text-rose-400">{p.reason}</span>
                     </div>
+                    <p className="font-bold text-white text-lg mb-4">{p.influencerName}</p>
+                    <button className="w-full py-2 bg-rose-500/20 hover:bg-rose-500/30 text-rose-400 rounded-lg text-xs font-bold transition-colors">
+                      {p.actionText}
+                    </button>
                   </div>
-                ))
-              ) : stats && stats.upcomingDeadlines.length > 0 ? (
-                stats.upcomingDeadlines.map(c => (
-                  <DeadlineItem key={c.id} campaign={c} />
-                ))
-              ) : (
-                <div className="flex flex-col items-center py-10 text-center">
-                  <div className="p-3 bg-slate-50 dark:bg-slate-800/40 rounded-xl mb-3 border border-slate-100 dark:border-slate-700/30">
-                    <Calendar className="w-6 h-6 text-slate-400" />
-                  </div>
-                  <p className="text-sm text-slate-600 dark:text-slate-500 font-semibold">No deadlines this week</p>
-                  <p className="text-xs text-slate-500 dark:text-slate-600 mt-0.5">You're all clear 🎉</p>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Performance Card */}
-          {!isLoading && stats && stats.total > 0 && (
-            <div className="bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-800/50 rounded-2xl overflow-hidden shadow-sm">
-              <div className="flex items-center gap-2 px-4 py-3.5 border-b border-slate-100 dark:border-slate-800/40">
-                <BarChart2 className="w-4 h-4 text-blue-500 dark:text-blue-400" />
-                <h3 className="text-sm font-bold text-slate-900 dark:text-white">Performance</h3>
-              </div>
-              <div className="p-4 space-y-4">
-                {/* Success Rate */}
-                <div>
-                  <div className="flex justify-between items-center mb-2">
-                    <span className="text-xs text-slate-500 font-medium">Success Rate</span>
-                    <span className={`text-sm font-extrabold ${
-                      stats.successRate >= 70 ? 'text-emerald-600 dark:text-emerald-400'
-                      : stats.successRate >= 40 ? 'text-amber-600 dark:text-amber-400'
-                      : 'text-rose-600 dark:text-rose-400'}`}>
-                      {stats.successRate}%
-                    </span>
-                  </div>
-                  <div className="h-2 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
-                    <div
-                      className={`h-full rounded-full transition-all duration-700 ease-out ${
-                        stats.successRate >= 70 ? 'bg-gradient-to-r from-emerald-500 to-teal-400'
-                        : stats.successRate >= 40 ? 'bg-amber-500'
-                        : 'bg-rose-500'}`}
-                      style={{ width: `${stats.successRate}%` }}
-                    />
-                  </div>
-                </div>
-
-                {/* Status Breakdown */}
-                <div className="grid grid-cols-2 gap-2">
-                  {[
-                    { label: 'Draft',     value: campaigns.filter(c => c.status === 'draft').length,     color: 'text-amber-600 dark:text-amber-400',   dot: 'bg-amber-400' },
-                    { label: 'Active',    value: stats.active,                                            color: 'text-emerald-600 dark:text-emerald-400', dot: 'bg-emerald-400' },
-                    { label: 'In Review', value: campaigns.filter(c => c.status === 'content_received').length, color: 'text-purple-600 dark:text-purple-400', dot: 'bg-purple-400' },
-                    { label: 'Approved',  value: campaigns.filter(c => c.status === 'approved').length, color: 'text-blue-600 dark:text-blue-400', dot: 'bg-blue-400' },
-                    { label: 'Paid',      value: stats.completed,                                         color: 'text-slate-600 dark:text-slate-400',   dot: 'bg-slate-400' },
-                    { label: 'Cancelled', value: stats.cancelled,                                         color: 'text-rose-600 dark:text-rose-400',    dot: 'bg-rose-400' },
-                  ].map(({ label, value, color, dot }) => (
-                    <div key={label} className="flex items-center justify-between p-2.5 bg-slate-50 dark:bg-slate-800/30 rounded-xl border border-slate-100 dark:border-slate-700/20">
-                      <div className="flex items-center gap-1.5">
-                        <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${dot}`} />
-                        <span className="text-xs text-slate-500 dark:text-slate-500">{label}</span>
-                      </div>
-                      <span className={`text-sm font-extrabold ${color}`}>{value}</span>
-                    </div>
-                  ))}
-                </div>
-
-                {/* Average payment */}
-                {stats.avgPayment > 0 && (
-                  <div className="flex items-center justify-between p-3 bg-amber-50 dark:bg-amber-500/5 border border-amber-100 dark:border-amber-500/15 rounded-xl">
-                    <div className="flex items-center gap-2">
-                      <DollarSign className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
-                      <span className="text-xs text-slate-500 dark:text-slate-500">Avg. Payment</span>
-                    </div>
-                    <span className="text-sm font-extrabold text-amber-600 dark:text-amber-400">
-                      ₹{stats.avgPayment.toLocaleString('en-IN')}
-                    </span>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* Tips card for new users */}
-          {!isLoading && campaigns.length === 0 && (
-            <div className="bg-white dark:bg-gradient-to-br dark:from-slate-900/60 dark:to-slate-800/40 border border-slate-200 dark:border-slate-700/40 rounded-2xl p-4 shadow-sm">
-              <h3 className="text-sm font-bold text-slate-900 dark:text-white mb-3">💡 Quick Tips</h3>
-              <ul className="space-y-2.5">
-                {[
-                  'Set deadlines to track overdue campaigns instantly',
-                  'Use the status dropdown to track campaign progress',
-                  'Toggle "Launch immediately" to skip Draft and go Active',
-                ].map((tip, i) => (
-                  <li key={i} className="flex items-start gap-2.5">
-                    <span className="w-4 h-4 rounded-full bg-emerald-50 dark:bg-emerald-500/15 border border-emerald-100 dark:border-emerald-500/25 text-emerald-600 dark:text-emerald-400 text-[10px] font-bold flex items-center justify-center flex-shrink-0 mt-0.5">
-                      {i + 1}
-                    </span>
-                    <span className="text-xs text-slate-700 dark:text-slate-300 leading-relaxed font-medium">{tip}</span>
-                  </li>
                 ))}
-              </ul>
+              </div>
             </div>
           )}
+
+          {/* ── 3. Recommended Actions ── */}
+          {insights && insights.recommendedActions.length > 0 && (
+            <div>
+              <h2 className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-3">Recommended Actions</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {insights.recommendedActions.slice(0, 4).map(r => (
+                  <div key={r.id} className="flex items-center justify-between p-3.5 bg-slate-900/60 border border-slate-700/50 rounded-xl">
+                    <div>
+                      <p className="text-sm font-bold text-white">{r.influencerName}</p>
+                      <p className="text-xs text-slate-500">{r.reason}</p>
+                    </div>
+                    <button className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold rounded-lg border border-slate-700 transition-colors">
+                      {r.actionText}
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* ── 4. Mobile Campaign Cards (Hidden on Desktop) ── */}
+          <div className="md:hidden">
+            <h2 className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-3 flex justify-between">
+              Active Campaigns
+              <span className="text-slate-500">({stats?.active})</span>
+            </h2>
+            <div className="space-y-3">
+              {campaigns.filter(c => c.status !== 'cancelled').slice(0, 5).map(c => (
+                <MobileCampaignCard key={c.id} campaign={c} onEdit={setEditingCampaign} />
+              ))}
+            </div>
+          </div>
+
+          {/* ── 5. Campaign Overview (Scrollable on mobile) ── */}
+          {stats && (
+            <div>
+              <h2 className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-3">Overview</h2>
+              <div className="flex md:grid md:grid-cols-4 gap-4 overflow-x-auto pb-2 snap-x">
+                <StatCard label="Active Campaigns" value={String(stats.active)} icon={TrendingUp} accent="emerald" />
+                <StatCard label="Overdue" value={String(stats.overdue)} icon={AlertCircle} accent={stats.overdue > 0 ? 'rose' : 'slate'} />
+                <StatCard label="Pending Spend" value={`₹${(stats.pendingSpend / 1000).toFixed(0)}K`} icon={DollarSign} accent="amber" />
+                <StatCard label="Total Managed" value={String(stats.total)} icon={Users} accent="blue" />
+              </div>
+            </div>
+          )}
+
+          {/* ── 6. Campaign Table (Desktop Only) ── */}
+          <div className="hidden md:block">
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-sm font-bold text-slate-400 uppercase tracking-wider">Campaign Directory</h2>
+            </div>
+            <div className="bg-slate-900/40 border border-slate-800/50 rounded-2xl p-4">
+              <CampaignTable
+                campaigns={campaigns}
+                isLoading={isLoading}
+                onRefresh={() => fetchCampaigns(true)}
+                onCreateNew={openModal}
+                onEdit={setEditingCampaign}
+                onLoadSampleData={loadSampleData}
+              />
+            </div>
+          </div>
+
+          {/* ── 7. Founder Productivity Metrics ── */}
+          {insights && (
+            <div>
+              <h2 className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-3">Productivity ROI</h2>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                
+                <div className="bg-emerald-500/5 border border-emerald-500/20 rounded-xl p-4">
+                  <Clock className="w-5 h-5 text-emerald-400 mb-2" />
+                  <p className="text-2xl font-black text-white">{insights.productivity.estimatedTimeSavedHours}h</p>
+                  <p className="text-[10px] uppercase text-emerald-500 font-bold mt-1">Time Saved</p>
+                </div>
+                
+                <div className="bg-slate-900/60 border border-slate-700/50 rounded-xl p-4">
+                  <ShieldCheck className="w-5 h-5 text-blue-400 mb-2" />
+                  <p className="text-2xl font-black text-white">{insights.productivity.deadlinesProtected}</p>
+                  <p className="text-[10px] uppercase text-slate-500 font-bold mt-1">Deadlines Protected</p>
+                </div>
+                
+                <div className="bg-slate-900/60 border border-slate-700/50 rounded-xl p-4">
+                  <Zap className="w-5 h-5 text-amber-400 mb-2" />
+                  <p className="text-2xl font-black text-white">{insights.productivity.aiExtractions}</p>
+                  <p className="text-[10px] uppercase text-slate-500 font-bold mt-1">AI Extractions</p>
+                </div>
+
+                <div className="hidden md:block bg-slate-900/60 border border-slate-700/50 rounded-xl p-4">
+                  <Users className="w-5 h-5 text-purple-400 mb-2" />
+                  <p className="text-2xl font-black text-white">{insights.productivity.creatorFollowUpsAutomated}</p>
+                  <p className="text-[10px] uppercase text-slate-500 font-bold mt-1">Automated Follow-ups</p>
+                </div>
+
+              </div>
+              <div className="md:hidden mt-3 text-center">
+                <button className="text-xs text-slate-500 hover:text-slate-400 font-semibold underline">View More Metrics</button>
+              </div>
+            </div>
+          )}
+          
         </div>
-      </div>
+      )}
 
-      {/* Create Campaign Modal */}
-      <CreateCampaignModal
-        isOpen={isModalOpen}
-        onClose={closeModal}
-        onSuccess={() => fetchCampaigns(true)}
-      />
-
-      {/* Edit Campaign Modal */}
-      <EditCampaignModal
-        campaign={editingCampaign}
-        isOpen={!!editingCampaign}
-        onClose={() => setEditingCampaign(null)}
-        onSuccess={() => {
-          fetchCampaigns(true);
-          setEditingCampaign(null);
-        }}
-      />
-    </>
+      {/* Modals */}
+      <CreateCampaignModal isOpen={isModalOpen} onClose={closeModal} onSuccess={() => fetchCampaigns(true)} />
+      <EditCampaignModal campaign={editingCampaign} isOpen={!!editingCampaign} onClose={() => setEditingCampaign(null)} onSuccess={() => { fetchCampaigns(true); setEditingCampaign(null); }} />
+    </div>
   );
 }
