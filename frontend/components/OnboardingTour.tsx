@@ -182,7 +182,7 @@ export default function OnboardingTour({ setMobileSidebarOpen, setDesktopSidebar
           run={run}
           stepIndex={stepIndex}
           continuous
-          scrollToFirstStep
+          disableScrolling={true}
           // @ts-ignore
           callback={handleJoyrideCallback}
           tooltipComponent={CustomTooltip}
