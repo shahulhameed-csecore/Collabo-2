@@ -66,10 +66,11 @@ export default function OnboardingTour({ setMobileSidebarOpen, setDesktopSidebar
       placement: 'center',
     },
     {
-      target: '#tour-first-campaign-btn',
+      target: '#tour-new-campaign-sidebar',
       title: '1. Launch a Campaign',
       content: 'Start here. You can manually enter campaign details like influencer handles, deliverables, and deadlines.',
-      placement: 'bottom',
+      placement: 'right',
+      requiresSidebar: true,
     },
     {
       target: getTarget('tour-ai-insight'),
@@ -138,9 +139,8 @@ export default function OnboardingTour({ setMobileSidebarOpen, setDesktopSidebar
       }
 
       if (type === EVENTS.TARGET_NOT_FOUND && action !== ACTIONS.PREV) {
-        // Skip to next if target not found
-        setStepIndex(newIndex);
-        return;
+        // We do not return here so that the sidebar logic below can execute
+        // for the new skipped step, preventing a cascading failure of missing targets.
       }
 
       const nextStep = steps[newIndex];
