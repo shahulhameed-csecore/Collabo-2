@@ -236,7 +236,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
       {/* New Campaign CTA */}
       <div className={`pt-4 pb-1 flex-shrink-0 transition-all duration-300 ${isCollapsed ? 'px-2' : 'px-3'}`}>
         <button
-          id="tour-new-campaign-sidebar"
+          id={`tour-new-campaign-sidebar-${isMobile ? 'mobile' : 'desktop'}`}
           onClick={() => { openModal(); if(isMobile) setMobileSidebarOpen(false); }}
           className={`
             w-full flex items-center justify-center gap-2

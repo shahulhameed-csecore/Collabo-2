@@ -66,7 +66,7 @@ export default function OnboardingTour({ setMobileSidebarOpen, setDesktopSidebar
       placement: 'center',
     },
     {
-      target: '#tour-new-campaign-sidebar',
+      target: getTarget('tour-new-campaign-sidebar'),
       title: '1. Launch a Campaign',
       content: 'Start here. You can manually enter campaign details like influencer handles, deliverables, and deadlines.',
       placement: 'right',
