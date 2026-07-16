@@ -7,7 +7,7 @@ import {
 } from 'lucide-react';
 import Image from 'next/image';
 import { toast } from 'sonner';
-import { saveWhatsAppNumber, getWhatsAppNumber, verifyWhatsAppConnection, getApiErrorMessage, getBillingUsage, BillingUsage, createRazorpayOrder, verifyRazorpayPayment } from '@/lib/api';
+import { saveWhatsAppNumber, getWhatsAppNumber, verifyWhatsAppConnection, getApiErrorMessage, getBillingUsage, BillingUsage } from '@/lib/api';
 import { IS_TESTING_PHASE } from '@/lib/config';
 
 export default function SettingsPage() {
@@ -83,7 +83,7 @@ export default function SettingsPage() {
         whatsapp_reminders_enabled: waEnabled
       });
       setWhatsappNumber(response.whatsapp_number || '');
-      setWaVerificationStatus('none');
+      setWaVerificationStatus('not_connected');
       setLastVerifiedAt(null);
       toast.success('WhatsApp integration updated successfully!');
     } catch (error) {

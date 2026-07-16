@@ -148,32 +148,3 @@ export interface Notification {
   is_read: boolean;
   created_at: string;
 }
-
-// ─── AI Dashboard Redesign Types ──────────────────────────────────────────────
-export type HealthStatus = 'Healthy' | 'Needs Attention' | 'Critical';
-
-export interface CampaignAction {
-  id: string;
-  campaignId: string;
-  influencerName: string;
-  actionText: string;
-  priority: 'Critical' | 'Medium' | 'Low';
-  reason: string;
-}
-
-export interface DashboardInsights {
-  healthyCount: number;
-  needsAttentionCount: number;
-  criticalCount: number;
-  todayPriorities: CampaignAction[];
-  recommendedActions: CampaignAction[];
-  
-  productivity: {
-    campaignsManaged: number;
-    aiExtractions: number; // For MVP, we can estimate this or calculate based on 'magic_link_token' presence or just total campaigns since AI is default
-    deadlinesProtected: number;
-    paymentsTracked: number;
-    creatorFollowUpsAutomated: number;
-    estimatedTimeSavedHours: number;
-  };
-}
