@@ -11,7 +11,7 @@ from app.services.supabase import get_supabase_admin
 from app.services.gemini import extract_campaign_data
 from app.services.ai_manager import process_with_ai_manager, IntentType
 from app.core.parsers import parse_corrections, parse_date_string
-from app.core.formatters import format_campaign_summary_wa
+from app.core.formatters import format_grouped_campaign_summary
 from app.services.whatsapp import send_whatsapp_message, download_whatsapp_media
 
 logger = structlog.get_logger(__name__)

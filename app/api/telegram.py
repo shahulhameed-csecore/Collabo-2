@@ -23,7 +23,7 @@ _MAX_MEDIA_BYTES = 16 * 1024 * 1024
 # Supabase service client (bypasses RLS) is lazily initialized via get_supabase_admin()
 
 from app.core.parsers import parse_date_string, parse_corrections
-from app.core.formatters import format_campaign_summary
+from app.core.formatters import format_grouped_campaign_summary
 
 @sentry_sdk.trace(op="webhook", name="Process Telegram Message")
 async def process_telegram_message(update: dict):
