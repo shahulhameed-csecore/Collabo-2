@@ -153,6 +153,7 @@ async def process_telegram_message(update: dict):
         content_for_gemini = None
         if "text" in message:
             content_for_gemini = message["text"].strip()
+            await send_telegram_message(chat_id, "🤖 AI is extracting your campaign details... ⏳")
         elif "voice" in message or "audio" in message:
             media = message.get("voice") or message.get("audio")
             file_id = media.get("file_id")
@@ -230,9 +231,14 @@ async def process_telegram_message(update: dict):
                 
                 if res.data:
                     camp_id = res.data[0]["id"]
+                    summary_msg = format_campaign_summary(
+                        campaign_data, 
+                        is_review=bool(intent_res.missing_fields), 
+                        missing_fields=intent_res.missing_fields
+                    )
+                    
                     if intent_res.missing_fields:
-                        missing_str = "\n- ".join([f.field_name for f in intent_res.missing_fields])
-                        await send_telegram_message(chat_id, f"📝 <b>Draft Saved</b>\n\nI'm missing:\n- {missing_str}\n\nReply to update!")
+                        await send_telegram_message(chat_id, summary_msg)
                     else:
                         reply_markup = {
                             "inline_keyboard": [
@@ -241,7 +247,7 @@ async def process_telegram_message(update: dict):
                                  {"text": "🗑️ Delete", "callback_data": f"camp_del:{camp_id}"}]
                             ]
                         }
-                        await send_telegram_message(chat_id, "🎉 <b>Campaign Created!</b>", reply_markup=reply_markup)
+                        await send_telegram_message(chat_id, summary_msg, reply_markup=reply_markup)
 
         elif intent_res.intent == IntentType.UPDATE:
             if recent_campaigns.data:
@@ -249,7 +255,24 @@ async def process_telegram_message(update: dict):
                 updates = intent_res.campaigns[0].model_dump(exclude_none=True) if intent_res.campaigns else {}
                 if updates:
                     await supabase_admin.table("campaigns").update(updates).eq("id", target_id).execute()
-                    await send_telegram_message(chat_id, "✅ <b>Updated successfully.</b>")
+                    
+                    updated_resp = await (supabase_admin.table("campaigns")
+                        .select("*")
+                        .eq("id", target_id)
+                        .limit(1)
+                        .execute()
+                    )
+                    
+                    if updated_resp.data:
+                        fresh_campaign = updated_resp.data[0]
+                        summary_msg = format_campaign_summary(
+                            fresh_campaign, 
+                            is_review=False, 
+                            missing_fields=None
+                        )
+                        await send_telegram_message(chat_id, summary_msg)
+                    else:
+                        await send_telegram_message(chat_id, "✅ <b>Updated successfully.</b>")
             else:
                 await send_telegram_message(chat_id, "❌ No recent campaigns to update.")
                 

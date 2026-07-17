@@ -166,6 +166,7 @@ async def process_whatsapp_message(sender_id: str, message: dict):
             if not content_for_gemini:
                 await send_whatsapp_message(sender_id, "🤖 Please send text, screenshots, or voice notes.")
                 return
+            await send_whatsapp_message(sender_id, "🤖 AI is extracting your campaign details... ⏳")
         elif msg_type == "audio":
             audio_id = message.get("audio", {}).get("id")
             if audio_id:
@@ -238,11 +239,12 @@ async def process_whatsapp_message(sender_id: str, message: dict):
                 
                 await supabase_admin.table("campaigns").insert(campaign_data).execute()
                 
-            if intent_res.missing_fields:
-                missing_str = "\n- ".join([f.field_name for f in intent_res.missing_fields])
-                await send_whatsapp_message(sender_id, f"📝 *Draft Saved*\n\nI'm missing some details:\n- {missing_str}\n\nWould you like to add them?")
-            else:
-                await send_whatsapp_message(sender_id, "🎉 *Campaign Created Successfully!*\n\nReply with *Activate* to make it live.")
+                summary_msg = format_campaign_summary_wa(
+                    campaign_data, 
+                    is_review=bool(intent_res.missing_fields), 
+                    missing_fields=intent_res.missing_fields
+                )
+                await send_whatsapp_message(sender_id, summary_msg)
 
         elif intent_res.intent == IntentType.UPDATE:
             if recent_campaigns.data:
@@ -250,7 +252,24 @@ async def process_whatsapp_message(sender_id: str, message: dict):
                 updates = intent_res.campaigns[0].model_dump(exclude_none=True) if intent_res.campaigns else {}
                 if updates:
                     await supabase_admin.table("campaigns").update(updates).eq("id", target_id).execute()
-                    await send_whatsapp_message(sender_id, "✅ *Details Updated successfully.*")
+                    
+                    updated_resp = await (supabase_admin.table("campaigns")
+                        .select("*")
+                        .eq("id", target_id)
+                        .limit(1)
+                        .execute()
+                    )
+                    
+                    if updated_resp.data:
+                        fresh_campaign = updated_resp.data[0]
+                        summary_msg = format_campaign_summary_wa(
+                            fresh_campaign, 
+                            is_review=False, 
+                            missing_fields=None
+                        )
+                        await send_whatsapp_message(sender_id, summary_msg)
+                    else:
+                        await send_whatsapp_message(sender_id, "✅ *Details Updated successfully.*")
             else:
                 await send_whatsapp_message(sender_id, "❌ I couldn't find a recent campaign to update.")
 

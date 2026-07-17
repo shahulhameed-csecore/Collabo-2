@@ -1,11 +1,13 @@
 import html
 
-def format_campaign_summary(campaign: dict, is_review: bool = False) -> str:
+def format_campaign_summary(campaign: dict, is_review: bool = False, missing_fields: list = None) -> str:
     """Helper to format the summary message consistently."""
     handle = campaign.get('influencer_handle') or 'N/A'
     plat = campaign.get('platform') or 'N/A'
     deliv = campaign.get('deliverables') or 'N/A'
     deadl = campaign.get('deadline') or 'N/A'
+    notes = campaign.get('special_notes') or 'None'
+    status = str(campaign.get('status', 'draft')).title()
     
     raw_pay = campaign.get('payment_amount', 0.0)
     try:
@@ -21,30 +23,42 @@ def format_campaign_summary(campaign: dict, is_review: bool = False) -> str:
         
     clean_influencer = html.escape(influencer)
     
-    prefix = "🤖 <b>Collabo AI</b>\n\n⚠️ Some details were unclear to me. I've saved this as a <b>Draft</b>.\n\n" if is_review else "🤖 <b>I've extracted the following details:</b>\n\n"
+    prefix = "🤖 <b>Collabo AI</b>\n\n⚠️ Some details were unclear to me. I've saved this as a <b>Draft</b>.\n\n" if is_review else "🤖 <b>Extraction Complete!</b>\n\nHere is your campaign summary:\n\n"
     
-    return (
+    summary = (
         f"{prefix}"
-        f"👤 <b>Name:</b> {clean_influencer}\n"
+        f"👤 <b>Creator:</b> {clean_influencer}\n"
         f"🔗 <b>Handle:</b> {html.escape(handle)}\n"
         f"📱 <b>Platform:</b> {html.escape(plat)}\n"
         f"📦 <b>Deliverables:</b> {html.escape(deliv)}\n"
         f"⏳ <b>Deadline:</b> {html.escape(deadl)}\n"
-        f"💰 <b>Payment:</b> ₹{pay:,.2f}\n\n"
-        f"───\n"
-        f"<b>Is this correct?</b>\n"
-        f"Reply <b>Yes</b> to make it Active.\n"
-        f"Reply <b>Draft</b> to save it for later.\n"
-        f"Reply <b>Delete</b> to discard this campaign.\n\n"
-        f"Or, reply with corrections (e.g., 'Payment: 15000', 'Deadline: 20 July')."
+        f"💰 <b>Payment:</b> ₹{pay:,.2f}\n"
+        f"📝 <b>Notes:</b> {html.escape(notes)}\n"
+        f"📌 <b>Status:</b> {html.escape(status)}\n\n"
     )
+    
+    if missing_fields:
+        missing_str = "\n- ".join([f.field_name for f in missing_fields])
+        summary += f"⚠️ <b>I'm missing:</b>\n- {missing_str}\n\nReply to add them or make corrections (e.g., 'Increase payment to 30k')."
+    else:
+        summary += (
+            f"───\n"
+            f"<b>Ready to proceed?</b>\n"
+            f"Reply <b>Activate</b> to make it live.\n"
+            f"Reply <b>Delete</b> to discard this campaign.\n\n"
+            f"Or, reply with corrections (e.g., 'Payment: 15000')."
+        )
+        
+    return summary
 
-def format_campaign_summary_wa(campaign: dict, is_review: bool = False) -> str:
+def format_campaign_summary_wa(campaign: dict, is_review: bool = False, missing_fields: list = None) -> str:
     """Helper to format the summary message consistently for WhatsApp using *bold* instead of HTML."""
     handle = campaign.get('influencer_handle') or 'N/A'
     plat = campaign.get('platform') or 'N/A'
     deliv = campaign.get('deliverables') or 'N/A'
     deadl = campaign.get('deadline') or 'N/A'
+    notes = campaign.get('special_notes') or 'None'
+    status = str(campaign.get('status', 'draft')).title()
     
     raw_pay = campaign.get('payment_amount', 0.0)
     try:
@@ -58,21 +72,30 @@ def format_campaign_summary_wa(campaign: dict, is_review: bool = False) -> str:
     else:
         influencer = influencer_name
         
-    # No HTML escaping needed for WhatsApp, just basic string replacement
-    prefix = "🤖 *Collabo AI*\n\n⚠️ Some details were unclear to me. I've saved this as a *Draft*.\n\n" if is_review else "🤖 *I've extracted the following details:*\n\n"
+    prefix = "🤖 *Collabo AI*\n\n⚠️ Some details were unclear to me. I've saved this as a *Draft*.\n\n" if is_review else "🤖 *Extraction Complete!*\n\nHere is your campaign summary:\n\n"
     
-    return (
+    summary = (
         f"{prefix}"
-        f"👤 *Name:* {influencer}\n"
+        f"👤 *Creator:* {influencer}\n"
         f"🔗 *Handle:* {handle}\n"
         f"📱 *Platform:* {plat}\n"
         f"📦 *Deliverables:* {deliv}\n"
         f"⏳ *Deadline:* {deadl}\n"
-        f"💰 *Payment:* ₹{pay:,.2f}\n\n"
-        f"───\n"
-        f"*Is this correct?*\n"
-        f"Reply *Yes* to make it Active.\n"
-        f"Reply *Draft* to save it for later.\n"
-        f"Reply *Delete* to discard this campaign.\n\n"
-        f"Or, reply with corrections (e.g., 'Payment: 15000', 'Deadline: 20 July')."
+        f"💰 *Payment:* ₹{pay:,.2f}\n"
+        f"📝 *Notes:* {notes}\n"
+        f"📌 *Status:* {status}\n\n"
     )
+    
+    if missing_fields:
+        missing_str = "\n- ".join([f.field_name for f in missing_fields])
+        summary += f"⚠️ *I'm missing:*\n- {missing_str}\n\nReply to add them or make corrections (e.g., 'Increase payment to 30k')."
+    else:
+        summary += (
+            f"───\n"
+            f"*Ready to proceed?*\n"
+            f"Reply *Activate* to make it live.\n"
+            f"Reply *Delete* to discard this campaign.\n\n"
+            f"Or, reply with corrections (e.g., 'Payment: 15000')."
+        )
+        
+    return summary
