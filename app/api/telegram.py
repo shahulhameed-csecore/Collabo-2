@@ -328,10 +328,21 @@ async def process_telegram_message(update: dict):
 
         elif intent_res.intent == IntentType.UPDATE:
             updated_campaigns = []
+            valid_ids = [rc["id"] for rc in (recent_campaigns.data or [])]
+            
             for c in intent_res.campaigns:
                 target_id = c.id
-                if not target_id and recent_campaigns.data:
-                    target_id = recent_campaigns.data[0]["id"]
+                
+                if target_id not in valid_ids:
+                    matched = False
+                    if target_id:
+                        for vid in valid_ids:
+                            if target_id in vid or vid in target_id:
+                                target_id = vid
+                                matched = True
+                                break
+                    if not matched and valid_ids:
+                        target_id = valid_ids[0]
                 
                 if target_id:
                     updates = c.model_dump(exclude={"id"}, exclude_none=True)
