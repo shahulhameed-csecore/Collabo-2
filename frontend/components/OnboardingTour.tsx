@@ -384,7 +384,7 @@ export default function OnboardingTour({ setMobileSidebarOpen, setDesktopSidebar
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.98, y: 5 }}
             transition={{ duration: 0.2, ease: "easeOut" }}
-            className="relative bg-white dark:bg-slate-900/95 dark:backdrop-blur-xl border border-slate-200 dark:border-slate-800 shadow-2xl rounded-2xl p-5 max-w-[340px] max-h-[280px] w-full mx-4 flex flex-col overflow-hidden"
+            className="relative bg-white dark:bg-slate-900/95 dark:backdrop-blur-xl border border-slate-200 dark:border-slate-800 shadow-2xl rounded-2xl p-5 max-w-[340px] w-full mx-4 flex flex-col overflow-hidden"
           >
             <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-emerald-500 to-teal-400" />
             
