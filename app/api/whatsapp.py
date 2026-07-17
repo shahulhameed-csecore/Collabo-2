@@ -250,6 +250,8 @@ async def process_whatsapp_message(sender_id: str, message: dict):
             saved_campaigns = []
             for c in intent_res.campaigns:
                 campaign_data = c.model_dump(exclude={"id"}, exclude_none=True)
+                brand = campaign_data.pop("brand_name", None)
+                
                 campaign_data["user_id"] = user_id
                 campaign_data["status"] = "draft"
                 if message_id:
@@ -257,9 +259,13 @@ async def process_whatsapp_message(sender_id: str, message: dict):
                 
                 resp = await supabase_admin.table("campaigns").insert(campaign_data).execute()
                 if resp.data:
-                    saved_campaigns.append(resp.data[0])
+                    saved_c = resp.data[0]
                 else:
-                    saved_campaigns.append(campaign_data)
+                    saved_c = campaign_data
+                    
+                if brand:
+                    saved_c["brand_name"] = brand
+                saved_campaigns.append(saved_c)
                 
             summary_msg = format_grouped_campaign_summary(
                 saved_campaigns, 
@@ -279,6 +285,7 @@ async def process_whatsapp_message(sender_id: str, message: dict):
                 
                 if target_id:
                     updates = c.model_dump(exclude={"id"}, exclude_none=True)
+                    brand = updates.pop("brand_name", None)
                     if updates:
                         await supabase_admin.table("campaigns").update(updates).eq("id", target_id).execute()
                         
@@ -289,7 +296,10 @@ async def process_whatsapp_message(sender_id: str, message: dict):
                             .execute()
                         )
                         if updated_resp.data:
-                            updated_campaigns.append(updated_resp.data[0])
+                            fresh_c = updated_resp.data[0]
+                            if brand:
+                                fresh_c["brand_name"] = brand
+                            updated_campaigns.append(fresh_c)
             
             if updated_campaigns:
                 summary_msg = format_grouped_campaign_summary(
