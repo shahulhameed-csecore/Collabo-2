@@ -139,10 +139,15 @@ export default function OnboardingTour({ setMobileSidebarOpen, setDesktopSidebar
     const tourKey = `collabo_tour_completed_${userId}`;
     const tourCompleted = localStorage.getItem(tourKey);
     if (!tourCompleted) {
-      const timer = setTimeout(() => {
-        setRun(true);
-      }, 1000);
-      return () => clearTimeout(timer);
+      const checkInterval = setInterval(() => {
+        const desktopEl = document.getElementById('tour-new-campaign-sidebar-desktop');
+        const mobileEl = document.getElementById('tour-new-campaign-sidebar-mobile');
+        if (desktopEl || mobileEl) {
+          clearInterval(checkInterval);
+          setRun(true);
+        }
+      }, 200);
+      return () => clearInterval(checkInterval);
     }
   }, [userId, pathname]);
 
