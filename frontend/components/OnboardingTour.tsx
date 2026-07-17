@@ -4,7 +4,10 @@ import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { usePathname, useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase';
-import { Sparkles, ArrowRight, ArrowLeft, Check, X, Plus, MessageSquare, LayoutDashboard } from 'lucide-react';
+import { 
+  Sparkles, ArrowRight, Check, Plus, MessageSquare, LayoutDashboard, 
+  Rocket, BarChart2, Calendar, Users, PartyPopper 
+} from 'lucide-react';
 import { useCampaignModal } from '@/contexts/CampaignModalContext';
 
 interface OnboardingTourProps {
@@ -17,55 +20,137 @@ type StepConfig = {
   id: string;
   targetId?: string;
   title: string;
-  content: string;
+  content: React.ReactNode;
+  icon: React.ElementType;
   requiresSidebar?: boolean;
 };
 
 const TOUR_STEPS: StepConfig[] = [
   {
     id: 'welcome',
-    title: 'Welcome to Collabo. 👋',
-    content: 'The ultimate AI-powered operating system for your influencer campaigns.',
+    title: 'Welcome to Collabo',
+    icon: Rocket,
+    content: (
+      <>
+        <p className="mb-4">Manage influencer campaigns in minutes, not spreadsheets.</p>
+        <p>Let's take a quick 45-second tour.</p>
+      </>
+    ),
   },
   {
     id: 'create-campaign',
     targetId: 'tour-new-campaign-sidebar',
     title: 'Create Campaigns',
-    content: 'Start here. You can manually create a campaign or add deliverables and deadlines in one click.',
+    icon: Rocket,
+    content: (
+      <>
+        <p className="mb-3">Start your influencer campaign with just a few clicks.</p>
+        <p className="mb-2">Add:</p>
+        <ul className="list-disc pl-4 mb-3 space-y-1">
+          <li>Deliverables</li>
+          <li>Payments</li>
+          <li>Deadlines</li>
+          <li>Creators</li>
+        </ul>
+        <p>Everything stays organized from day one.</p>
+      </>
+    ),
     requiresSidebar: true,
   },
   {
     id: 'ai-extraction',
     targetId: 'tour-ai-insight',
-    title: 'AI Extraction',
-    content: 'Upload screenshots or forward chats. Collabo automatically extracts campaign details instantly.',
+    title: 'AI Campaign Extraction',
+    icon: Sparkles,
+    content: (
+      <>
+        <p className="mb-3">Forward a WhatsApp chat, screenshot or campaign brief.</p>
+        <p className="mb-2">Collabo automatically extracts:</p>
+        <ul className="list-disc pl-4 mb-3 space-y-1">
+          <li>Deliverables</li>
+          <li>Deadlines</li>
+          <li>Payment details</li>
+          <li>Creator information</li>
+        </ul>
+        <p className="font-semibold text-emerald-600 dark:text-emerald-400">Save up to 20 minutes on every campaign.</p>
+      </>
+    ),
     requiresSidebar: true,
   },
   {
     id: 'dashboard',
     targetId: 'tour-nav-dashboard',
-    title: 'Campaign Dashboard',
-    content: 'Track campaign status, monitor payments, and keep an eye on all your upcoming deadlines.',
-    requiresSidebar: true,
-  },
-  {
-    id: 'influencers',
-    targetId: 'tour-nav-influencers',
-    title: 'Creator CRM',
-    content: 'Manage creator relationships and track their performance data all in one unified CRM.',
+    title: 'Campaign Tracking',
+    icon: BarChart2,
+    content: (
+      <>
+        <p className="mb-3">Track every campaign in real time.</p>
+        <p className="mb-2">Monitor:</p>
+        <ul className="list-disc pl-4 mb-3 space-y-1">
+          <li>Pending campaigns</li>
+          <li>Active campaigns</li>
+          <li>Payments</li>
+          <li>Deliverables</li>
+        </ul>
+        <p>Stay updated without opening multiple tools.</p>
+      </>
+    ),
     requiresSidebar: true,
   },
   {
     id: 'calendar',
     targetId: 'tour-nav-calendar',
-    title: 'Calendar & Deadlines',
-    content: 'Never miss payment or campaign deadlines with automated WhatsApp and Email reminders.',
+    title: 'Never Miss Deadlines',
+    icon: Calendar,
+    content: (
+      <>
+        <p className="mb-3">Stay on top of campaign schedules and payment due dates.</p>
+        <p>Collabo keeps everything organized automatically.</p>
+      </>
+    ),
+    requiresSidebar: true,
+  },
+  {
+    id: 'influencers',
+    targetId: 'tour-nav-influencers',
+    title: 'Creator Management',
+    icon: Users,
+    content: (
+      <>
+        <p className="mb-3">Manage all your creators in one place.</p>
+        <p className="mb-2">Track:</p>
+        <ul className="list-disc pl-4 mb-3 space-y-1">
+          <li>Creator details</li>
+          <li>Campaign history</li>
+          <li>Performance</li>
+        </ul>
+        <p>No more spreadsheets or scattered notes.</p>
+      </>
+    ),
     requiresSidebar: true,
   },
   {
     id: 'final',
-    title: "You're ready to use Collabo.",
-    content: 'Suggested next actions:',
+    title: "You're All Set!",
+    icon: PartyPopper,
+    content: (
+      <>
+        <p className="mb-4">Collabo helps brands go from receiving a creator's message to managing an entire influencer campaign in seconds.</p>
+        <p className="font-semibold text-slate-800 dark:text-slate-200 mb-2">Recommended next steps:</p>
+        <ul className="list-none space-y-2 mb-4">
+          <li className="flex items-center gap-2 text-slate-600 dark:text-slate-400">
+            <Check className="w-3.5 h-3.5 text-emerald-500" /> Create your first campaign
+          </li>
+          <li className="flex items-center gap-2 text-slate-600 dark:text-slate-400">
+            <Check className="w-3.5 h-3.5 text-emerald-500" /> Try AI Extraction
+          </li>
+          <li className="flex items-center gap-2 text-slate-600 dark:text-slate-400">
+            <Check className="w-3.5 h-3.5 text-emerald-500" /> Connect WhatsApp
+          </li>
+        </ul>
+        <p className="font-semibold text-emerald-600 dark:text-emerald-400">Let's build your first campaign.</p>
+      </>
+    ),
   }
 ];
 
@@ -75,7 +160,6 @@ export default function OnboardingTour({ setMobileSidebarOpen, setDesktopSidebar
   const [userId, setUserId] = useState<string | null>(null);
   const [targetRect, setTargetRect] = useState<DOMRect | null>(null);
   const pathname = usePathname();
-  const router = useRouter();
   const { openModal } = useCampaignModal();
 
   useEffect(() => {
@@ -188,8 +272,6 @@ export default function OnboardingTour({ setMobileSidebarOpen, setDesktopSidebar
     }
   }
 
-  const progressPercentage = (stepIndex / (TOUR_STEPS.length - 1)) * 100;
-
   return (
     <div className="fixed inset-0 z-[9999] pointer-events-auto flex items-center justify-center overflow-hidden">
       <AnimatePresence>
@@ -198,7 +280,7 @@ export default function OnboardingTour({ setMobileSidebarOpen, setDesktopSidebar
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.3 }}
+            transition={{ duration: 0.2, ease: "easeOut" }}
             className="absolute inset-0 pointer-events-none"
             style={{
               background: 'rgba(15, 23, 42, 0.4)',
@@ -208,7 +290,7 @@ export default function OnboardingTour({ setMobileSidebarOpen, setDesktopSidebar
           >
             <motion.div
               layout
-              transition={{ type: 'spring', stiffness: 200, damping: 25 }}
+              transition={{ duration: 0.2, ease: "easeOut" }}
               className="absolute bg-transparent rounded-xl pointer-events-none"
               style={{
                 top: targetRect.top - 8,
@@ -227,6 +309,7 @@ export default function OnboardingTour({ setMobileSidebarOpen, setDesktopSidebar
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
+            transition={{ duration: 0.2, ease: "easeOut" }}
             className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm pointer-events-none"
           />
         )}
@@ -236,41 +319,37 @@ export default function OnboardingTour({ setMobileSidebarOpen, setDesktopSidebar
         {isWelcome && (
           <motion.div
             key="welcome"
-            initial={{ opacity: 0, scale: 0.95, y: 10 }}
+            initial={{ opacity: 0, scale: 0.98, y: 5 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95, y: 10 }}
-            className="relative bg-white dark:bg-slate-900/90 dark:backdrop-blur-xl border border-slate-200 dark:border-slate-800 shadow-2xl rounded-3xl p-8 max-w-md w-full mx-4 overflow-hidden"
+            exit={{ opacity: 0, scale: 0.98, y: 5 }}
+            transition={{ duration: 0.2, ease: "easeOut" }}
+            className="relative bg-white dark:bg-slate-900/95 dark:backdrop-blur-xl border border-slate-200 dark:border-slate-800 shadow-2xl rounded-2xl p-6 max-w-[380px] w-full mx-4 overflow-hidden"
           >
-            <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-emerald-500 to-teal-400" />
-            <div className="absolute -top-24 -right-24 w-48 h-48 bg-emerald-500/20 rounded-full blur-3xl pointer-events-none" />
+            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-emerald-500 to-teal-400" />
             
             <div className="relative z-10 text-center">
-              <div className="w-16 h-16 bg-gradient-to-br from-emerald-400 to-teal-500 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-xl shadow-emerald-500/20 text-white">
-                <Sparkles className="w-8 h-8" />
+              <div className="w-12 h-12 bg-gradient-to-br from-emerald-400 to-teal-500 rounded-xl flex items-center justify-center mx-auto mb-5 shadow-lg shadow-emerald-500/20 text-white">
+                <currentStep.icon className="w-6 h-6" />
               </div>
               
-              <h2 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight mb-3">
+              <h2 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight mb-2">
                 {currentStep.title}
               </h2>
               
-              <p className="text-slate-600 dark:text-slate-400 font-medium mb-6 leading-relaxed">
+              <div className="text-[13px] text-slate-600 dark:text-slate-400 font-medium mb-6 leading-relaxed">
                 {currentStep.content}
-              </p>
-
-              <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-bold text-xs rounded-full border border-emerald-100 dark:border-emerald-500/20 mb-8">
-                <Check className="w-3.5 h-3.5" /> 2 minute setup
               </div>
               
-              <div className="flex flex-col gap-3">
+              <div className="flex flex-col gap-2">
                 <button
                   onClick={handleNext}
-                  className="w-full bg-slate-900 dark:bg-white text-white dark:text-slate-900 font-bold py-3.5 rounded-xl shadow-lg hover:shadow-xl active:scale-[0.98] transition-all flex items-center justify-center gap-2"
+                  className="w-full bg-slate-900 dark:bg-white text-white dark:text-slate-900 font-bold py-2.5 rounded-xl shadow-md hover:shadow-lg transition-all flex items-center justify-center text-sm"
                 >
-                  Start Tour <ArrowRight className="w-4 h-4" />
+                  Start Tour
                 </button>
                 <button
                   onClick={handleFinish}
-                  className="w-full bg-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-300 font-semibold py-3 rounded-xl transition-colors"
+                  className="w-full bg-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-300 font-semibold py-2.5 rounded-xl transition-colors text-sm"
                 >
                   Skip Tour
                 </button>
@@ -283,57 +362,48 @@ export default function OnboardingTour({ setMobileSidebarOpen, setDesktopSidebar
           <motion.div
             key={`tooltip-${stepIndex}`}
             layout
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95 }}
-            transition={{ type: 'spring', stiffness: 250, damping: 25 }}
-            className="absolute bg-white dark:bg-slate-900/95 dark:backdrop-blur-xl border border-slate-200 dark:border-slate-800 shadow-2xl rounded-2xl w-[320px] overflow-hidden"
+            initial={{ opacity: 0, scale: 0.98, y: 5 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.98, y: 5 }}
+            transition={{ duration: 0.2, ease: "easeOut" }}
+            className="absolute bg-white dark:bg-slate-900/95 dark:backdrop-blur-xl border border-slate-200 dark:border-slate-800 shadow-2xl rounded-2xl w-[350px] overflow-hidden"
             style={tooltipStyle}
           >
-            <div className="w-full h-1 bg-slate-100 dark:bg-slate-800">
-              <motion.div 
-                className="h-full bg-gradient-to-r from-emerald-500 to-teal-400"
-                initial={{ width: 0 }}
-                animate={{ width: `${progressPercentage}%` }}
-                transition={{ duration: 0.3 }}
-              />
-            </div>
-
-            <div className="p-5 relative">
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                  <Sparkles className="w-4 h-4 text-emerald-500" />
+            <div className="p-5">
+              <div className="mb-4">
+                <p className="text-[11px] font-bold text-emerald-500 dark:text-emerald-400 uppercase tracking-widest mb-1">
+                  Step {stepIndex} of {TOUR_STEPS.length - 1}
+                </p>
+                <h3 className="font-bold text-slate-900 dark:text-white flex items-center gap-2 text-base">
+                  <currentStep.icon className="w-4 h-4 text-slate-900 dark:text-white" />
                   {currentStep.title}
                 </h3>
-                <button
-                  onClick={handleFinish}
-                  className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors p-1"
-                >
-                  <X className="w-4 h-4" />
-                </button>
               </div>
               
-              <p className="text-[13px] text-slate-600 dark:text-slate-400 leading-relaxed font-medium mb-5">
+              <div className="text-[13px] text-slate-600 dark:text-slate-400 leading-relaxed font-medium mb-6">
                 {currentStep.content}
-              </p>
+              </div>
 
-              <div className="flex items-center justify-between mt-2 pt-4 border-t border-slate-100 dark:border-slate-800/60">
-                <span className="text-xs font-bold text-slate-400">
-                  {stepIndex} of {TOUR_STEPS.length - 1}
-                </span>
+              <div className="flex items-center justify-between">
+                <button
+                  onClick={handleFinish}
+                  className="text-[13px] font-semibold text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
+                >
+                  Skip Tour
+                </button>
                 
                 <div className="flex items-center gap-2">
                   <button
                     onClick={handlePrev}
-                    className="p-2 rounded-lg text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                    className="text-[13px] font-semibold text-slate-500 hover:text-slate-900 dark:hover:text-white px-3 py-1.5 rounded-lg transition-colors"
                   >
-                    <ArrowLeft className="w-4 h-4" />
+                    Previous
                   </button>
                   <button
                     onClick={handleNext}
-                    className="flex items-center gap-1.5 bg-slate-900 dark:bg-white text-white dark:text-slate-900 text-xs font-bold px-4 py-2 rounded-lg transition-all shadow-md active:scale-95"
+                    className="flex items-center gap-1 bg-slate-900 dark:bg-white text-white dark:text-slate-900 text-[13px] font-bold px-3.5 py-1.5 rounded-lg transition-all shadow-sm active:scale-95"
                   >
-                    Next <ArrowRight className="w-3 h-3" />
+                    Next <ArrowRight className="w-3.5 h-3.5" />
                   </button>
                 </div>
               </div>
@@ -344,59 +414,42 @@ export default function OnboardingTour({ setMobileSidebarOpen, setDesktopSidebar
         {isFinal && (
           <motion.div
             key="final"
-            initial={{ opacity: 0, scale: 0.95, y: 10 }}
+            initial={{ opacity: 0, scale: 0.98, y: 5 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95, y: 10 }}
-            className="relative bg-white dark:bg-slate-900/90 dark:backdrop-blur-xl border border-slate-200 dark:border-slate-800 shadow-2xl rounded-3xl p-8 max-w-md w-full mx-4 overflow-hidden"
+            exit={{ opacity: 0, scale: 0.98, y: 5 }}
+            transition={{ duration: 0.2, ease: "easeOut" }}
+            className="relative bg-white dark:bg-slate-900/95 dark:backdrop-blur-xl border border-slate-200 dark:border-slate-800 shadow-2xl rounded-2xl p-6 max-w-[380px] w-full mx-4 overflow-hidden"
           >
-            <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-emerald-500 to-teal-400" />
+            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-emerald-500 to-teal-400" />
             
             <div className="relative z-10 text-center">
-              <div className="w-16 h-16 bg-emerald-500/10 text-emerald-500 rounded-full flex items-center justify-center mx-auto mb-6 shadow-inner ring-4 ring-emerald-500/5">
-                <Check className="w-8 h-8" />
+              <div className="w-12 h-12 bg-emerald-500/10 text-emerald-500 rounded-xl flex items-center justify-center mx-auto mb-5 shadow-inner border border-emerald-500/20">
+                <currentStep.icon className="w-6 h-6" />
               </div>
               
-              <h2 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight mb-2">
+              <h2 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight mb-2">
                 {currentStep.title}
               </h2>
               
-              <p className="text-slate-500 font-medium mb-6 text-sm">
+              <div className="text-[13px] text-slate-600 dark:text-slate-400 font-medium mb-6 text-left leading-relaxed">
                 {currentStep.content}
-              </p>
-              
-              <div className="space-y-3 mb-8 text-left">
-                {[
-                  { icon: Plus, title: 'Create your first campaign', desc: 'Add deliverables and influencers manually.' },
-                  { icon: MessageSquare, title: 'Connect WhatsApp', desc: 'Forward chats to instantly extract campaign data.' },
-                  { icon: LayoutDashboard, title: 'Try AI Extraction', desc: 'Upload a screenshot on the dashboard to test it out.' },
-                ].map((item, idx) => (
-                  <div key={idx} className="flex items-start gap-3 p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700/50">
-                    <div className="p-2 bg-white dark:bg-slate-700 rounded-lg text-emerald-500 shadow-sm border border-slate-200 dark:border-slate-600">
-                      <item.icon className="w-4 h-4" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-bold text-slate-900 dark:text-white">{item.title}</p>
-                      <p className="text-[11px] text-slate-500">{item.desc}</p>
-                    </div>
-                  </div>
-                ))}
               </div>
               
-              <div className="flex flex-col gap-3">
+              <div className="flex flex-col gap-2">
                 <button
                   onClick={() => {
                     handleFinish();
                     openModal();
                   }}
-                  className="w-full bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-bold py-3.5 rounded-xl shadow-lg hover:shadow-emerald-500/25 hover:shadow-xl active:scale-[0.98] transition-all flex items-center justify-center gap-2"
+                  className="w-full bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-bold py-2.5 rounded-xl shadow-md hover:shadow-lg active:scale-[0.98] transition-all flex items-center justify-center text-sm"
                 >
-                  <Plus className="w-4 h-4" /> Create First Campaign
+                  Create Campaign
                 </button>
                 <button
                   onClick={handleFinish}
-                  className="w-full bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white hover:bg-slate-200 dark:hover:bg-slate-700 font-semibold py-3.5 rounded-xl transition-colors"
+                  className="w-full bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white hover:bg-slate-200 dark:hover:bg-slate-700 font-semibold py-2.5 rounded-xl transition-colors text-sm"
                 >
-                  Go To Dashboard
+                  Explore Dashboard
                 </button>
               </div>
             </div>
