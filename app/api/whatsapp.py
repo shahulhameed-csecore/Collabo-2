@@ -11,7 +11,7 @@ from app.services.supabase import get_supabase_admin
 from app.services.gemini import extract_campaign_data
 from app.services.ai_manager import process_with_ai_manager, IntentType
 from app.core.parsers import parse_corrections, parse_date_string
-from app.core.formatters import format_grouped_campaign_summary
+from app.core.formatters import format_grouped_campaign_summary, get_whatsapp_campaign_buttons, get_whatsapp_edit_menu, get_whatsapp_options_menu
 from app.services.whatsapp import send_whatsapp_message, download_whatsapp_media
 
 logger = structlog.get_logger(__name__)
@@ -130,7 +130,76 @@ async def process_whatsapp_message(sender_id: str, message: dict):
         msg_type = message.get("type")
 
         # 3. Stage 1: Rules Engine (Hybrid Router)
-        if msg_type == "text":
+        if msg_type == "interactive":
+            interactive = message.get("interactive", {})
+            inter_type = interactive.get("type")
+            action_id = None
+            if inter_type == "button_reply":
+                action_id = interactive.get("button_reply", {}).get("id")
+            elif inter_type == "list_reply":
+                action_id = interactive.get("list_reply", {}).get("id")
+
+            if action_id:
+                if action_id == "act_all":
+                    # Activate all ready campaigns
+                    drafts = await (supabase_admin.table("campaigns")
+                        .select("*")
+                        .eq("user_id", user_id)
+                        .eq("status", "draft")
+                        .execute()
+                    )
+                    activated = []
+                    skipped = []
+                    for draft in drafts.data:
+                        notes = draft.get("special_notes") or ""
+                        if "NEGOTIATION:" in notes:
+                            skipped.append(draft.get("influencer_name") or "Unknown")
+                        else:
+                            await supabase_admin.table("campaigns").update({"status": "active"}).eq("id", draft["id"]).execute()
+                            activated.append(draft.get("influencer_name") or "Unknown")
+                    
+                    res_msg = "✅ *Campaign Results*\n\n"
+                    if activated:
+                        res_msg += "*Activated:*\n" + "\n".join([f"- {n}" for n in activated]) + "\n\n"
+                    if skipped:
+                        res_msg += "*Skipped (Pending Negotiation):*\n" + "\n".join([f"- {n}" for n in skipped]) + "\n"
+                    if not activated and not skipped:
+                        res_msg += "No campaigns ready to activate."
+                        
+                    await send_whatsapp_message(sender_id, res_msg)
+                    return
+                elif action_id == "camp_edit":
+                    await send_whatsapp_message(sender_id, "", interactive=get_whatsapp_edit_menu())
+                    return
+                elif action_id == "opts_menu":
+                    await send_whatsapp_message(sender_id, "", interactive=get_whatsapp_options_menu())
+                    return
+                elif action_id.startswith("edit_field:"):
+                    field = action_id.split(":")[1]
+                    prompts = {
+                        "payment": "Enter the new payment amount.\n\nExamples:\n30000\n25k\n1.2L",
+                        "deadline": "Enter the new deadline.\n\nExamples:\n20 October\nTomorrow\nNext Friday",
+                        "deliverables": "Enter the deliverables.\n\nExamples:\n1 Reel\n2 Stories\n1 YT Integration",
+                        "creators": "Which creator would you like to update?",
+                        "notes": "Please enter any special notes for this campaign."
+                    }
+                    await send_whatsapp_message(sender_id, f"📝 *Edit {field.title()}*\n\n{prompts.get(field, 'Enter the new value:')}")
+                    return
+                elif action_id == "opts_pause":
+                    # Simple fallback
+                    await send_whatsapp_message(sender_id, "⏸️ Reply with 'Pause [Creator Name]' to pause a campaign.")
+                    return
+                elif action_id == "opts_delete":
+                    await send_whatsapp_message(sender_id, "🗑️ Reply with 'Delete [Creator Name]' to remove a campaign.")
+                    return
+                elif action_id == "opts_export":
+                    await send_whatsapp_message(sender_id, "📥 Export is currently only supported via the web dashboard.")
+                    return
+                elif action_id == "opts_help":
+                    await send_whatsapp_message(sender_id, "ℹ️ *Help*\n\nJust type what you want to do! Example: 'Change Rohan's deadline to Friday' or 'Increase payment to 25k'.")
+                    return
+
+        elif msg_type == "text":
             text_val = message.get("text", {}).get("body", "").strip()
             text_lower = text_val.lower()
             
@@ -274,6 +343,8 @@ async def process_whatsapp_message(sender_id: str, message: dict):
                 platform="wa"
             )
             await send_whatsapp_message(sender_id, summary_msg)
+            if not intent_res.missing_fields:
+                await send_whatsapp_message(sender_id, "", interactive=get_whatsapp_campaign_buttons(saved_campaigns))
 
         elif intent_res.intent == IntentType.UPDATE:
             updated_campaigns = []
@@ -309,6 +380,8 @@ async def process_whatsapp_message(sender_id: str, message: dict):
                     platform="wa"
                 )
                 await send_whatsapp_message(sender_id, summary_msg)
+                if not intent_res.missing_fields:
+                    await send_whatsapp_message(sender_id, "", interactive=get_whatsapp_campaign_buttons(updated_campaigns))
             else:
                 await send_whatsapp_message(sender_id, "❌ I couldn't find a recent campaign to update.")
 

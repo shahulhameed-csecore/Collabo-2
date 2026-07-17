@@ -104,9 +104,67 @@ async def process_telegram_message(update: dict):
             cb_id = cb.get("id")
             cb_data = cb.get("data", "")
             from app.services.telegram import answer_callback_query
+            from app.core.formatters import get_telegram_edit_menu, get_telegram_options_menu
             await answer_callback_query(cb_id)
 
-            if cb_data.startswith("camp_del:"):
+            if cb_data == "act_all":
+                drafts = await (supabase_admin.table("campaigns")
+                    .select("*")
+                    .eq("user_id", user_id)
+                    .eq("status", "draft")
+                    .execute()
+                )
+                activated = []
+                skipped = []
+                for draft in drafts.data:
+                    notes = draft.get("special_notes") or ""
+                    if "NEGOTIATION:" in notes:
+                        skipped.append(draft.get("influencer_name") or "Unknown")
+                    else:
+                        await supabase_admin.table("campaigns").update({"status": "active"}).eq("id", draft["id"]).execute()
+                        activated.append(draft.get("influencer_name") or "Unknown")
+                
+                res_msg = "✅ <b>Campaign Results</b>\n\n"
+                if activated:
+                    res_msg += "<b>Activated:</b>\n" + "\n".join([f"- {html.escape(n)}" for n in activated]) + "\n\n"
+                if skipped:
+                    res_msg += "<b>Skipped (Pending Negotiation):</b>\n" + "\n".join([f"- {html.escape(n)}" for n in skipped]) + "\n"
+                if not activated and not skipped:
+                    res_msg += "No campaigns ready to activate."
+                    
+                await send_telegram_message(chat_id, res_msg)
+                return
+            elif cb_data == "camp_edit":
+                await send_telegram_message(chat_id, "What would you like to edit?", reply_markup=get_telegram_edit_menu())
+                return
+            elif cb_data == "opts_menu":
+                await send_telegram_message(chat_id, "Select an action:", reply_markup=get_telegram_options_menu())
+                return
+            elif cb_data.startswith("edit_field:"):
+                field = cb_data.split(":")[1]
+                prompts = {
+                    "payment": "Enter the new payment amount.\n\nExamples:\n30000\n25k\n1.2L",
+                    "deadline": "Enter the new deadline.\n\nExamples:\n20 October\nTomorrow\nNext Friday",
+                    "deliverables": "Enter the deliverables.\n\nExamples:\n1 Reel\n2 Stories\n1 YT Integration",
+                    "creators": "Which creator would you like to update?",
+                    "notes": "Please enter any special notes for this campaign."
+                }
+                await send_telegram_message(chat_id, f"📝 <b>Edit {field.title()}</b>\n\n{prompts.get(field, 'Enter the new value:')}")
+                return
+            elif cb_data == "opts_pause":
+                await send_telegram_message(chat_id, "⏸️ Reply with 'Pause [Creator Name]' to pause a campaign.")
+                return
+            elif cb_data == "opts_delete":
+                await send_telegram_message(chat_id, "🗑️ Reply with 'Delete [Creator Name]' to remove a campaign.")
+                return
+            elif cb_data == "opts_export":
+                await send_telegram_message(chat_id, "📥 Export is currently only supported via the web dashboard.")
+                return
+            elif cb_data == "opts_help":
+                await send_telegram_message(chat_id, "ℹ️ <b>Help</b>\n\nJust type what you want to do! Example: 'Change Rohan's deadline to Friday'.")
+                return
+            # Legacy fallbacks
+            elif cb_data.startswith("camp_del:"):
                 camp_id = cb_data.split(":")[1]
                 await (supabase_admin.table("campaigns").delete().eq("id", camp_id).eq("user_id", user_id).execute())
                 await send_telegram_message(chat_id, "🗑️ <b>Campaign Deleted</b>")
@@ -262,7 +320,11 @@ async def process_telegram_message(update: dict):
                 missing_fields=intent_res.missing_fields,
                 platform="tg"
             )
-            await send_telegram_message(chat_id, summary_msg)
+            if intent_res.missing_fields:
+                await send_telegram_message(chat_id, summary_msg)
+            else:
+                from app.core.formatters import get_telegram_campaign_buttons
+                await send_telegram_message(chat_id, summary_msg, reply_markup=get_telegram_campaign_buttons(saved_campaigns))
 
         elif intent_res.intent == IntentType.UPDATE:
             updated_campaigns = []
@@ -296,7 +358,11 @@ async def process_telegram_message(update: dict):
                     missing_fields=intent_res.missing_fields,
                     platform="tg"
                 )
-                await send_telegram_message(chat_id, summary_msg)
+                if intent_res.missing_fields:
+                    await send_telegram_message(chat_id, summary_msg)
+                else:
+                    from app.core.formatters import get_telegram_campaign_buttons
+                    await send_telegram_message(chat_id, summary_msg, reply_markup=get_telegram_campaign_buttons(updated_campaigns))
             else:
                 await send_telegram_message(chat_id, "❌ No recent campaigns to update.")
                 

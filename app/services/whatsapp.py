@@ -11,9 +11,10 @@ _GRAPH_API_VERSION = "v20.0"
 _DEFAULT_MAX_MEDIA_BYTES = 16 * 1024 * 1024
 
 
-async def send_whatsapp_message(to_number: str, body: str) -> bool:
+async def send_whatsapp_message(to_number: str, body: str, interactive: dict | None = None) -> bool:
     """
     Sends a WhatsApp text message using the Official Meta Cloud API.
+    If `interactive` is provided, sends an interactive message instead.
     """
     if not settings.WHATSAPP_TOKEN or not settings.WHATSAPP_PHONE_NUMBER_ID:
         logger.error("Meta WhatsApp credentials missing (WHATSAPP_TOKEN or WHATSAPP_PHONE_NUMBER_ID).")
@@ -32,9 +33,18 @@ async def send_whatsapp_message(to_number: str, body: str) -> bool:
         "messaging_product": "whatsapp",
         "recipient_type": "individual",
         "to": clean_to,
-        "type": "text",
-        "text": {"preview_url": False, "body": body},
     }
+
+    if interactive:
+        payload["type"] = "interactive"
+        payload["interactive"] = interactive
+        if body:
+            # WhatsApp requires the body text to be inside the interactive object for lists/buttons.
+            if "body" not in payload["interactive"]:
+                payload["interactive"]["body"] = {"text": body}
+    else:
+        payload["type"] = "text"
+        payload["text"] = {"preview_url": False, "body": body}
 
     try:
         async with httpx.AsyncClient() as client:

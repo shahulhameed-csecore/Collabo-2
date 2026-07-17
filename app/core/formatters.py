@@ -111,16 +111,111 @@ def format_grouped_campaign_summary(campaigns: list[dict], is_review: bool = Fal
     
     if missing_fields:
         missing_str = "\n- ".join([f.field_name for f in missing_fields])
-        summary += f"⚠️ {b_tag}Missing Information:{b_end}\n- {missing_str}\n\nPlease reply normally to provide the missing details."
-    else:
-        summary += (
-            f"{b_tag}Actions:{b_end}\n"
-            f"1. Activate Campaign 1\n"
-            f"2. Activate All\n"
-            f"3. Edit Campaign\n"
-            f"4. Delete Campaign\n\n"
-            f"You can also reply naturally.\n"
-            f"Examples: 'Increase payment to 30k', 'Remove Sneha', 'Activate Mamaearth'."
-        )
+        summary += f"⚠️ {b_tag}Missing Information:{b_end}\n- {missing_str}\n\nPlease reply naturally to provide the missing details."
         
     return summary
+
+def get_whatsapp_campaign_buttons(campaigns: list[dict]) -> dict:
+    if len(campaigns) > 1:
+        return {
+            "type": "button",
+            "body": {"text": f"Found {len(campaigns)} campaigns. What would you like to do?"},
+            "action": {
+                "buttons": [
+                    {"type": "reply", "reply": {"id": "act_all", "title": "Activate All"}},
+                    {"type": "reply", "reply": {"id": "camp_edit", "title": "Edit Campaigns"}},
+                    {"type": "reply", "reply": {"id": "opts_menu", "title": "More Options"}}
+                ]
+            }
+        }
+    else:
+        camp = campaigns[0] if campaigns else {}
+        brand = camp.get('brand_name') or camp.get('influencer_name') or 'Campaign'
+        return {
+            "type": "button",
+            "body": {"text": f"What would you like to do with {brand[:15]}?"},
+            "action": {
+                "buttons": [
+                    {"type": "reply", "reply": {"id": "act_all", "title": "Activate"}},
+                    {"type": "reply", "reply": {"id": "camp_edit", "title": "Edit"}},
+                    {"type": "reply", "reply": {"id": "opts_menu", "title": "Options"}}
+                ]
+            }
+        }
+
+def get_whatsapp_edit_menu() -> dict:
+    return {
+        "type": "list",
+        "header": {"type": "text", "text": "Edit Campaign"},
+        "body": {"text": "What would you like to edit?"},
+        "footer": {"text": "Reply naturally at any time."},
+        "action": {
+            "button": "Select Field",
+            "sections": [
+                {
+                    "title": "Campaign Details",
+                    "rows": [
+                        {"id": "edit_field:payment", "title": "Payment Amount"},
+                        {"id": "edit_field:deadline", "title": "Deadline"},
+                        {"id": "edit_field:deliverables", "title": "Deliverables"},
+                        {"id": "edit_field:creators", "title": "Creators"},
+                        {"id": "edit_field:notes", "title": "Notes"}
+                    ]
+                }
+            ]
+        }
+    }
+
+def get_whatsapp_options_menu() -> dict:
+    return {
+        "type": "list",
+        "header": {"type": "text", "text": "More Options"},
+        "body": {"text": "Select an action for your campaign:"},
+        "action": {
+            "button": "Select Action",
+            "sections": [
+                {
+                    "title": "Management",
+                    "rows": [
+                        {"id": "opts_pause", "title": "Pause Campaign"},
+                        {"id": "opts_delete", "title": "Delete Campaign"},
+                        {"id": "opts_export", "title": "Export Summary"},
+                        {"id": "opts_help", "title": "Help"}
+                    ]
+                }
+            ]
+        }
+    }
+
+def get_telegram_campaign_buttons(campaigns: list[dict]) -> dict:
+    if len(campaigns) > 1:
+        return {
+            "inline_keyboard": [
+                [{"text": "✅ Activate All", "callback_data": "act_all"}],
+                [{"text": "✏️ Edit Campaigns", "callback_data": "camp_edit"}, {"text": "⚙️ More Options", "callback_data": "opts_menu"}]
+            ]
+        }
+    else:
+        return {
+            "inline_keyboard": [
+                [{"text": "✅ Activate Campaign", "callback_data": "act_all"}],
+                [{"text": "✏️ Edit Campaign", "callback_data": "camp_edit"}, {"text": "⚙️ More Options", "callback_data": "opts_menu"}]
+            ]
+        }
+
+def get_telegram_edit_menu() -> dict:
+    return {
+        "inline_keyboard": [
+            [{"text": "💰 Payment", "callback_data": "edit_field:payment"}, {"text": "📅 Deadline", "callback_data": "edit_field:deadline"}],
+            [{"text": "📝 Deliverables", "callback_data": "edit_field:deliverables"}, {"text": "👥 Creators", "callback_data": "edit_field:creators"}],
+            [{"text": "📌 Notes", "callback_data": "edit_field:notes"}]
+        ]
+    }
+
+def get_telegram_options_menu() -> dict:
+    return {
+        "inline_keyboard": [
+            [{"text": "⏸️ Pause Campaign", "callback_data": "opts_pause"}, {"text": "🗑️ Delete Campaign", "callback_data": "opts_delete"}],
+            [{"text": "📥 Export", "callback_data": "opts_export"}, {"text": "❓ Help", "callback_data": "opts_help"}]
+        ]
+    }
