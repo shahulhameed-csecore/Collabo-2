@@ -42,7 +42,8 @@ async def extract_data(
             now = datetime.now(timezone.utc)
             is_trial_active = parsed_trial and parsed_trial > now
             
-            if tier != "pro" or (tier == "pro" and parsed_trial and not is_trial_active):
+            is_pro = (tier == "pro")
+            if not is_pro and not is_trial_active:
                 raise HTTPException(status_code=403, detail="AI Extraction requires a Pro plan or an active free trial.")
                 
         # Security: Prevent OOM by enforcing a strict 10MB limit via chunked reading.

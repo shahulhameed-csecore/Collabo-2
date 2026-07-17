@@ -239,8 +239,8 @@ async def process_whatsapp_message(sender_id: str, message: dict):
                 await supabase_admin.table("campaigns").insert(campaign_data).execute()
                 
             if intent_res.missing_fields:
-                missing_str = "\\n- ".join([f.field_name for f in intent_res.missing_fields])
-                await send_whatsapp_message(sender_id, f"📝 *Draft Saved*\\n\\nI'm missing some details:\\n- {missing_str}\\n\\nWould you like to add them?")
+                missing_str = "\n- ".join([f.field_name for f in intent_res.missing_fields])
+                await send_whatsapp_message(sender_id, f"📝 *Draft Saved*\n\nI'm missing some details:\n- {missing_str}\n\nWould you like to add them?")
             else:
                 await send_whatsapp_message(sender_id, "🎉 *Campaign Created Successfully!*\n\nReply with *Activate* to make it live.")
 

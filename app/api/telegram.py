@@ -231,8 +231,8 @@ async def process_telegram_message(update: dict):
                 if res.data:
                     camp_id = res.data[0]["id"]
                     if intent_res.missing_fields:
-                        missing_str = "\\n- ".join([f.field_name for f in intent_res.missing_fields])
-                        await send_telegram_message(chat_id, f"📝 <b>Draft Saved</b>\\n\\nI'm missing:\\n- {missing_str}\\n\\nReply to update!")
+                        missing_str = "\n- ".join([f.field_name for f in intent_res.missing_fields])
+                        await send_telegram_message(chat_id, f"📝 <b>Draft Saved</b>\n\nI'm missing:\n- {missing_str}\n\nReply to update!")
                     else:
                         reply_markup = {
                             "inline_keyboard": [
