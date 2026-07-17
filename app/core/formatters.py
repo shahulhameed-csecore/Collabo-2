@@ -1,101 +1,126 @@
 import html
+from collections import defaultdict
 
-def format_campaign_summary(campaign: dict, is_review: bool = False, missing_fields: list = None) -> str:
-    """Helper to format the summary message consistently."""
-    handle = campaign.get('influencer_handle') or 'N/A'
-    plat = campaign.get('platform') or 'N/A'
-    deliv = campaign.get('deliverables') or 'N/A'
-    deadl = campaign.get('deadline') or 'N/A'
-    notes = campaign.get('special_notes') or 'None'
-    status = str(campaign.get('status', 'draft')).title()
+def resolve_ux_status(campaign: dict, missing_fields: list = None) -> str:
+    db_status = campaign.get('status', 'draft').lower()
+    notes = campaign.get('special_notes') or ''
     
-    raw_pay = campaign.get('payment_amount', 0.0)
-    try:
-        pay = float(raw_pay) if raw_pay is not None else 0.0
-    except ValueError:
-        pay = 0.0
+    if db_status == 'draft':
+        if missing_fields:
+            return "PENDING DETAILS"
+        if "NEGOTIATION:" in notes:
+            return "PENDING NEGOTIATION"
+        return "READY TO ACTIVATE"
+    elif db_status == 'active':
+        return "ACTIVE"
+    elif db_status in ['cancelled', 'paused']:
+        return "PAUSED"
+    elif db_status in ['paid', 'completed', 'approved']:
+        return "COMPLETED"
         
-    influencer_name = campaign.get('influencer_name')
-    if not influencer_name or influencer_name == 'Unknown Influencer':
-        influencer = handle if handle != 'N/A' else 'Unknown'
-    else:
-        influencer = influencer_name
+    return db_status.upper()
+
+def format_grouped_campaign_summary(campaigns: list[dict], is_review: bool = False, missing_fields: list = None, platform: str = "wa") -> str:
+    if not campaigns:
+        return "No campaigns found."
+
+    grouped = defaultdict(list)
+    for c in campaigns:
+        brand = c.get('brand_name') or 'Brand Campaign'
+        grouped[brand].append(c)
         
-    clean_influencer = html.escape(influencer)
+    is_tg = (platform == "tg")
+    b_tag = "<b>" if is_tg else "*"
+    b_end = "</b>" if is_tg else "*"
     
-    prefix = "🤖 <b>Collabo AI</b>\n\n⚠️ Some details were unclear to me. I've saved this as a <b>Draft</b>.\n\n" if is_review else "🤖 <b>Extraction Complete!</b>\n\nHere is your campaign summary:\n\n"
+    prefix = f"🤖 {b_tag}EXTRACTION COMPLETE{b_end}\n\n{b_tag}Campaign Summary{b_end}\n\n"
+    summary = prefix
     
-    summary = (
-        f"{prefix}"
-        f"👤 <b>Creator:</b> {clean_influencer}\n"
-        f"🔗 <b>Handle:</b> {html.escape(handle)}\n"
-        f"📱 <b>Platform:</b> {html.escape(plat)}\n"
-        f"📦 <b>Deliverables:</b> {html.escape(deliv)}\n"
-        f"⏳ <b>Deadline:</b> {html.escape(deadl)}\n"
-        f"💰 <b>Payment:</b> ₹{pay:,.2f}\n"
-        f"📝 <b>Notes:</b> {html.escape(notes)}\n"
-        f"📌 <b>Status:</b> {html.escape(status)}\n\n"
-    )
+    camp_counter = 1
+    for brand, creators in grouped.items():
+        clean_brand = html.escape(brand) if is_tg else brand
+        summary += f"───\n{b_tag}Campaign {camp_counter}{b_end}\n"
+        summary += f"{b_tag}Brand:{b_end} {clean_brand}\n\n"
+        
+        # Creators list
+        creator_names = []
+        for c in creators:
+            name = c.get('influencer_name') or c.get('influencer_handle') or 'Unknown'
+            creator_names.append(html.escape(name) if is_tg else name)
+            
+        summary += f"{b_tag}Creators:{b_end}\n"
+        for name in creator_names:
+            summary += f"- {name}\n"
+        summary += "\n"
+        
+        # Deliverables
+        summary += f"{b_tag}Deliverables:{b_end}\n"
+        for c in creators:
+            name = html.escape(c.get('influencer_name') or 'Unknown') if is_tg else (c.get('influencer_name') or 'Unknown')
+            d = html.escape(c.get('deliverables') or 'N/A') if is_tg else (c.get('deliverables') or 'N/A')
+            summary += f"- {name} -> {d}\n"
+        summary += "\n"
+        
+        # Payments
+        summary += f"{b_tag}Payments / Budget:{b_end}\n"
+        for c in creators:
+            name = html.escape(c.get('influencer_name') or 'Unknown') if is_tg else (c.get('influencer_name') or 'Unknown')
+            raw_pay = c.get('payment_amount')
+            notes = c.get('special_notes') or ''
+            
+            if "NEGOTIATION:" in notes:
+                # Extract negotiation text safely
+                try:
+                    neg_text = notes.split("NEGOTIATION:")[1].split("]")[0].strip()
+                    neg_text = html.escape(neg_text) if is_tg else neg_text
+                    summary += f"- {name} -> {neg_text}\n"
+                except IndexError:
+                    summary += f"- {name} -> Pending Negotiation\n"
+            elif raw_pay is not None:
+                try:
+                    pay = float(raw_pay)
+                    summary += f"- {name} -> ₹{pay:,.2f}\n"
+                except ValueError:
+                    summary += f"- {name} -> N/A\n"
+            else:
+                summary += f"- {name} -> N/A\n"
+        summary += "\n"
+        
+        # Deadlines
+        deadlines = list(set([c.get('deadline') for c in creators if c.get('deadline')]))
+        summary += f"{b_tag}Deadline:{b_end}\n"
+        if not deadlines:
+            summary += "N/A\n\n"
+        elif len(deadlines) == 1:
+            d = html.escape(deadlines[0]) if is_tg else deadlines[0]
+            summary += f"{d}\n\n"
+        else:
+            for c in creators:
+                name = html.escape(c.get('influencer_name') or 'Unknown') if is_tg else (c.get('influencer_name') or 'Unknown')
+                d = html.escape(c.get('deadline') or 'N/A') if is_tg else (c.get('deadline') or 'N/A')
+                summary += f"- {name} -> {d}\n"
+            summary += "\n"
+            
+        # Status
+        ux_status = resolve_ux_status(creators[0], missing_fields)
+        summary += f"{b_tag}Status:{b_end}\n{ux_status}\n\n"
+        
+        camp_counter += 1
+        
+    summary += "───\n\n"
     
     if missing_fields:
         missing_str = "\n- ".join([f.field_name for f in missing_fields])
-        summary += f"⚠️ <b>I'm missing:</b>\n- {missing_str}\n\nReply to add them or make corrections (e.g., 'Increase payment to 30k')."
+        summary += f"⚠️ {b_tag}Missing Information:{b_end}\n- {missing_str}\n\nPlease reply normally to provide the missing details."
     else:
         summary += (
-            f"───\n"
-            f"<b>Ready to proceed?</b>\n"
-            f"Reply <b>Activate</b> to make it live.\n"
-            f"Reply <b>Delete</b> to discard this campaign.\n\n"
-            f"Or, reply with corrections (e.g., 'Payment: 15000')."
-        )
-        
-    return summary
-
-def format_campaign_summary_wa(campaign: dict, is_review: bool = False, missing_fields: list = None) -> str:
-    """Helper to format the summary message consistently for WhatsApp using *bold* instead of HTML."""
-    handle = campaign.get('influencer_handle') or 'N/A'
-    plat = campaign.get('platform') or 'N/A'
-    deliv = campaign.get('deliverables') or 'N/A'
-    deadl = campaign.get('deadline') or 'N/A'
-    notes = campaign.get('special_notes') or 'None'
-    status = str(campaign.get('status', 'draft')).title()
-    
-    raw_pay = campaign.get('payment_amount', 0.0)
-    try:
-        pay = float(raw_pay) if raw_pay is not None else 0.0
-    except ValueError:
-        pay = 0.0
-        
-    influencer_name = campaign.get('influencer_name')
-    if not influencer_name or influencer_name == 'Unknown Influencer':
-        influencer = handle if handle != 'N/A' else 'Unknown'
-    else:
-        influencer = influencer_name
-        
-    prefix = "🤖 *Collabo AI*\n\n⚠️ Some details were unclear to me. I've saved this as a *Draft*.\n\n" if is_review else "🤖 *Extraction Complete!*\n\nHere is your campaign summary:\n\n"
-    
-    summary = (
-        f"{prefix}"
-        f"👤 *Creator:* {influencer}\n"
-        f"🔗 *Handle:* {handle}\n"
-        f"📱 *Platform:* {plat}\n"
-        f"📦 *Deliverables:* {deliv}\n"
-        f"⏳ *Deadline:* {deadl}\n"
-        f"💰 *Payment:* ₹{pay:,.2f}\n"
-        f"📝 *Notes:* {notes}\n"
-        f"📌 *Status:* {status}\n\n"
-    )
-    
-    if missing_fields:
-        missing_str = "\n- ".join([f.field_name for f in missing_fields])
-        summary += f"⚠️ *I'm missing:*\n- {missing_str}\n\nReply to add them or make corrections (e.g., 'Increase payment to 30k')."
-    else:
-        summary += (
-            f"───\n"
-            f"*Ready to proceed?*\n"
-            f"Reply *Activate* to make it live.\n"
-            f"Reply *Delete* to discard this campaign.\n\n"
-            f"Or, reply with corrections (e.g., 'Payment: 15000')."
+            f"{b_tag}Actions:{b_end}\n"
+            f"1. Activate Campaign 1\n"
+            f"2. Activate All\n"
+            f"3. Edit Campaign\n"
+            f"4. Delete Campaign\n\n"
+            f"You can also reply naturally.\n"
+            f"Examples: 'Increase payment to 30k', 'Remove Sneha', 'Activate Mamaearth'."
         )
         
     return summary

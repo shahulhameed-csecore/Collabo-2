@@ -207,6 +207,20 @@ async def process_whatsapp_message(sender_id: str, message: dict):
         context_str = json.dumps(recent_campaigns.data) if recent_campaigns.data else ""
 
         # 4. Stage 2: AI Intent Engine
+        async def _thinking_indicator():
+            try:
+                await asyncio.sleep(3)
+                await send_whatsapp_message(
+                    sender_id,
+                    "🤖 AI is analysing your campaign...\n\n"
+                    "Detected:\n- Multiple creators\n- Payments\n- Deadlines\n\n"
+                    "Organising campaign details..."
+                )
+            except asyncio.CancelledError:
+                pass
+        
+        indicator_task = asyncio.create_task(_thinking_indicator())
+
         file_bytes = b""
         mime_type = "text/plain"
         text_content = ""
@@ -227,49 +241,64 @@ async def process_whatsapp_message(sender_id: str, message: dict):
                 text_content = content_for_gemini.get("caption", "")
 
         intent_res = await process_with_ai_manager(file_bytes, mime_type, text_content, context_str)
+        indicator_task.cancel()
+
+        from app.core.formatters import format_grouped_campaign_summary
 
         # 5. Handle Intents
         if intent_res.intent == IntentType.CREATE:
+            saved_campaigns = []
             for c in intent_res.campaigns:
-                campaign_data = c.model_dump(exclude_none=True)
+                campaign_data = c.model_dump(exclude={"id"}, exclude_none=True)
                 campaign_data["user_id"] = user_id
                 campaign_data["status"] = "draft"
                 if message_id:
                     campaign_data["special_notes"] = f"{campaign_data.get('special_notes', '')} [wa_msg:{message_id}]".strip()
                 
-                await supabase_admin.table("campaigns").insert(campaign_data).execute()
+                resp = await supabase_admin.table("campaigns").insert(campaign_data).execute()
+                if resp.data:
+                    saved_campaigns.append(resp.data[0])
+                else:
+                    saved_campaigns.append(campaign_data)
                 
-                summary_msg = format_campaign_summary_wa(
-                    campaign_data, 
-                    is_review=bool(intent_res.missing_fields), 
-                    missing_fields=intent_res.missing_fields
-                )
-                await send_whatsapp_message(sender_id, summary_msg)
+            summary_msg = format_grouped_campaign_summary(
+                saved_campaigns, 
+                is_review=bool(intent_res.missing_fields), 
+                missing_fields=intent_res.missing_fields,
+                platform="wa"
+            )
+            await send_whatsapp_message(sender_id, summary_msg)
 
         elif intent_res.intent == IntentType.UPDATE:
-            if recent_campaigns.data:
-                target_id = recent_campaigns.data[0]["id"]
-                updates = intent_res.campaigns[0].model_dump(exclude_none=True) if intent_res.campaigns else {}
-                if updates:
-                    await supabase_admin.table("campaigns").update(updates).eq("id", target_id).execute()
-                    
-                    updated_resp = await (supabase_admin.table("campaigns")
-                        .select("*")
-                        .eq("id", target_id)
-                        .limit(1)
-                        .execute()
-                    )
-                    
-                    if updated_resp.data:
-                        fresh_campaign = updated_resp.data[0]
-                        summary_msg = format_campaign_summary_wa(
-                            fresh_campaign, 
-                            is_review=False, 
-                            missing_fields=None
+            updated_campaigns = []
+            for c in intent_res.campaigns:
+                target_id = c.id
+                if not target_id and recent_campaigns.data:
+                    # Fallback to most recent if AI couldn't map ID
+                    target_id = recent_campaigns.data[0]["id"]
+                
+                if target_id:
+                    updates = c.model_dump(exclude={"id"}, exclude_none=True)
+                    if updates:
+                        await supabase_admin.table("campaigns").update(updates).eq("id", target_id).execute()
+                        
+                        updated_resp = await (supabase_admin.table("campaigns")
+                            .select("*")
+                            .eq("id", target_id)
+                            .limit(1)
+                            .execute()
                         )
-                        await send_whatsapp_message(sender_id, summary_msg)
-                    else:
-                        await send_whatsapp_message(sender_id, "✅ *Details Updated successfully.*")
+                        if updated_resp.data:
+                            updated_campaigns.append(updated_resp.data[0])
+            
+            if updated_campaigns:
+                summary_msg = format_grouped_campaign_summary(
+                    updated_campaigns, 
+                    is_review=False, 
+                    missing_fields=intent_res.missing_fields,
+                    platform="wa"
+                )
+                await send_whatsapp_message(sender_id, summary_msg)
             else:
                 await send_whatsapp_message(sender_id, "❌ I couldn't find a recent campaign to update.")
 

@@ -188,6 +188,21 @@ async def process_telegram_message(update: dict):
 
         # 6. Stage 2: AI Intent Engine
         from app.services.ai_manager import process_with_ai_manager, IntentType
+        from app.core.formatters import format_grouped_campaign_summary
+
+        async def _thinking_indicator():
+            try:
+                await asyncio.sleep(3)
+                await send_telegram_message(
+                    chat_id,
+                    "🤖 AI is analysing your campaign...\n\n"
+                    "Detected:\n- Multiple creators\n- Payments\n- Deadlines\n\n"
+                    "Organising campaign details..."
+                )
+            except asyncio.CancelledError:
+                pass
+        
+        indicator_task = asyncio.create_task(_thinking_indicator())
         
         file_bytes = b""
         mime_type = "text/plain"
@@ -218,61 +233,60 @@ async def process_telegram_message(update: dict):
         context_str = json.dumps(recent_campaigns.data) if recent_campaigns.data else ""
 
         intent_res = await process_with_ai_manager(file_bytes, mime_type, text_content, context_str)
+        indicator_task.cancel()
 
         if intent_res.intent == IntentType.CREATE:
+            saved_campaigns = []
             for c in intent_res.campaigns:
-                campaign_data = c.model_dump(exclude_none=True)
+                campaign_data = c.model_dump(exclude={"id"}, exclude_none=True)
                 campaign_data["user_id"] = user_id
                 campaign_data["status"] = "draft"
                 if update_id:
                     campaign_data["special_notes"] = f"{campaign_data.get('special_notes', '')} [tg_update:{update_id}]".strip()
                 
                 res = await supabase_admin.table("campaigns").insert(campaign_data).execute()
-                
                 if res.data:
-                    camp_id = res.data[0]["id"]
-                    summary_msg = format_campaign_summary(
-                        campaign_data, 
-                        is_review=bool(intent_res.missing_fields), 
-                        missing_fields=intent_res.missing_fields
-                    )
+                    saved_campaigns.append(res.data[0])
+                else:
+                    saved_campaigns.append(campaign_data)
                     
-                    if intent_res.missing_fields:
-                        await send_telegram_message(chat_id, summary_msg)
-                    else:
-                        reply_markup = {
-                            "inline_keyboard": [
-                                [{"text": "✅ Save as Active", "callback_data": f"camp_act:{camp_id}"}],
-                                [{"text": "📝 Save as Draft", "callback_data": f"camp_draft:{camp_id}"},
-                                 {"text": "🗑️ Delete", "callback_data": f"camp_del:{camp_id}"}]
-                            ]
-                        }
-                        await send_telegram_message(chat_id, summary_msg, reply_markup=reply_markup)
+            summary_msg = format_grouped_campaign_summary(
+                saved_campaigns,
+                is_review=bool(intent_res.missing_fields),
+                missing_fields=intent_res.missing_fields,
+                platform="tg"
+            )
+            await send_telegram_message(chat_id, summary_msg)
 
         elif intent_res.intent == IntentType.UPDATE:
-            if recent_campaigns.data:
-                target_id = recent_campaigns.data[0]["id"]
-                updates = intent_res.campaigns[0].model_dump(exclude_none=True) if intent_res.campaigns else {}
-                if updates:
-                    await supabase_admin.table("campaigns").update(updates).eq("id", target_id).execute()
-                    
-                    updated_resp = await (supabase_admin.table("campaigns")
-                        .select("*")
-                        .eq("id", target_id)
-                        .limit(1)
-                        .execute()
-                    )
-                    
-                    if updated_resp.data:
-                        fresh_campaign = updated_resp.data[0]
-                        summary_msg = format_campaign_summary(
-                            fresh_campaign, 
-                            is_review=False, 
-                            missing_fields=None
+            updated_campaigns = []
+            for c in intent_res.campaigns:
+                target_id = c.id
+                if not target_id and recent_campaigns.data:
+                    target_id = recent_campaigns.data[0]["id"]
+                
+                if target_id:
+                    updates = c.model_dump(exclude={"id"}, exclude_none=True)
+                    if updates:
+                        await supabase_admin.table("campaigns").update(updates).eq("id", target_id).execute()
+                        
+                        updated_resp = await (supabase_admin.table("campaigns")
+                            .select("*")
+                            .eq("id", target_id)
+                            .limit(1)
+                            .execute()
                         )
-                        await send_telegram_message(chat_id, summary_msg)
-                    else:
-                        await send_telegram_message(chat_id, "✅ <b>Updated successfully.</b>")
+                        if updated_resp.data:
+                            updated_campaigns.append(updated_resp.data[0])
+
+            if updated_campaigns:
+                summary_msg = format_grouped_campaign_summary(
+                    updated_campaigns,
+                    is_review=False,
+                    missing_fields=intent_res.missing_fields,
+                    platform="tg"
+                )
+                await send_telegram_message(chat_id, summary_msg)
             else:
                 await send_telegram_message(chat_id, "❌ No recent campaigns to update.")
                 

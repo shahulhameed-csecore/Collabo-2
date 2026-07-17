@@ -30,6 +30,8 @@ class MissingFieldInfo(BaseModel):
     message: str = Field(description="Polite message asking for this field")
 
 class CampaignExtraction(BaseModel):
+    id: Optional[str] = Field(default=None, description="The UUID of the campaign if updating an existing one.")
+    brand_name: Optional[str] = Field(default=None, description="The brand or company name. If multiple creators belong to the same brand, group them by this.")
     influencer_name: Optional[str] = Field(default=None, description="Creator Name (CRITICAL)")
     deliverables: Optional[str] = Field(default=None, description="Deliverables (CRITICAL)")
     payment_amount: Optional[float] = Field(default=None, description="Budget / Payment Amount (IMPORTANT)")
@@ -37,6 +39,7 @@ class CampaignExtraction(BaseModel):
     platform: Optional[str] = Field(default=None, description="Platform (Optional)")
     special_notes: Optional[str] = Field(default=None, description="Notes (Optional)")
     influencer_handle: Optional[str] = Field(default=None, description="Creator Handle (Optional)")
+    status: Optional[str] = Field(default="draft", description="Status of the campaign: draft, active, cancelled")
 
 class IntentResponse(BaseModel):
     intent: IntentType = Field(description="The primary intent of the user's message.")
@@ -56,18 +59,18 @@ You handle influencer campaigns quickly, accurately, and naturally.
 {context}
 
 **Intent Types**:
-- CREATE: The user is creating one or more new campaigns (e.g. "1 Reel for Priya 15k").
-- UPDATE: The user is correcting or updating an existing/pending campaign (e.g. "Actually make it 20k", "Change deadline to Friday").
-- QUERY: The user is asking about their campaigns (e.g. "How many are active?", "Which payments are pending?").
-- RECOMMENDATION: The user is mentioning a problem or status update naturally (e.g. "Creator ghosted me", "Campaign cancelled").
+- CREATE: The user is creating one or more new campaigns (e.g. "1 Reel for Priya 15k"). Group by brand if applicable.
+- UPDATE: The user is correcting or activating an existing campaign (e.g. "Change deadline to Friday", "Activate Mamaearth", "Delete Sneha").
+- QUERY: The user is asking about their campaigns.
+- RECOMMENDATION: The user is mentioning a problem or status update naturally.
 - CONFIRM_BULK: The user is trying to delete/activate multiple campaigns at once.
 
 **Extraction Rules (For CREATE/UPDATE)**:
-1. **Critical Fields**: 'influencer_name' and 'deliverables'. If these are missing in a CREATE intent, you MUST add them to `missing_fields` with priority CRITICAL and a polite `message` asking for them.
-2. **Important Fields**: 'payment_amount' and 'deadline'. If missing, add to `missing_fields` with priority IMPORTANT and a polite `message`.
-3. **Optional Fields**: Never ask for them.
-4. **Dates**: Always convert to YYYY-MM-DD. Handle Indian date formats, relative dates ("Before Diwali", "Next Friday"). Assume year is 2026.
-5. **Languages**: You understand English, Hindi, Tamil, and Hinglish. E.g., "Kal upload pannunga" means Deadline tomorrow.
+1. **Critical Fields**: 'influencer_name' and 'deliverables'. If these are missing in a CREATE intent, add them to `missing_fields`.
+2. **Important Fields**: 'payment_amount' and 'deadline'. If missing, add them to `missing_fields`.
+3. **Negotiations**: If you detect a budget negotiation (e.g., creator asks for 1.5L, brand says 1.2L max), DO NOT assume the final payment. Set `payment_amount` to null, and STRICTLY prepend 'NEGOTIATION: [summary]' into `special_notes`.
+4. **Targeted Activation**: If the user commands an action (e.g., "Activate Mamaearth", "Remove TechGuruji"), identify the matching campaign(s) in context, set their `status` to 'active' or 'cancelled', and return them in the `campaigns` array with the `UPDATE` intent.
+5. **Languages**: You understand English, Hindi, Tamil, and Hinglish.
 
 **Output Rules**:
 Respond STRICTLY in JSON format matching the schema provided. Do not include markdown formatting or outside text.
