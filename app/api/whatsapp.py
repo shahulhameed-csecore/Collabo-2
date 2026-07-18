@@ -142,7 +142,10 @@ async def process_whatsapp_message(sender_id: str, message: dict):
                 action_id = interactive.get("list_reply", {}).get("id")
 
             if action_id:
-                if action_id == "act_all":
+                if action_id == "cancel_ai_action":
+                    await send_whatsapp_message(sender_id, "❌ Action cancelled. You can start a new request.")
+                    return
+                elif action_id == "act_all":
                     # Activate all ready campaigns
                     drafts = await (supabase_admin.table("campaigns")
                         .select("*")
@@ -389,7 +392,21 @@ async def process_whatsapp_message(sender_id: str, message: dict):
             if len(target_ids) > 1 and not (msg_type == "text" and message.get("text", {}).get("body", "").strip().upper() in ["YES", "Y", "DELETE ALL", "ACTIVATE ALL", "PAUSE ALL", "UPDATE ALL"]):
                 BULK_CACHE[user_id] = intent_res
                 action_name = intent_res.intent.value.lower()
-                await send_whatsapp_message(sender_id, f"AI Campaign Manager\n\nYou are about to {action_name} {len(target_ids)} creator collaborations.\n\nPlease confirm.\n\nReply with:\n- YES\n- {action_name.upper()} ALL")
+                cancel_interactive = {
+                    "type": "button",
+                    "action": {
+                        "buttons": [
+                            {
+                                "type": "reply",
+                                "reply": {
+                                    "id": "cancel_ai_action",
+                                    "title": "❌ Cancel"
+                                }
+                            }
+                        ]
+                    }
+                }
+                await send_whatsapp_message(sender_id, f"AI Campaign Manager\n\nYou are about to {action_name} {len(target_ids)} creator collaborations.\n\nPlease confirm.\n\nReply with:\n- YES\n- {action_name.upper()} ALL", interactive=cancel_interactive)
                 return
                 
             if intent_res.intent == IntentType.DELETE:
@@ -457,7 +474,21 @@ async def process_whatsapp_message(sender_id: str, message: dict):
                     await send_whatsapp_message(sender_id, f"...and {len(data)-5} more.")
 
         elif intent_res.intent == IntentType.CLARIFICATION:
-            await send_whatsapp_message(sender_id, f"AI Campaign Manager\n\n{intent_res.recommendation_text}")
+            cancel_interactive = {
+                "type": "button",
+                "action": {
+                    "buttons": [
+                        {
+                            "type": "reply",
+                            "reply": {
+                                "id": "cancel_ai_action",
+                                "title": "❌ Cancel"
+                            }
+                        }
+                    ]
+                }
+            }
+            await send_whatsapp_message(sender_id, f"AI Campaign Manager\n\n{intent_res.recommendation_text}", interactive=cancel_interactive)
 
         elif intent_res.intent == IntentType.RECOMMENDATION:
             await send_whatsapp_message(sender_id, f"💡 *Suggestion*\n\n{intent_res.recommendation_text}")

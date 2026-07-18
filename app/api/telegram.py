@@ -136,6 +136,9 @@ async def process_telegram_message(update: dict):
                     
                 await send_telegram_message(chat_id, res_msg)
                 return
+            elif cb_data == "cancel_ai_action":
+                await send_telegram_message(chat_id, "❌ Action cancelled. You can start a new request.")
+                return
             elif cb_data.startswith("camp_edit:"):
                 camp_id = cb_data.split(":")[1]
                 await send_telegram_message(chat_id, "What would you like to edit?", reply_markup=get_telegram_edit_menu(camp_id))
@@ -355,7 +358,12 @@ async def process_telegram_message(update: dict):
             if len(target_ids) > 1 and not ("text" in message and message["text"].strip().upper() in ["YES", "Y", "DELETE ALL", "ACTIVATE ALL", "PAUSE ALL", "UPDATE ALL"]):
                 BULK_CACHE[user_id] = intent_res
                 action_name = intent_res.intent.value.lower()
-                await send_telegram_message(chat_id, f"AI Campaign Manager\n\nYou are about to {action_name} {len(target_ids)} creator collaborations.\n\nPlease confirm.\n\nReply with:\n- YES\n- {action_name.upper()} ALL")
+                cancel_markup = {
+                    "inline_keyboard": [
+                        [{"text": "❌ Cancel", "callback_data": "cancel_ai_action"}]
+                    ]
+                }
+                await send_telegram_message(chat_id, f"AI Campaign Manager\n\nYou are about to {action_name} {len(target_ids)} creator collaborations.\n\nPlease confirm.\n\nReply with:\n- YES\n- {action_name.upper()} ALL", reply_markup=cancel_markup)
                 return
                 
             if intent_res.intent == IntentType.DELETE:
@@ -421,7 +429,12 @@ async def process_telegram_message(update: dict):
                     await send_telegram_message(chat_id, f"...and {len(data)-5} more.")
 
         elif intent_res.intent == IntentType.CLARIFICATION:
-            await send_telegram_message(chat_id, f"AI Campaign Manager\n\n{intent_res.recommendation_text}")
+            cancel_markup = {
+                "inline_keyboard": [
+                    [{"text": "❌ Cancel", "callback_data": "cancel_ai_action"}]
+                ]
+            }
+            await send_telegram_message(chat_id, f"AI Campaign Manager\n\n{intent_res.recommendation_text}", reply_markup=cancel_markup)
 
         elif intent_res.intent == IntentType.RECOMMENDATION:
             await send_telegram_message(chat_id, f"💡 *Suggestion*\n\n{intent_res.recommendation_text}")
