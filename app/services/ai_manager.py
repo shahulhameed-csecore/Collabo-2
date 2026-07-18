@@ -21,6 +21,7 @@ class IntentType(str, Enum):
     QUERY = "QUERY"
     RECOMMENDATION = "RECOMMENDATION"
     CLARIFICATION = "CLARIFICATION"
+    UNKNOWN = "UNKNOWN"
 
 # Missing fields are now calculated in the UI formatter, removing MissingFieldInfo classes
 
@@ -139,8 +140,16 @@ async def process_with_ai_manager(
     """
     from app.services.gemini import compress_image, parse_pdf, parse_docx, detect_prompt_injection
 
-    api_key = settings.GEMINI_API_KEY_1 or settings.GEMINI_API_KEY or os.getenv("GEMINI_API_KEY_1") or os.getenv("GEMINI_API_KEY")
-    if not api_key:
+    api_key_1 = settings.GEMINI_API_KEY_1 or settings.GEMINI_API_KEY or os.getenv("GEMINI_API_KEY_1") or os.getenv("GEMINI_API_KEY")
+    api_key_2 = settings.GEMINI_API_KEY_2 or os.getenv("GEMINI_API_KEY_2")
+    
+    keys_to_try = []
+    if api_key_1:
+        keys_to_try.append(("Key 1", api_key_1))
+    if api_key_2:
+        keys_to_try.append(("Key 2", api_key_2))
+        
+    if not keys_to_try:
         raise ValueError("GEMINI_API_KEY is not configured")
 
     contents = []
@@ -180,11 +189,17 @@ async def process_with_ai_manager(
             recommendation_text="Security Alert: Suspicious instructions detected. Please send a normal message."
         )
 
-    client = genai.Client(api_key=api_key)
-    try:
-        return await analyze_message_intent(client, contents, context_str)
-    except Exception as e:
-        logger.error("process_with_ai_manager_failed", error=str(e))
+    last_error = None
+    for key_name, api_key in keys_to_try:
+        client = genai.Client(api_key=api_key)
+        try:
+            return await analyze_message_intent(client, contents, context_str)
+        except Exception as e:
+            logger.error(f"process_with_ai_manager_failed_{key_name.lower().replace(' ', '_')}", error=str(e))
+            last_error = e
+            continue
+
+    # Provide AI Fallback if all keys fail
         # Provide AI Fallback per user requirements
         return IntentResponse(
             intent=IntentType.UNKNOWN,
