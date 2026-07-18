@@ -1,68 +1,76 @@
 import html
 from collections import defaultdict
 
-def resolve_ux_status(campaign: dict, missing_fields: list = None) -> str:
+def resolve_ux_status(campaign: dict) -> str:
     db_status = campaign.get('status', 'draft').lower()
     notes = campaign.get('special_notes') or ''
     
     if db_status == 'draft':
-        if missing_fields:
-            return "PENDING DETAILS"
         if "NEGOTIATION:" in notes:
-            return "PENDING NEGOTIATION"
-        return "READY TO ACTIVATE"
+            return "Negotiation Pending"
+            
+        deliv = campaign.get('deliverables')
+        pay = campaign.get('payment_amount')
+        dead = campaign.get('deadline')
+        
+        if not deliv or str(deliv).strip() == "" or pay is None or str(pay).strip() == "" or not dead or str(dead).strip() == "":
+            return "Draft"
+        return "Ready to Activate"
     elif db_status == 'active':
-        return "ACTIVE"
+        return "Active"
     elif db_status in ['cancelled', 'paused']:
-        return "PAUSED"
+        return "Paused"
     elif db_status in ['paid', 'completed', 'approved']:
-        return "COMPLETED"
+        return "Completed"
         
-    return db_status.upper()
+    return db_status.capitalize()
 
-def format_single_campaign_summary(campaign: dict, missing_fields: list = None, platform: str = "wa") -> str:
-    brand = campaign.get('brand_name') or campaign.get('influencer_name') or 'Brand Campaign'
+def format_single_campaign_summary(campaign: dict, platform: str = "wa") -> str:
+    campaign_name = campaign.get('campaign_name') or campaign.get('brand_name') or 'Unknown Campaign'
+    influencer = campaign.get('influencer_name') or 'Not provided'
+    plat = campaign.get('platform') or 'Not provided'
+    deliverables = campaign.get('deliverables') or 'Not provided'
     
-    summary = f"AI Campaign Manager\n\nExtraction Completed Successfully.\n\nCampaign Name:\n{brand}\n\nFields Extracted:\n\n"
-    
-    fields_present = []
-    fields_missing = []
-    
-    field_map = {
-        'influencer_name': 'Influencer Name',
-        'influencer_handle': 'Handle',
-        'platform': 'Platform',
-        'payment_amount': 'Payment',
-        'deadline': 'Deadline',
-        'deliverables': 'Deliverables',
-        'special_notes': 'Special Notes',
-        'destination_url': 'Destination URL'
-    }
-    
-    for key, display_name in field_map.items():
-        val = campaign.get(key)
-        if val is not None and str(val).strip() != "":
-            fields_present.append(display_name)
-        else:
-            fields_missing.append(display_name)
-            
-    for f in fields_present:
-        summary += f"✓ {f}\n"
+    payment = campaign.get('payment_amount')
+    if payment is not None and str(payment).strip() != "":
+        payment_str = str(payment)
+    else:
+        payment_str = 'Not provided'
         
-    if fields_missing:
-        summary += "\nMissing Fields:\n\n"
-        for f in fields_missing:
-            summary += f"- {f}\n"
+    deadline = campaign.get('deadline') or 'Not provided'
+    notes = campaign.get('special_notes') or 'None'
+    
+    summary = f"Campaign Name:\n{campaign_name}\n\n"
+    summary += f"Creator:\n{influencer}\n\n"
+    summary += f"Platform:\n{plat}\n\n"
+    summary += f"Deliverables:\n{deliverables}\n\n"
+    summary += f"Payment:\n{payment_str}\n\n"
+    summary += f"Deadline:\n{deadline}\n\n"
+    summary += f"Special Notes:\n{notes}\n"
+    
+    # Calculate Missing Fields (Mandatory for activation)
+    actions_required = []
+    if deliverables == 'Not provided':
+        actions_required.append("- Add deliverables.")
+    if payment_str == 'Not provided':
+        actions_required.append("- Add payment amount.")
+    if deadline == 'Not provided':
+        actions_required.append("- Add campaign deadline before activation.")
+        
+    if actions_required:
+        summary += "\nAction Required:\n"
+        for act in actions_required:
+            summary += f"{act}\n"
             
-    ux_status = resolve_ux_status(campaign, missing_fields)
-    summary += f"\nStatus:\n\n{ux_status}"
+    ux_status = resolve_ux_status(campaign)
+    summary += f"\nStatus:\n{ux_status}"
     
     return summary
 
 def get_whatsapp_single_campaign_buttons(campaign: dict) -> dict:
     camp_id = campaign.get('id', '')
     brand = campaign.get('brand_name') or campaign.get('influencer_name') or 'Campaign'
-    status_text = resolve_ux_status(campaign).upper()
+    status_text = resolve_ux_status(campaign)
     return {
         "type": "button",
         "body": {"text": f"Campaign:\n{brand}\n\nStatus:\n{status_text}"},

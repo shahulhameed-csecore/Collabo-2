@@ -310,10 +310,30 @@ async def process_whatsapp_message(sender_id: str, message: dict):
 
         # 5. Handle Intents
         if intent_res.intent == IntentType.CREATE:
-            saved_campaigns = []
+            # Phase 1: Creator Name Validation
+            valid_campaigns_to_create = []
             for c in intent_res.campaigns:
+                if not c.influencer_name or c.influencer_name.strip() == "":
+                    await send_whatsapp_message(sender_id, "Please provide the creator's name.")
+                    return
+                valid_campaigns_to_create.append(c)
+                
+            if not valid_campaigns_to_create:
+                await send_whatsapp_message(sender_id, "No valid creators found to extract.")
+                return
+
+            saved_campaigns = []
+            campaign_name_for_intro = "Unknown Campaign"
+            for c in valid_campaigns_to_create:
                 campaign_data = c.model_dump(exclude={"id"}, exclude_none=True)
                 brand = campaign_data.pop("brand_name", None)
+                camp_name = campaign_data.pop("campaign_name", brand)
+                
+                if camp_name and campaign_name_for_intro == "Unknown Campaign":
+                    campaign_name_for_intro = camp_name
+                    
+                # We can store the campaign_name logically or just pop it if there is no column yet.
+                # Assuming no column yet, we ignore it in db insert.
                 
                 campaign_data["user_id"] = user_id
                 campaign_data["status"] = "draft"
@@ -326,20 +346,21 @@ async def process_whatsapp_message(sender_id: str, message: dict):
                 else:
                     saved_c = campaign_data
                     
-                if brand:
+                if camp_name:
+                    saved_c["campaign_name"] = camp_name
+                elif brand:
                     saved_c["brand_name"] = brand
                 saved_campaigns.append(saved_c)
+                
+            intro_msg = f"AI Campaign Manager\n\nExtraction completed successfully.\n\nCampaign:\n{campaign_name_for_intro}\n\nCreators Found:\n{len(saved_campaigns)}\n\nPlease review the extracted creator details below before activating them."
+            await send_whatsapp_message(sender_id, intro_msg)
                 
             for campaign in saved_campaigns:
                 summary_msg = format_single_campaign_summary(
                     campaign, 
-                    missing_fields=intent_res.missing_fields,
                     platform="wa"
                 )
                 await send_whatsapp_message(sender_id, summary_msg)
-                
-                # Only send buttons if not missing fields, or decide to send regardless
-                # Based on requirements, users should be able to activate when ready
                 await send_whatsapp_message(sender_id, "", interactive=get_whatsapp_single_campaign_buttons(campaign))
 
         elif intent_res.intent == IntentType.UPDATE:
@@ -382,7 +403,6 @@ async def process_whatsapp_message(sender_id: str, message: dict):
                 for campaign in updated_campaigns:
                     summary_msg = format_single_campaign_summary(
                         campaign, 
-                        missing_fields=intent_res.missing_fields,
                         platform="wa"
                     )
                     await send_whatsapp_message(sender_id, summary_msg)

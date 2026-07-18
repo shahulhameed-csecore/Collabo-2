@@ -20,22 +20,16 @@ class IntentType(str, Enum):
     CONFIRM_BULK = "CONFIRM_BULK"
     UNKNOWN = "UNKNOWN"
 
-class MissingFieldPriority(str, Enum):
-    CRITICAL = "CRITICAL"
-    IMPORTANT = "IMPORTANT"
-
-class MissingFieldInfo(BaseModel):
-    field_name: str
-    priority: MissingFieldPriority
-    message: str = Field(description="Polite message asking for this field")
+# Missing fields are now calculated in the UI formatter, removing MissingFieldInfo classes
 
 class CampaignExtraction(BaseModel):
     id: Optional[str] = Field(default=None, description="The UUID of the campaign if updating an existing one.")
-    brand_name: Optional[str] = Field(default=None, description="The brand or company name. If multiple creators belong to the same brand, group them by this.")
-    influencer_name: Optional[str] = Field(default=None, description="Creator Name (CRITICAL)")
-    deliverables: Optional[str] = Field(default=None, description="Deliverables (CRITICAL)")
-    payment_amount: Optional[float] = Field(default=None, description="Budget / Payment Amount (IMPORTANT)")
-    deadline: Optional[str] = Field(default=None, description="Deadline in YYYY-MM-DD (IMPORTANT)")
+    campaign_name: Optional[str] = Field(default=None, description="The actual campaign name. Do not hallucinate.")
+    brand_name: Optional[str] = Field(default=None, description="The brand name.")
+    influencer_name: Optional[str] = Field(default=None, description="Creator Name (Mandatory for creation)")
+    deliverables: Optional[str] = Field(default=None, description="Deliverables")
+    payment_amount: Optional[float] = Field(default=None, description="Budget / Payment Amount. Set to null if ambiguous.")
+    deadline: Optional[str] = Field(default=None, description="Deadline in YYYY-MM-DD. Set to null if ambiguous.")
     platform: Optional[str] = Field(default=None, description="Platform (Optional)")
     special_notes: Optional[str] = Field(default=None, description="Notes (Optional)")
     influencer_handle: Optional[str] = Field(default=None, description="Creator Handle (Optional)")
@@ -45,34 +39,45 @@ class CampaignExtraction(BaseModel):
 class IntentResponse(BaseModel):
     intent: IntentType = Field(description="The primary intent of the user's message.")
     campaigns: List[CampaignExtraction] = Field(default_factory=list, description="Extracted campaigns if CREATE or UPDATE.")
-    missing_fields: List[MissingFieldInfo] = Field(default_factory=list, description="Any critical or important fields missing for creation.")
     query_text: Optional[str] = Field(default=None, description="The user's query if intent is QUERY.")
     recommendation_text: Optional[str] = Field(default=None, description="AI suggestion if intent is RECOMMENDATION.")
     target_campaign_id: Optional[str] = Field(default=None, description="If updating, the name or context ID of the campaign to update.")
 
 def get_ai_manager_prompt(context: str = "") -> str:
     return f"""You are the Collabo AI Campaign Manager, an expert assistant for busy founders.
-You handle influencer campaigns quickly, accurately, and naturally.
 
-**Your Goal**: Parse the user's message, determine their intent, and extract necessary data.
-
-**Context (Recent Campaigns)**:
+**Context (Recent Drafts/Campaigns)**:
 {context}
 
 **Intent Types**:
-- CREATE: The user is creating one or more new campaigns (e.g. "1 Reel for Priya 15k"). Group by brand if applicable.
-- UPDATE: The user is correcting or activating an existing campaign (e.g. "Change deadline to Friday", "Activate Mamaearth", "Delete Sneha").
-- QUERY: The user is asking about their campaigns.
-- RECOMMENDATION: The user is mentioning a problem or status update naturally.
-- CONFIRM_BULK: The user is trying to delete/activate multiple campaigns at once.
+- CREATE: The user is creating new collaborations.
+- UPDATE: The user is correcting/activating existing collaborations.
+- QUERY: Asking about campaigns.
+- RECOMMENDATION: Mentioning a problem naturally.
+- CONFIRM_BULK: Bulk actions.
 
-**Extraction Rules (For CREATE/UPDATE)**:
-1. **Critical Fields**: 'influencer_name' and 'deliverables'. If these are missing in a CREATE intent, add them to `missing_fields`.
-2. **Important Fields**: 'payment_amount' and 'deadline'. If missing, add them to `missing_fields`.
-3. **Negotiations**: If you detect a budget negotiation (e.g., creator asks for 1.5L, brand says 1.2L max), DO NOT assume the final payment. Set `payment_amount` to null, and STRICTLY prepend 'NEGOTIATION: [summary]' into `special_notes`.
-4. **Targeted Activation**: If the user commands an action (e.g., "Activate Mamaearth", "Remove TechGuruji"), identify the matching campaign(s) in context, set their `status` to 'active' or 'cancelled', and return them in the `campaigns` array with the `UPDATE` intent.
-5. **Standalone Updates**: If the user provides an isolated value (e.g., '30k', 'tomorrow', '2 Reels') without naming a creator, interpret this as an `UPDATE` intent for the MOST RECENT campaign in the context array.
-6. **Languages**: You understand English, Hindi, Tamil, and Hinglish.
+**Extraction Resolvers (CRITICAL RULES)**:
+
+1. **Conversation & Replacement Resolver**: 
+   - Read the ENTIRE message history provided.
+   - Extract ONLY the FINAL state. If a creator was mentioned but then cancelled or removed later in the text, DO NOT extract them. Do not create rows for removed creators.
+
+2. **Campaign Name Resolver**:
+   - Determine Campaign Name and Brand Name.
+   - IF Campaign Name exists, store it.
+   - IF only Brand Name exists, use the Brand Name as `campaign_name` temporarily.
+   - IF neither exists, output "Unknown Campaign".
+   - NEVER hallucinate names (e.g. "Brand Campaign", "Campaign XYZ").
+
+3. **Ambiguity Rule**:
+   - If a value (like payment or deadline) is ambiguous (e.g., "around 20-25k"), incomplete, or conflicting, you MUST leave it as `null`. 
+   - Never guess. Missing or ambiguous info is perfectly fine and will be handled by the system later.
+
+4. **Multiple Creator Logic**:
+   - For a single campaign with N final creators, output exactly N objects in the `campaigns` array (one per creator collaboration).
+
+5. **Negotiations**:
+   - If you detect a budget negotiation, set `payment_amount` to null, and prepend 'NEGOTIATION: [summary]' into `special_notes`.
 
 **Output Rules**:
 Respond STRICTLY in JSON format matching the schema provided. Do not include markdown formatting or outside text.
