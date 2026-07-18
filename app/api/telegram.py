@@ -245,7 +245,15 @@ async def process_telegram_message(update: dict):
         content_for_gemini = None
         if "text" in message:
             content_for_gemini = message["text"].strip()
-            if user_id not in BULK_CACHE and len(content_for_gemini) > 10:
+            
+            # Check for pending clarification
+            pending_clarif = BULK_CACHE.get(user_id)
+            if pending_clarif and pending_clarif.get("action") == "clarification":
+                original_msg = pending_clarif.get("original_msg", "")
+                content_for_gemini = f"Previous Context: {original_msg}\n\nUser Clarification: {content_for_gemini}"
+                BULK_CACHE.pop(user_id, None)
+                await send_telegram_message(chat_id, "📝 Processing clarification...")
+            elif user_id not in BULK_CACHE and len(content_for_gemini) > 10:
                 await send_telegram_message(chat_id, "📝 Analyzing details...")
         elif "voice" in message or "audio" in message:
             media = message.get("voice") or message.get("audio")
@@ -480,6 +488,9 @@ async def process_telegram_message(update: dict):
                     [{"text": "❌ Cancel", "callback_data": "cancel_ai_action"}]
                 ]
             }
+            if isinstance(content_for_gemini, str):
+                BULK_CACHE[user_id] = {"action": "clarification", "original_msg": content_for_gemini}
+                
             await send_telegram_message(chat_id, f"AI Campaign Manager\n\n{intent_res.recommendation_text}", reply_markup=cancel_markup)
 
         elif intent_res.intent == IntentType.RECOMMENDATION:
