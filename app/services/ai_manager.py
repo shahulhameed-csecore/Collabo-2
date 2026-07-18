@@ -76,7 +76,8 @@ def get_ai_manager_prompt(context: str = "") -> str:
 
 1. **No AI Guessing & Draft Context Window**: 
    - If the user provides a standalone update (e.g. "25k", "Friday") but there are multiple drafts in the context, you MUST NOT guess which one to update. Set intent to `CLARIFICATION` and ask: "I found multiple collaborations. Which creator would you like to update? (e.g. Rohan or Sneha)".
-   - If the context is empty or you cannot logically determine the target, return `CLARIFICATION` and ask: "I couldn't determine which creator collaboration you'd like to update. Please mention the creator's name."
+   - If the context is empty or you cannot logically determine the target of an UPDATE, return `CLARIFICATION` and ask: "I couldn't determine which creator collaboration you'd like to update. Please mention the creator's name."
+   - HOWEVER, if the user provides a DETAILED campaign brief (brand, payment, deliverables, terms, etc.) but omits the creator's name, treat it as a `CREATE` intent. Extract the details and set `influencer_name` to "Unknown Creator". Do NOT ask for clarification.
 
 2. **Negotiation Safety Rule**:
    - You MUST NEVER assume or calculate payment values.

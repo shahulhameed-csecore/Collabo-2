@@ -759,8 +759,11 @@ async def check_deadlines_job() -> dict:
                     tg_text += f"\n<b>{al['inf_name']}</b>\n- {al['tg_text']}\n<b>Suggested:</b> {', '.join(al['actions'])}\n"
 
         if wa_enabled and wa_num:
-            if _send_wa:
-                await _send_wa(wa_num, wa_text.strip())
+            try:
+                from app.services.whatsapp import send_whatsapp_message
+                await send_whatsapp_message(wa_num, wa_text.strip())
+            except Exception as e:
+                log.error("reminders.wa_failed", error=str(e))
         
         if tg_chat_id:
             from app.services.telegram import send_telegram_message

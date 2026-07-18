@@ -241,6 +241,8 @@ async def process_whatsapp_message(sender_id: str, message: dict):
             if not content_for_gemini:
                 await send_whatsapp_message(sender_id, "🤖 Please send text, screenshots, or voice notes.")
                 return
+            if user_id not in BULK_CACHE and len(content_for_gemini) > 10:
+                await send_whatsapp_message(sender_id, "📝 Analyzing details...")
         elif msg_type == "audio":
             audio_id = message.get("audio", {}).get("id")
             if audio_id:

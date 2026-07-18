@@ -206,6 +206,8 @@ async def process_telegram_message(update: dict):
         content_for_gemini = None
         if "text" in message:
             content_for_gemini = message["text"].strip()
+            if user_id not in BULK_CACHE and len(content_for_gemini) > 10:
+                await send_telegram_message(chat_id, "📝 Analyzing details...")
         elif "voice" in message or "audio" in message:
             media = message.get("voice") or message.get("audio")
             file_id = media.get("file_id")
