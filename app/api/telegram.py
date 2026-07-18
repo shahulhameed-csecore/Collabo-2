@@ -2,7 +2,6 @@ import asyncio
 import structlog
 import json
 import html
-from collections import defaultdict
 import httpx
 from pydantic import ValidationError
 import sentry_sdk
@@ -18,8 +17,6 @@ logger = structlog.get_logger(__name__)
 
 router = APIRouter(prefix="/webhook", tags=["Telegram Webhook"])
 
-BULK_CACHE = {}
-USER_LOCKS = defaultdict(asyncio.Lock)
 
 # Maximum bytes we allow to be downloaded from Telegram media (16 MB)
 _MAX_MEDIA_BYTES = 16 * 1024 * 1024
@@ -32,16 +29,12 @@ from app.services.intent_executor import execute_intent
 
 @sentry_sdk.trace(op="webhook", name="Process Telegram Message")
 async def process_telegram_message(update: dict):
-    """
-    Background task to process the incoming Telegram message.
-    Uses Hybrid Router (Stage 1 Rules -> Stage 2 AI Intent Engine).
-    """
     try:
         supabase_admin = await get_supabase_admin()
         if not supabase_admin:
             logger.error("Supabase Admin missing")
             return
-
+        
         update_id = update.get("update_id")
         
         is_callback = "callback_query" in update
@@ -51,20 +44,15 @@ async def process_telegram_message(update: dict):
             sender = cb.get("from", {})
             chat_id = message.get("chat", {}).get("id") or sender.get("id")
         else:
-            message = update.get("message") or update.get("channel_post")
+            message = update.get("message") or update.get("channel_post") or update.get("edited_message")
             if not message:
                 return
             chat_id = message.get("chat", {}).get("id")
             sender = message.get("from", {})
-
+        
         username = sender.get("username")
         if not chat_id:
             return
-
-        async with USER_LOCKS[str(chat_id)]:
-            await _process_telegram_message_locked(update, chat_id, username, supabase_admin)
-
-async def _process_telegram_message_locked(update: dict, chat_id, username, supabase_admin):
         update_id = update.get("update_id")
         
         is_callback = "callback_query" in update
@@ -73,7 +61,7 @@ async def _process_telegram_message_locked(update: dict, chat_id, username, supa
             message = cb.get("message", {})
             sender = cb.get("from", {})
         else:
-            message = update.get("message") or update.get("channel_post")
+            message = update.get("message") or update.get("channel_post") or update.get("edited_message")
             sender = message.get("from", {})
 
         logger.info("Started _process_telegram_message_locked", chat_id=chat_id, username=username)
@@ -83,28 +71,21 @@ async def _process_telegram_message_locked(update: dict, chat_id, username, supa
             logger.warning(f"Rate limited Telegram webhook for {chat_id}")
             return
 
-        # 1. Deduplicate
+        # 1. Deduplicate via webhook_events
         if update_id:
             try:
-                existing = await (supabase_admin.table("campaigns")
-                    .select("id")
-                    .ilike("special_notes", f"%[tg_update:{update_id}]%")
-                    .limit(1)
-                    .execute()
-                )
-                if existing.data:
+                res = await supabase_admin.table("webhook_events").insert({"message_id": str(update_id), "platform": "tg"}).execute()
+            except Exception as e:
+                if "duplicate key value" in str(e).lower() or "unique constraint" in str(e).lower():
                     logger.info("Duplicate Telegram message ignored", update_id=update_id)
                     return
-            except Exception:
-                pass
-
         # 2. Match User
         user_id = None
         if username:
             usernames_to_check = [username.lower(), f"@{username.lower()}"]
             try:
                 user_response = await (supabase_admin.table("user_settings")
-                    .select("user_id, telegram_username")
+                    .select("user_id, telegram_username, pending_action")
                     .ilike("telegram_username", f"%{username}%")
                     .execute()
                 )
@@ -113,6 +94,7 @@ async def _process_telegram_message_locked(update: dict, chat_id, username, supa
                         tg_user = (row.get("telegram_username") or "").strip().lower()
                         if tg_user in usernames_to_check:
                             user_id = row["user_id"]
+                            pending_action = row.get("pending_action")
                             break
             except Exception as e:
                 logger.error("Failed to query user settings", error=str(e))
@@ -160,7 +142,7 @@ async def _process_telegram_message_locked(update: dict, chat_id, username, supa
                 await send_telegram_message(chat_id, res_msg)
                 return
             elif cb_data == "cancel_ai_action":
-                BULK_CACHE.pop(user_id, None)
+                await supabase_admin.table("user_settings").update({"pending_action": None}).eq("user_id", user_id).execute()
                 await send_telegram_message(chat_id, "❌ Action cancelled. You can start a new request.")
                 return
             elif cb_data.startswith("camp_edit:"):
@@ -191,7 +173,7 @@ async def _process_telegram_message_locked(update: dict, chat_id, username, supa
                     "status": "Current Status selected.\n\nPlease enter the new status (e.g. Active, Paused).",
                     "url": "Current Destination URL selected.\n\nPlease enter the new URL."
                 }
-                BULK_CACHE[user_id] = {"action": "edit", "field": field, "campaign_id": camp_id}
+                await supabase_admin.table("user_settings").update({"pending_action": {"action": "edit", "field": field, "campaign_id": camp_id}}).eq("user_id", user_id).execute()
                 await send_telegram_message(chat_id, prompts.get(field, 'Enter the new value:'))
                 return
             return
@@ -202,10 +184,10 @@ async def _process_telegram_message_locked(update: dict, chat_id, username, supa
             text_lower = text_val.lower()
             
             # Check for pending edit
-            pending_edit = BULK_CACHE.get(user_id)
+            pending_edit = pending_action
             if isinstance(pending_edit, dict) and pending_edit.get("action") == "edit":
                 if text_lower == "cancel":
-                    BULK_CACHE.pop(user_id, None)
+                    await supabase_admin.table("user_settings").update({"pending_action": None}).eq("user_id", user_id).execute()
                     await send_telegram_message(chat_id, "❌ Edit cancelled.")
                     return
                 
@@ -245,13 +227,13 @@ async def _process_telegram_message_locked(update: dict, chat_id, username, supa
                         
                     try:
                         await supabase_admin.table("campaigns").update(update_payload).eq("id", camp_id).execute()
-                        BULK_CACHE.pop(user_id, None)
+                        await supabase_admin.table("user_settings").update({"pending_action": None}).eq("user_id", user_id).execute()
                         await send_telegram_message(chat_id, f"✅ Updated successfully!")
                     except Exception as e:
                         logger.error("Direct edit update failed", error=str(e))
                         await send_telegram_message(chat_id, f"❌ Failed to update. Please ensure the value is formatted correctly (e.g., Dates as DD/MM/YYYY).")
                 return
-            cached_obj = BULK_CACHE.get(user_id)
+            cached_obj = pending_action
             is_intent_pending = cached_obj and not isinstance(cached_obj, dict)
 
             if not is_intent_pending and len(text_lower) < 20 and text_lower in ["yes", "y", "yep", "no", "wrong", "delete", "cancel", "pause", "activate"]:
@@ -264,13 +246,13 @@ async def _process_telegram_message_locked(update: dict, chat_id, username, supa
             content_for_gemini = message["text"].strip()
             
             # Check for pending clarification
-            pending_clarif = BULK_CACHE.get(user_id)
+            pending_clarif = pending_action
             if isinstance(pending_clarif, dict) and pending_clarif.get("action") == "clarification":
                 original_msg = pending_clarif.get("original_msg", "")
                 content_for_gemini = f"Previous Context: {original_msg}\n\nUser Clarification: {content_for_gemini}"
-                BULK_CACHE.pop(user_id, None)
+                await supabase_admin.table("user_settings").update({"pending_action": None}).eq("user_id", user_id).execute()
                 await send_telegram_message(chat_id, "📝 Processing clarification...")
-            elif user_id not in BULK_CACHE and len(content_for_gemini) > 10:
+            elif not pending_action and len(content_for_gemini) > 10:
                 await send_telegram_message(chat_id, "📝 Analyzing details...")
         elif "voice" in message or "audio" in message:
             media = message.get("voice") or message.get("audio")
@@ -301,7 +283,7 @@ async def _process_telegram_message_locked(update: dict, chat_id, username, supa
             return
 
         if not content_for_gemini:
-            await send_telegram_message(chat_id, "❌ Failed to parse media. Please try again.")
+            await send_telegram_message(chat_id, "❌ The media file is too large (max 16MB) or unavailable. Please try a smaller file.")
             return
 
         # 6. Stage 2: AI Intent Engine
@@ -344,10 +326,12 @@ async def _process_telegram_message_locked(update: dict, chat_id, username, supa
         context_str = json.dumps(recent_campaigns.data) if recent_campaigns.data else ""
 
         intent_res = None
-        if "text" in message and user_id in BULK_CACHE:
+        if "text" in message and pending_action and not isinstance(pending_action, dict):
             text_upper = message["text"].strip().upper()
             if text_upper in ["YES", "Y", "DELETE ALL", "ACTIVATE ALL", "PAUSE ALL", "UPDATE ALL"]:
-                intent_res = BULK_CACHE.pop(user_id)
+                from app.services.ai_manager import IntentResponse
+                intent_res = IntentResponse(**pending_action)
+                await supabase_admin.table("user_settings").update({"pending_action": None}).eq("user_id", user_id).execute()
 
         if not intent_res:
             intent_res = await process_with_ai_manager(file_bytes, mime_type, text_content, context_str)
@@ -374,7 +358,7 @@ async def _process_telegram_message_locked(update: dict, chat_id, username, supa
             get_buttons_func=get_telegram_single_campaign_buttons,
             get_cancel_interactive_func=_get_cancel_interactive,
             is_bulk_confirm=is_bulk_confirm,
-            bulk_cache_dict=BULK_CACHE,
+            
             message_id_str=f"tg_update:{update_id}" if update_id else None
         )
 

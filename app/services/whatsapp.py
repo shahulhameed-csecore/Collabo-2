@@ -16,6 +16,14 @@ async def send_whatsapp_message(to_number: str, body: str, interactive: dict | N
     Sends a WhatsApp text message using the Official Meta Cloud API.
     If `interactive` is provided, sends an interactive message instead.
     """
+    if body:
+        import re
+        # Normalize Gemini markdown to WhatsApp formatting
+        # **bold** -> *bold*
+        body = re.sub(r'\*\*(.*?)\*\*', r'*\1*', body)
+        # [link](url) -> link (url)
+        body = re.sub(r'\[([^\]]+)\]\(([^\)]+)\)', r'\1 (\2)', body)
+
     if not settings.WHATSAPP_TOKEN or not settings.WHATSAPP_PHONE_NUMBER_ID:
         logger.error("Meta WhatsApp credentials missing (WHATSAPP_TOKEN or WHATSAPP_PHONE_NUMBER_ID).")
         return False

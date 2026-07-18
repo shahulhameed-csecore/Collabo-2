@@ -95,8 +95,14 @@ async def execute_intent(
                 return
                 
             if len(target_ids) > 1 and not is_bulk_confirm:
-                if bulk_cache_dict is not None:
-                    bulk_cache_dict[user_id] = intent_res
+                # Store pending action in DB instead of in-memory cache
+                try:
+                    await supabase_admin.table("user_settings").update({
+                        "pending_action": intent_res.model_dump(mode='json')
+                    }).eq("user_id", user_id).execute()
+                except Exception as e:
+                    logger.error("Failed to save pending_action to DB", error=str(e))
+                
                 action_name = intent_res.intent.value.lower()
                 cancel_interactive = get_cancel_interactive_func()
                 msg = f"AI Campaign Manager\n\nYou are about to {action_name} {len(target_ids)} creator collaborations.\n\nPlease confirm.\n\nReply with:\n- YES\n- {action_name.upper()} ALL"

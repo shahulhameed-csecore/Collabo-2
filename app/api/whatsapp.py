@@ -3,7 +3,6 @@ import hmac
 import hashlib
 import structlog
 import json
-from collections import defaultdict
 from fastapi import APIRouter, Request, HTTPException, Response, BackgroundTasks
 import sentry_sdk
 from app.core.config import settings
@@ -20,8 +19,6 @@ logger = structlog.get_logger(__name__)
 
 router = APIRouter(prefix="/webhook", tags=["WhatsApp Webhook"])
 
-BULK_CACHE = {}
-USER_LOCKS = defaultdict(asyncio.Lock)
 
 # Maximum bytes we allow to be downloaded from WhatsApp media (16 MB)
 _MAX_MEDIA_BYTES = 16 * 1024 * 1024
@@ -78,14 +75,6 @@ async def verify_webhook(request: Request):
 @sentry_sdk.trace(op="webhook", name="Process WhatsApp Message")
 async def process_whatsapp_message(sender_id: str, message: dict):
     """
-    Background task to process the incoming WhatsApp message.
-    Wraps the core logic in a user-specific lock to prevent race conditions.
-    """
-    async with USER_LOCKS[sender_id]:
-        await _process_whatsapp_message_locked(sender_id, message)
-
-async def _process_whatsapp_message_locked(sender_id: str, message: dict):
-    """
     Inner logic for processing WhatsApp messages.
     """
     try:
@@ -100,23 +89,18 @@ async def _process_whatsapp_message_locked(sender_id: str, message: dict):
             logger.error("Supabase Admin client not initialized.")
             return
 
-        # 1. Deduplicate
+        # 1. Deduplicate via webhook_events
         message_id = message.get("id")
         if message_id:
             try:
-                safe_message_id = message_id.replace("%", "\\%").replace("_", "\\_")
-                existing = await (supabase_admin.table("campaigns")
-                    .select("id")
-                    .ilike("special_notes", f"%[wa_msg:{safe_message_id}]%")
-                    .limit(1)
-                    .execute()
-                )
-                if existing.data:
-                    logger.info("Duplicate WhatsApp message ignored")
+                # Attempt to insert, if fails due to unique constraint, it's a duplicate
+                res = await supabase_admin.table("webhook_events").insert({"message_id": message_id, "platform": "wa"}).execute()
+            except Exception as e:
+                # If constraint violation occurs, it means duplicate
+                if "duplicate key value" in str(e).lower() or "unique constraint" in str(e).lower():
+                    logger.info("Duplicate WhatsApp message ignored", msg_id=message_id)
                     return
-            except Exception:
-                pass
-
+                # otherwise just continue
         # 2. Number Matching
         clean_sender = "".join(filter(str.isdigit, sender_id))
         possible_numbers = [clean_sender, f"+{clean_sender}"]
@@ -131,7 +115,7 @@ async def _process_whatsapp_message_locked(sender_id: str, message: dict):
         possible_numbers = list(set(possible_numbers))
 
         user_response = await (supabase_admin.table("user_settings")
-            .select("user_id")
+            .select("user_id, pending_action")
             .in_("whatsapp_number", possible_numbers)
             .execute()
         )
@@ -144,6 +128,7 @@ async def _process_whatsapp_message_locked(sender_id: str, message: dict):
             return
 
         user_id = user_response.data[0]["user_id"]
+        pending_action = user_response.data[0].get("pending_action")
         msg_type = message.get("type")
 
         # 3. Stage 1: Rules Engine (Hybrid Router)
@@ -158,7 +143,7 @@ async def _process_whatsapp_message_locked(sender_id: str, message: dict):
 
             if action_id:
                 if action_id == "cancel_ai_action":
-                    BULK_CACHE.pop(user_id, None)
+                    await supabase_admin.table("user_settings").update({"pending_action": None}).eq("user_id", user_id).execute()
                     await send_whatsapp_message(sender_id, "❌ Action cancelled. You can start a new request.")
                     return
                 elif action_id == "act_all":
@@ -217,7 +202,7 @@ async def _process_whatsapp_message_locked(sender_id: str, message: dict):
                         "status": "Current Status selected.\n\nPlease enter the new status (e.g. Active, Paused).",
                         "url": "Current Destination URL selected.\n\nPlease enter the new URL."
                     }
-                    BULK_CACHE[user_id] = {"action": "edit", "field": field, "campaign_id": camp_id}
+                    await supabase_admin.table("user_settings").update({"pending_action": {"action": "edit", "field": field, "campaign_id": camp_id}}).eq("user_id", user_id).execute()
                     await send_whatsapp_message(sender_id, prompts.get(field, 'Enter the new value:'))
                     return
 
@@ -226,10 +211,10 @@ async def _process_whatsapp_message_locked(sender_id: str, message: dict):
             text_lower = text_val.lower()
             
             # Check for pending edit
-            pending_edit = BULK_CACHE.get(user_id)
+            pending_edit = pending_action
             if isinstance(pending_edit, dict) and pending_edit.get("action") == "edit":
                 if text_lower == "cancel":
-                    BULK_CACHE.pop(user_id, None)
+                    await supabase_admin.table("user_settings").update({"pending_action": None}).eq("user_id", user_id).execute()
                     await send_whatsapp_message(sender_id, "❌ Edit cancelled.")
                     return
                 
@@ -270,14 +255,14 @@ async def _process_whatsapp_message_locked(sender_id: str, message: dict):
                         
                     try:
                         await supabase_admin.table("campaigns").update(update_payload).eq("id", camp_id).execute()
-                        BULK_CACHE.pop(user_id, None)
+                        await supabase_admin.table("user_settings").update({"pending_action": None}).eq("user_id", user_id).execute()
                         await send_whatsapp_message(sender_id, f"✅ Updated successfully!")
                     except Exception as e:
                         logger.error("Direct edit update failed", error=str(e))
                         await send_whatsapp_message(sender_id, f"❌ Failed to update. Please ensure the value is formatted correctly (e.g., Dates as DD/MM/YYYY).")
                 return
             
-            cached_obj = BULK_CACHE.get(user_id)
+            cached_obj = pending_action
             is_intent_pending = cached_obj and not isinstance(cached_obj, dict)
             
             # Exact matches for instant actions
@@ -294,13 +279,13 @@ async def _process_whatsapp_message_locked(sender_id: str, message: dict):
                 return
             
             # Check for pending clarification
-            pending_clarif = BULK_CACHE.get(user_id)
+            pending_clarif = pending_action
             if isinstance(pending_clarif, dict) and pending_clarif.get("action") == "clarification":
                 original_msg = pending_clarif.get("original_msg", "")
                 content_for_gemini = f"Previous Context: {original_msg}\n\nUser Clarification: {content_for_gemini}"
-                BULK_CACHE.pop(user_id, None)
+                await supabase_admin.table("user_settings").update({"pending_action": None}).eq("user_id", user_id).execute()
                 await send_whatsapp_message(sender_id, "📝 Processing clarification...")
-            elif user_id not in BULK_CACHE and len(content_for_gemini) > 10:
+            elif not pending_action and len(content_for_gemini) > 10:
                 await send_whatsapp_message(sender_id, "📝 Analyzing details...")
         elif msg_type == "audio":
             audio_id = message.get("audio", {}).get("id")
@@ -328,7 +313,7 @@ async def _process_whatsapp_message_locked(sender_id: str, message: dict):
             return
 
         if not content_for_gemini:
-            await send_whatsapp_message(sender_id, "❌ Failed to download media from WhatsApp. Please try again.")
+            await send_whatsapp_message(sender_id, "❌ The media file is too large (max 16MB) or unavailable. Please try a smaller file.")
             return
 
         # Fetch Context (Inbox/Most Recent)
@@ -370,10 +355,13 @@ async def _process_whatsapp_message_locked(sender_id: str, message: dict):
                 text_content = content_for_gemini.get("caption", "")
 
         intent_res = None
-        if msg_type == "text" and user_id in BULK_CACHE:
+        if msg_type == "text" and pending_action and not isinstance(pending_action, dict):
             text_upper = message.get("text", {}).get("body", "").strip().upper()
             if text_upper in ["YES", "Y", "DELETE ALL", "ACTIVATE ALL", "PAUSE ALL", "UPDATE ALL"]:
-                intent_res = BULK_CACHE.pop(user_id)
+                # Convert the dict back to IntentResponse model
+                from app.services.ai_manager import IntentResponse
+                intent_res = IntentResponse(**pending_action)
+                await supabase_admin.table("user_settings").update({"pending_action": None}).eq("user_id", user_id).execute()
 
         if not intent_res:
             intent_res = await process_with_ai_manager(file_bytes, mime_type, text_content, context_str)
@@ -412,7 +400,7 @@ async def _process_whatsapp_message_locked(sender_id: str, message: dict):
             get_buttons_func=get_whatsapp_single_campaign_buttons,
             get_cancel_interactive_func=_get_cancel_interactive,
             is_bulk_confirm=is_bulk_confirm,
-            bulk_cache_dict=BULK_CACHE,
+            
             message_id_str=f"wa_msg:{message_id}" if message_id else None
         )
 
