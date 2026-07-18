@@ -132,7 +132,7 @@ async def analyze_message_intent(
     try:
         response = await asyncio.to_thread(
             client.models.generate_content,
-            model='gemini-2.0-flash',
+            model='gemini-2.5-flash',
             contents=contents,
             config=types.GenerateContentConfig(
                 system_instruction=get_ai_manager_prompt(context_str),

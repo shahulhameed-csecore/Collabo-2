@@ -175,7 +175,7 @@ def is_retryable_error(exception: Exception) -> bool:
     return True
 
 @retry(wait=wait_exponential(multiplier=1, min=2, max=10), stop=stop_after_attempt(3))
-async def _call_gemini(client: genai.Client, contents: list, model: str = 'gemini-2.0-flash') -> ExtractionResult:
+async def _call_gemini(client: genai.Client, contents: list, model: str = 'gemini-2.5-flash') -> ExtractionResult:
     """Makes the actual API call with retries and timeout."""
     # Using asyncio.wait_for to enforce 120s timeout per attempt
     response = await asyncio.wait_for(
@@ -194,9 +194,9 @@ async def _call_gemini(client: genai.Client, contents: list, model: str = 'gemin
     return ExtractionResult.model_validate_json(response.text)
 
 async def _call_gemini_with_fallback(client: genai.Client, contents: list) -> ExtractionResult:
-    """Attempts extraction with 2.0-flash, falls back to 1.5-flash on failure/quota."""
+    """Attempts extraction with 2.5-flash, falls back to 2.0-flash on failure/quota."""
     try:
-        return await _call_gemini(client, contents, model='gemini-2.0-flash')
+        return await _call_gemini(client, contents, model='gemini-2.5-flash')
     except Exception as e:
         if "400" in str(e).lower() or "invalid" in str(e).lower() or "not found" in str(e).lower():
             logger.warning("gemini_invalid_argument_falling_back", error=str(e))
