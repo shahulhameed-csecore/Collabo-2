@@ -101,6 +101,11 @@ def get_ai_manager_prompt(context: str = "") -> str:
    - If a value (like payment) is ambiguous, set it to `null`. 
    - If a date is provided without a year (e.g. '20 july' or '20/07'), assume the current year is {datetime.now().year} and format it as YYYY-MM-DD. Do NOT mark it as null.
 
+7. **Clarification Follow-ups**:
+   - If the user's message starts with "Previous Context:" followed by "User Clarification:", this means the user is answering a previous clarifying question.
+   - You MUST combine the details from BOTH the previous context and the clarification into a SINGLE cohesive request.
+   - For example, if the previous context was a new campaign brief, the combined result is a `CREATE` intent. Do not mistake it for an `UPDATE` to existing campaigns. Do not ask for clarification again.
+
 **Output Rules**:
 Respond STRICTLY in JSON format matching the schema provided. Do not include markdown formatting or outside text.
 """
