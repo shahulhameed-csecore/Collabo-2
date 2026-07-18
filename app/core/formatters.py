@@ -1,6 +1,8 @@
 import html
 from collections import defaultdict
 
+import re
+
 def resolve_ux_status(campaign: dict) -> str:
     db_status = campaign.get('status', 'draft').lower()
     notes = campaign.get('special_notes') or ''
@@ -13,7 +15,7 @@ def resolve_ux_status(campaign: dict) -> str:
         pay = campaign.get('payment_amount')
         dead = campaign.get('deadline')
         
-        if not deliv or str(deliv).strip() == "" or pay is None or str(pay).strip() == "" or not dead or str(dead).strip() == "":
+        if not deliv or str(deliv).strip() == "" or pay is None or str(pay).strip() == "" or pay == 0.0 or not dead or str(dead).strip() == "":
             return "Draft"
         return "Ready to Activate"
     elif db_status == 'active':
@@ -25,20 +27,48 @@ def resolve_ux_status(campaign: dict) -> str:
         
     return db_status.capitalize()
 
+def format_indian_currency(num: int) -> str:
+    s = str(num)
+    if len(s) > 3:
+        last_3 = s[-3:]
+        other = s[:-3]
+        other_parts = []
+        while other:
+            other_parts.append(other[-2:])
+            other = other[:-2]
+        other_formatted = ",".join(reversed(other_parts))
+        return f"₹{other_formatted},{last_3}"
+    return f"₹{s}"
+
 def format_single_campaign_summary(campaign: dict, platform: str = "wa") -> str:
     campaign_name = campaign.get('campaign_name') or campaign.get('brand_name') or 'Unknown Campaign'
     influencer = campaign.get('influencer_name') or 'Not provided'
     plat = campaign.get('platform') or 'Not provided'
     deliverables = campaign.get('deliverables') or 'Not provided'
     
+    notes_raw = campaign.get('special_notes') or ''
+    is_negotiation = "NEGOTIATION:" in notes_raw
+    
     payment = campaign.get('payment_amount')
-    if payment is not None and str(payment).strip() != "":
-        payment_str = str(payment)
+    if is_negotiation or payment == 0.0 or payment == 0:
+        payment_str = 'Not finalized'
+    elif payment is not None and str(payment).strip() != "":
+        try:
+            payment_int = int(float(payment))
+            payment_str = format_indian_currency(payment_int)
+        except ValueError:
+            payment_str = str(payment)
     else:
         payment_str = 'Not provided'
         
     deadline = campaign.get('deadline') or 'Not provided'
-    notes = campaign.get('special_notes') or 'None'
+    
+    # Clean notes
+    notes_clean = re.sub(r'\[wa_msg:[^\]]+\]', '', notes_raw)
+    notes_clean = re.sub(r'\[tg_update:[^\]]+\]', '', notes_clean)
+    notes_clean = notes_clean.strip()
+    if not notes_clean:
+        notes_clean = 'None'
     
     summary = f"Campaign Name:\n{campaign_name}\n\n"
     summary += f"Creator:\n{influencer}\n\n"
@@ -46,13 +76,13 @@ def format_single_campaign_summary(campaign: dict, platform: str = "wa") -> str:
     summary += f"Deliverables:\n{deliverables}\n\n"
     summary += f"Payment:\n{payment_str}\n\n"
     summary += f"Deadline:\n{deadline}\n\n"
-    summary += f"Special Notes:\n{notes}\n"
+    summary += f"Special Notes:\n{notes_clean}\n"
     
     # Calculate Missing Fields (Mandatory for activation)
     actions_required = []
     if deliverables == 'Not provided':
         actions_required.append("- Add deliverables.")
-    if payment_str == 'Not provided':
+    if payment_str in ['Not provided', 'Not finalized']:
         actions_required.append("- Add payment amount.")
     if deadline == 'Not provided':
         actions_required.append("- Add campaign deadline before activation.")
