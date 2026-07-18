@@ -17,6 +17,8 @@ logger = structlog.get_logger(__name__)
 
 router = APIRouter(prefix="/webhook", tags=["Telegram Webhook"])
 
+BULK_CACHE = {}
+
 # Maximum bytes we allow to be downloaded from Telegram media (16 MB)
 _MAX_MEDIA_BYTES = 16 * 1024 * 1024
 
@@ -200,7 +202,6 @@ async def process_telegram_message(update: dict):
         content_for_gemini = None
         if "text" in message:
             content_for_gemini = message["text"].strip()
-            await send_telegram_message(chat_id, "AI Campaign Manager\n\nExtracting campaign details...\n\nPlease wait while I analyze:\n\n- Creators\n- Deliverables\n- Payments\n- Deadlines\n- Special Notes\n- Platforms\n- Campaign Information")
         elif "voice" in message or "audio" in message:
             media = message.get("voice") or message.get("audio")
             file_id = media.get("file_id")
@@ -272,7 +273,15 @@ async def process_telegram_message(update: dict):
         )
         context_str = json.dumps(recent_campaigns.data) if recent_campaigns.data else ""
 
-        intent_res = await process_with_ai_manager(file_bytes, mime_type, text_content, context_str)
+        intent_res = None
+        if "text" in message and user_id in BULK_CACHE:
+            text_upper = message["text"].strip().upper()
+            if text_upper in ["YES", "Y", "DELETE ALL", "ACTIVATE ALL", "PAUSE ALL", "UPDATE ALL"]:
+                intent_res = BULK_CACHE.pop(user_id)
+
+        if not intent_res:
+            intent_res = await process_with_ai_manager(file_bytes, mime_type, text_content, context_str)
+            
         indicator_task.cancel()
 
         if intent_res.intent == IntentType.CREATE:
@@ -329,64 +338,96 @@ async def process_telegram_message(update: dict):
                     reply_markup=get_telegram_single_campaign_buttons(campaign)
                 )
 
-        elif intent_res.intent == IntentType.UPDATE:
-            updated_campaigns = []
-            valid_ids = [rc["id"] for rc in (recent_campaigns.data or [])]
+        elif intent_res.intent in [IntentType.UPDATE, IntentType.DELETE, IntentType.ACTIVATE, IntentType.PAUSE]:
+            target_ids = intent_res.target_campaign_ids
+            if not target_ids and intent_res.campaigns:
+                target_ids = [c.id for c in intent_res.campaigns if c.id]
+                
+            if not target_ids:
+                if intent_res.campaigns:
+                    valid_ids = [rc["id"] for rc in (recent_campaigns.data or [])]
+                    if valid_ids: target_ids = [valid_ids[0]]
             
-            for c in intent_res.campaigns:
-                target_id = c.id
+            if not target_ids:
+                await send_telegram_message(chat_id, "❌ I couldn't determine which creator collaboration you'd like to update. Please mention the creator's name.")
+                return
                 
-                if target_id not in valid_ids:
-                    matched = False
-                    if target_id:
-                        for vid in valid_ids:
-                            if target_id in vid or vid in target_id:
-                                target_id = vid
-                                matched = True
-                                break
-                    if not matched and valid_ids:
-                        target_id = valid_ids[0]
+            if len(target_ids) > 1 and not ("text" in message and message["text"].strip().upper() in ["YES", "Y", "DELETE ALL", "ACTIVATE ALL", "PAUSE ALL", "UPDATE ALL"]):
+                BULK_CACHE[user_id] = intent_res
+                action_name = intent_res.intent.value.lower()
+                await send_telegram_message(chat_id, f"AI Campaign Manager\n\nYou are about to {action_name} {len(target_ids)} creator collaborations.\n\nPlease confirm.\n\nReply with:\n- YES\n- {action_name.upper()} ALL")
+                return
                 
-                if target_id:
-                    updates = c.model_dump(exclude={"id"}, exclude_none=True)
-                    brand = updates.pop("brand_name", None)
-                    if updates:
-                        await supabase_admin.table("campaigns").update(updates).eq("id", target_id).execute()
-                        
-                        updated_resp = await (supabase_admin.table("campaigns")
-                            .select("*")
-                            .eq("id", target_id)
-                            .limit(1)
-                            .execute()
-                        )
-                        if updated_resp.data:
-                            fresh_c = updated_resp.data[0]
-                            if brand:
-                                fresh_c["brand_name"] = brand
-                            updated_campaigns.append(fresh_c)
-
-            if updated_campaigns:
-                for campaign in updated_campaigns:
-                    summary_msg = format_single_campaign_summary(
-                        campaign,
-                        platform="tg"
-                    )
-                    await send_telegram_message(
-                        chat_id, 
-                        summary_msg, 
-                        reply_markup=get_telegram_single_campaign_buttons(campaign)
-                    )
+            if intent_res.intent == IntentType.DELETE:
+                await supabase_admin.table("campaigns").delete().in_("id", target_ids).execute()
+                if len(target_ids) > 1:
+                    await send_telegram_message(chat_id, f"AI Campaign Manager\n\nSuccessfully deleted {len(target_ids)} creator collaborations.")
+                else:
+                    await send_telegram_message(chat_id, "🗑️ Creator collaboration deleted successfully.")
             else:
-                await send_telegram_message(chat_id, "❌ No recent campaigns to update.")
+                updates = {}
+                if intent_res.intent == IntentType.ACTIVATE: updates["status"] = "active"
+                elif intent_res.intent == IntentType.PAUSE: updates["status"] = "paused"
                 
+                if intent_res.intent == IntentType.UPDATE and intent_res.campaigns:
+                    c = intent_res.campaigns[0]
+                    updates = c.model_dump(exclude={"id", "campaign_name"}, exclude_none=True)
+                    updates.pop("brand_name", None)
+                    
+                if updates:
+                    await supabase_admin.table("campaigns").update(updates).in_("id", target_ids).execute()
+                    
+                updated_resp = await (supabase_admin.table("campaigns").select("*").in_("id", target_ids).execute())
+                data = updated_resp.data or []
+                
+                if len(target_ids) > 1:
+                    counts = {}
+                    for cmp in data:
+                        b = cmp.get("brand_name") or cmp.get("campaign_name") or "Unknown"
+                        counts[b] = counts.get(b, 0) + 1
+                    summary_text = f"AI Campaign Manager\n\nSuccessfully {intent_res.intent.value.lower()}d {len(target_ids)} creator collaborations.\n\nSummary:\n"
+                    for b, count in counts.items():
+                        summary_text += f"- {b} ({count})\n"
+                    summary_text += "\nWould you like to review any creator collaboration?"
+                    await send_telegram_message(chat_id, summary_text)
+                else:
+                    for cmp in data:
+                        summary_msg = format_single_campaign_summary(cmp, platform="tg")
+                        await send_telegram_message(chat_id, summary_msg, reply_markup=get_telegram_single_campaign_buttons(cmp))
+
         elif intent_res.intent == IntentType.QUERY:
-            await send_telegram_message(chat_id, f"📊 <b>Summary</b>\n\n{intent_res.recommendation_text or 'Here is your data.'}")
+            filters = intent_res.query_filters
+            query = supabase_admin.table("campaigns").select("*").eq("user_id", user_id)
+            if filters:
+                if filters.status: query = query.eq("status", filters.status)
+                if filters.brand_name: query = query.ilike("brand_name", f"%{filters.brand_name}%")
+                
+            resp = await query.order("created_at", desc=True).limit(20).execute()
+            data = resp.data or []
             
+            if filters and filters.is_negotiation:
+                data = [c for c in data if "NEGOTIATION:" in (c.get("special_notes") or "")]
+            if filters and filters.missing_payment:
+                data = [c for c in data if c.get("payment_amount") in [None, 0.0, 0]]
+                
+            if not data:
+                await send_telegram_message(chat_id, "📊 No matching campaigns found.")
+            else:
+                await send_telegram_message(chat_id, f"📊 Found {len(data)} matching creator collaborations.\n\nHere they are:")
+                for c in data[:5]:
+                    summary_msg = format_single_campaign_summary(c, platform="tg")
+                    await send_telegram_message(chat_id, summary_msg, reply_markup=get_telegram_single_campaign_buttons(c))
+                if len(data) > 5:
+                    await send_telegram_message(chat_id, f"...and {len(data)-5} more.")
+
+        elif intent_res.intent == IntentType.CLARIFICATION:
+            await send_telegram_message(chat_id, f"AI Campaign Manager\n\n{intent_res.recommendation_text}")
+
         elif intent_res.intent == IntentType.RECOMMENDATION:
-            await send_telegram_message(chat_id, f"💡 <b>Suggestion</b>\n\n{intent_res.recommendation_text}")
-            
+            await send_telegram_message(chat_id, f"💡 *Suggestion*\n\n{intent_res.recommendation_text}")
+
         else:
-            await send_telegram_message(chat_id, intent_res.recommendation_text or "Sorry, I didn't catch that.")
+            await send_telegram_message(chat_id, intent_res.recommendation_text or "Sorry, I didn't catch that. Could you rephrase?")
 
     except Exception as e:
         logger.error("Telegram processing error", error=str(e), exc_info=True)

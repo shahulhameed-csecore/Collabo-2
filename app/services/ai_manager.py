@@ -15,10 +15,12 @@ logger = structlog.get_logger(__name__)
 class IntentType(str, Enum):
     CREATE = "CREATE"
     UPDATE = "UPDATE"
+    DELETE = "DELETE"
+    ACTIVATE = "ACTIVATE"
+    PAUSE = "PAUSE"
     QUERY = "QUERY"
     RECOMMENDATION = "RECOMMENDATION"
-    CONFIRM_BULK = "CONFIRM_BULK"
-    UNKNOWN = "UNKNOWN"
+    CLARIFICATION = "CLARIFICATION"
 
 # Missing fields are now calculated in the UI formatter, removing MissingFieldInfo classes
 
@@ -36,12 +38,21 @@ class CampaignExtraction(BaseModel):
     destination_url: Optional[str] = Field(default=None, description="Destination URL (Optional)")
     status: Optional[str] = Field(default="draft", description="Status of the campaign: draft, active, cancelled")
 
+class QueryFilters(BaseModel):
+    status: Optional[str] = Field(default=None, description="draft, active, paused, cancelled, completed")
+    brand_name: Optional[str] = Field(default=None, description="Specific brand to filter by")
+    is_negotiation: Optional[bool] = Field(default=None, description="True if asking for pending negotiations")
+    due_this_week: Optional[bool] = Field(default=None, description="True if asking for deadlines this week")
+    due_today: Optional[bool] = Field(default=None, description="True if asking for deadlines today")
+    missing_payment: Optional[bool] = Field(default=None, description="True if asking for missing payments/waiting for details")
+
 class IntentResponse(BaseModel):
     intent: IntentType = Field(description="The primary intent of the user's message.")
     campaigns: List[CampaignExtraction] = Field(default_factory=list, description="Extracted campaigns if CREATE or UPDATE.")
-    query_text: Optional[str] = Field(default=None, description="The user's query if intent is QUERY.")
-    recommendation_text: Optional[str] = Field(default=None, description="AI suggestion if intent is RECOMMENDATION.")
-    target_campaign_id: Optional[str] = Field(default=None, description="If updating, the name or context ID of the campaign to update.")
+    query_text: Optional[str] = Field(default=None, description="The user's original query if intent is QUERY.")
+    query_filters: Optional[QueryFilters] = Field(default=None, description="Structured filters for QUERY intent.")
+    recommendation_text: Optional[str] = Field(default=None, description="AI suggestion/clarification text.")
+    target_campaign_ids: List[str] = Field(default_factory=list, description="List of target campaign UUIDs for UPDATE, DELETE, ACTIVATE, PAUSE.")
 
 def get_ai_manager_prompt(context: str = "") -> str:
     return f"""You are the Collabo AI Campaign Manager, an expert assistant for busy founders.
@@ -51,33 +62,40 @@ def get_ai_manager_prompt(context: str = "") -> str:
 
 **Intent Types**:
 - CREATE: The user is creating new collaborations.
-- UPDATE: The user is correcting/activating existing collaborations.
-- QUERY: Asking about campaigns.
-- RECOMMENDATION: Mentioning a problem naturally.
-- CONFIRM_BULK: Bulk actions.
+- UPDATE: The user is updating data (payment, deadline, deliverables) of existing collaborations.
+- DELETE: The user wants to delete or remove collaborations.
+- ACTIVATE: The user wants to activate collaborations.
+- PAUSE: The user wants to pause collaborations.
+- QUERY: Asking about campaigns, filtering by status, date, brand, etc. (Mini-dashboard).
+- RECOMMENDATION: Proactive suggestions.
+- CLARIFICATION: Asking the user for clarification due to ambiguity or safety rules.
 
-**Extraction Resolvers (CRITICAL RULES)**:
+**Core Safety & Workflow Rules (CRITICAL)**:
 
-1. **Conversation & Replacement Resolver**: 
-   - Read the ENTIRE message history provided.
-   - Extract ONLY the FINAL state. If a creator was mentioned but then cancelled or removed later in the text, DO NOT extract them. Do not create rows for removed creators.
+1. **No AI Guessing & Draft Context Window**: 
+   - If the user provides a standalone update (e.g. "25k", "Friday") but there are multiple drafts in the context, you MUST NOT guess which one to update. Set intent to `CLARIFICATION` and ask: "I found multiple collaborations. Which creator would you like to update? (e.g. Rohan or Sneha)".
+   - If the context is empty or you cannot logically determine the target, return `CLARIFICATION` and ask: "I couldn't determine which creator collaboration you'd like to update. Please mention the creator's name."
 
-2. **Campaign Name Resolver**:
-   - Determine Campaign Name and Brand Name.
-   - IF Campaign Name exists, store it.
-   - IF only Brand Name exists, use the Brand Name as `campaign_name` temporarily.
-   - IF neither exists, output "Unknown Campaign".
-   - NEVER hallucinate names (e.g. "Brand Campaign", "Campaign XYZ").
+2. **Negotiation Safety Rule**:
+   - You MUST NEVER assume or calculate payment values.
+   - If the user says "Approve negotiation" or "Finalize it", you MUST NOT automatically decide the final amount (even if they previously discussed 1.2L vs 1.5L).
+   - Set intent to `CLARIFICATION` and ask: "Please provide the final agreed payment amount."
 
-3. **Ambiguity Rule**:
-   - If a value (like payment or deadline) is ambiguous (e.g., "around 20-25k"), incomplete, or conflicting, you MUST leave it as `null`. 
-   - Never guess. Missing or ambiguous info is perfectly fine and will be handled by the system later.
+3. **Bulk Operations Support**:
+   - You understand bulk commands like "Activate all Mamaearth creators", "Delete all drafts", "Increase everyone's payment by 5000".
+   - Identify ALL matching campaigns from the Context, and output their UUIDs in `target_campaign_ids`.
+   - Set the intent to the corresponding action (`ACTIVATE`, `DELETE`, `UPDATE`, `PAUSE`).
 
-4. **Multiple Creator Logic**:
-   - For a single campaign with N final creators, output exactly N objects in the `campaigns` array (one per creator collaboration).
+4. **Expanded QUERY Capabilities**:
+   - If the user asks "Which campaigns are due this week?", "Show active campaigns", "Show pending negotiations", set intent to `QUERY`.
+   - Populate `query_filters` with the appropriate booleans/strings. 
+   - Never answer the query yourself (you don't have the full DB). Just extract the intent and filters.
 
-5. **Negotiations**:
-   - If you detect a budget negotiation, set `payment_amount` to null, and prepend 'NEGOTIATION: [summary]' into `special_notes`.
+5. **Conversation & Replacement Resolver (For CREATE)**: 
+   - Extract ONLY the FINAL state. If a creator was mentioned but then cancelled later in the text, DO NOT extract them.
+
+6. **Ambiguity Rule (For Extraction)**:
+   - If a value (like payment or deadline) is ambiguous, set it to `null`. 
 
 **Output Rules**:
 Respond STRICTLY in JSON format matching the schema provided. Do not include markdown formatting or outside text.
