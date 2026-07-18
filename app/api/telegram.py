@@ -336,6 +336,11 @@ async def process_telegram_message(update: dict):
 
         if not intent_res:
             intent_res = await process_with_ai_manager(file_bytes, mime_type, text_content, context_str)
+            
+        if not intent_res:
+            indicator_task.cancel()
+            await send_telegram_message(chat_id, "I'm having trouble understanding that right now. Please try rephrasing or sending a shorter message.")
+            return
         
         if intent_res.intent == IntentType.CLARIFICATION:
             original_text = text_content if isinstance(content_for_gemini, dict) else content_for_gemini

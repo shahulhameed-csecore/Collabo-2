@@ -366,6 +366,11 @@ async def process_whatsapp_message(sender_id: str, message: dict):
 
         if not intent_res:
             intent_res = await process_with_ai_manager(file_bytes, mime_type, text_content, context_str)
+            
+        if not intent_res:
+            indicator_task.cancel()
+            await send_whatsapp_message(sender_id, "I'm having trouble understanding that right now. Please try rephrasing or sending a shorter message.")
+            return
         
         if intent_res.intent == IntentType.CLARIFICATION:
             original_text = text_content if isinstance(content_for_gemini, dict) else content_for_gemini
