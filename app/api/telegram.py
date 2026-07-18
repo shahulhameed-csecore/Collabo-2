@@ -137,6 +137,7 @@ async def process_telegram_message(update: dict):
                 await send_telegram_message(chat_id, res_msg)
                 return
             elif cb_data == "cancel_ai_action":
+                BULK_CACHE.pop(user_id, None)
                 await send_telegram_message(chat_id, "❌ Action cancelled. You can start a new request.")
                 return
             elif cb_data.startswith("camp_edit:"):
@@ -290,10 +291,11 @@ async def process_telegram_message(update: dict):
         if intent_res.intent == IntentType.CREATE:
             # Phase 1: Creator Name Validation
             valid_campaigns_to_create = []
+            skipped_count = 0
             for c in intent_res.campaigns:
                 if not c.influencer_name or c.influencer_name.strip() == "":
-                    await send_telegram_message(chat_id, "Please provide the creator's name.")
-                    return
+                    skipped_count += 1
+                    continue
                 valid_campaigns_to_create.append(c)
                 
             if not valid_campaigns_to_create:
@@ -328,6 +330,8 @@ async def process_telegram_message(update: dict):
                 saved_campaigns.append(saved_c)
                     
             intro_msg = f"AI Campaign Manager\n\nExtraction completed successfully.\n\nCampaign:\n{campaign_name_for_intro}\n\nCreators Found:\n{len(saved_campaigns)}\n\nPlease review the extracted creator details below before activating them."
+            if skipped_count > 0:
+                intro_msg += f"\n\nNote: {skipped_count} creator(s) were skipped because their names were missing."
             await send_telegram_message(chat_id, intro_msg)
             
             for campaign in saved_campaigns:

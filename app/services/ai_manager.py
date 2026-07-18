@@ -3,6 +3,7 @@ import structlog
 import os
 import asyncio
 from enum import Enum
+from datetime import datetime
 from pydantic import BaseModel, Field
 from google import genai
 from google.genai import types
@@ -95,8 +96,9 @@ def get_ai_manager_prompt(context: str = "") -> str:
 5. **Conversation & Replacement Resolver (For CREATE)**: 
    - Extract ONLY the FINAL state. If a creator was mentioned but then cancelled later in the text, DO NOT extract them.
 
-6. **Ambiguity Rule (For Extraction)**:
-   - If a value (like payment or deadline) is ambiguous, set it to `null`. 
+6. **Ambiguity & Date Parsing Rule**:
+   - If a value (like payment) is ambiguous, set it to `null`. 
+   - If a date is provided without a year (e.g. '20 july' or '20/07'), assume the current year is {datetime.now().year} and format it as YYYY-MM-DD. Do NOT mark it as null.
 
 **Output Rules**:
 Respond STRICTLY in JSON format matching the schema provided. Do not include markdown formatting or outside text.

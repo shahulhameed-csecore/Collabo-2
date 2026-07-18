@@ -143,6 +143,7 @@ async def process_whatsapp_message(sender_id: str, message: dict):
 
             if action_id:
                 if action_id == "cancel_ai_action":
+                    BULK_CACHE.pop(user_id, None)
                     await send_whatsapp_message(sender_id, "❌ Action cancelled. You can start a new request.")
                     return
                 elif action_id == "act_all":
@@ -324,10 +325,11 @@ async def process_whatsapp_message(sender_id: str, message: dict):
         if intent_res.intent == IntentType.CREATE:
             # Phase 1: Creator Name Validation
             valid_campaigns_to_create = []
+            skipped_count = 0
             for c in intent_res.campaigns:
                 if not c.influencer_name or c.influencer_name.strip() == "":
-                    await send_whatsapp_message(sender_id, "Please provide the creator's name.")
-                    return
+                    skipped_count += 1
+                    continue
                 valid_campaigns_to_create.append(c)
                 
             if not valid_campaigns_to_create:
@@ -365,6 +367,8 @@ async def process_whatsapp_message(sender_id: str, message: dict):
                 saved_campaigns.append(saved_c)
                 
             intro_msg = f"AI Campaign Manager\n\nExtraction completed successfully.\n\nCampaign:\n{campaign_name_for_intro}\n\nCreators Found:\n{len(saved_campaigns)}\n\nPlease review the extracted creator details below before activating them."
+            if skipped_count > 0:
+                intro_msg += f"\n\nNote: {skipped_count} creator(s) were skipped because their names were missing."
             await send_whatsapp_message(sender_id, intro_msg)
                 
             for campaign in saved_campaigns:

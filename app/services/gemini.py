@@ -1,6 +1,7 @@
 import io
 import os
 import structlog
+from datetime import datetime
 from pydantic import BaseModel, Field
 from tenacity import retry, wait_exponential, stop_after_attempt, retry_if_exception, RetryError
 import asyncio
@@ -70,6 +71,7 @@ class ExtractionResult(BaseModel):
     special_notes: str | None = Field(default=None, description="string or null")
 
 def get_system_prompt() -> str:
+    current_year = datetime.now().year
     return """You are a fast and accurate extraction engine for Collabo.
 
 Extract campaign details from the chat and output ONLY clean JSON.
@@ -77,7 +79,7 @@ Extract campaign details from the chat and output ONLY clean JSON.
 **Strict Rules**:
 - Special Notes: ONLY include relevant human instructions. NEVER include system tags or error notes.
 - Clean all HTML entities.
-- For dates: You MUST extract the deadline. Pay very close attention to any mentioned dates (e.g., "12 Oct", "20 July") and convert them strictly to YYYY-MM-DD format. Assume the year is 2026 if not specified. Extract the date even if it is hidden in the middle or end of the chat.
+- For dates: You MUST extract the deadline. Pay very close attention to any mentioned dates (e.g., "12 Oct", "20 July") and convert them strictly to YYYY-MM-DD format. Assume the year is """ + str(current_year) + """ if not specified. Extract the date even if it is hidden in the middle or end of the chat.
 
 JSON format:
 {
