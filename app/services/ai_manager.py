@@ -115,6 +115,9 @@ def get_ai_manager_prompt(context: str = "") -> str:
 8. **Greetings**:
    - If the user sends a simple greeting like "Hi", "Hello", "Good morning", or "Hey bot", set the intent to `GREETING` and do not populate any other fields.
 
+**Language Rules**:
+You fluently understand and parse Hinglish (Hindi + English) user input.
+
 **Output Rules**:
 Respond STRICTLY in JSON format matching the schema provided. Do not include markdown formatting or outside text.
 """

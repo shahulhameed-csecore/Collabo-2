@@ -209,7 +209,8 @@ async def process_telegram_message(update: dict):
                     update_val = text_val
                     if db_field == "payment_amount":
                         try:
-                            update_val = float(''.join(c for c in text_val.lower().replace("k", "000") if c.isdigit() or c == '.'))
+                            clean_val = text_val.lower().replace("k", "000").replace("l", "00000")
+                            update_val = float(''.join(c for c in clean_val if c.isdigit() or c == '.'))
                         except:
                             pass
                     elif db_field == "deadline":
@@ -335,6 +336,18 @@ async def process_telegram_message(update: dict):
 
         if not intent_res:
             intent_res = await process_with_ai_manager(file_bytes, mime_type, text_content, context_str)
+        
+        if intent_res.intent == IntentType.CLARIFICATION:
+            original_text = text_content if isinstance(content_for_gemini, dict) else content_for_gemini
+            if not original_text and "text" in message:
+                original_text = message["text"].strip() if isinstance(message.get("text"), str) else message.get("text", {}).get("body", "").strip()
+            
+            await supabase_admin.table("user_settings").update({
+                "pending_action": {
+                    "action": "clarification", 
+                    "original_msg": str(original_text)
+                }
+            }).eq("user_id", user_id).execute()
             
         indicator_task.cancel()
 
