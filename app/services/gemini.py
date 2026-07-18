@@ -197,9 +197,11 @@ async def _call_gemini_with_fallback(client: genai.Client, contents: list) -> Ex
     """Attempts extraction with 2.5-flash, falls back to 2.0-flash on failure/quota."""
     try:
         return await _call_gemini(client, contents, model='gemini-2.5-flash')
-    except InvalidArgument as e:
-        logger.warning("gemini_invalid_argument_falling_back", error=str(e))
-        return await _call_gemini(client, contents, model='gemini-1.5-flash')
+    except Exception as e:
+        if "400" in str(e).lower() or "invalid" in str(e).lower() or "not found" in str(e).lower():
+            logger.warning("gemini_invalid_argument_falling_back", error=str(e))
+            return await _call_gemini(client, contents, model='gemini-1.5-flash')
+        raise
 
 @sentry_sdk.trace(op="task", name="Extract AI Data")
 async def extract_campaign_data(file_bytes: bytes, filename: str, mime_type: str, text_content: str = "") -> dict:
