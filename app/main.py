@@ -27,24 +27,39 @@ from datetime import datetime, timezone
 # ─── Step 1: Configure structlog FIRST ────────────────────────────────────────
 # This MUST happen before any module-level structlog.get_logger() call.
 # Previously this was on line 73, after reminders.py was imported on line 17.
-logging.basicConfig(level=logging.INFO)
+import os
+from app.core.config import settings
+import uuid
+from typing import Any
+
+# Use configured log level (default INFO)
+log_level = getattr(logging, settings.LOG_LEVEL.upper(), logging.INFO)
+logging.basicConfig(level=log_level, format="%(message)s")
 
 def redact_secrets(logger, log_method, event_dict):
     """Redacts sensitive information from logs."""
     sensitive_keys = {"token", "secret", "password", "key", "authorization", "auth"}
     for k, v in event_dict.items():
-        if any(sec in k.lower() for sec in sensitive_keys):
+        if isinstance(v, str) and any(sec in k.lower() for sec in sensitive_keys):
             event_dict[k] = "***REDACTED***"
     return event_dict
 
+# Choose renderer based on environment (Console for dev, JSON for production)
+if settings.ENVIRONMENT.lower() == "development":
+    renderer = structlog.dev.ConsoleRenderer(colors=True)
+else:
+    renderer = structlog.processors.JSONRenderer()
+
 structlog.configure(
     processors=[
+        structlog.contextvars.merge_contextvars,
         structlog.stdlib.add_log_level,
         structlog.stdlib.add_logger_name,
         redact_secrets,
         structlog.processors.TimeStamper(fmt="iso"),
-        structlog.processors.dict_tracebacks,
-        structlog.processors.JSONRenderer(),
+        structlog.processors.StackInfoRenderer(),
+        structlog.processors.format_exc_info,
+        renderer,
     ],
     context_class=dict,
     logger_factory=structlog.stdlib.LoggerFactory(),
@@ -220,6 +235,52 @@ app.add_middleware(
     allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allow_headers=["Authorization", "Content-Type", "Accept", "X-Internal-Secret"],
 )
+
+import time
+
+@app.middleware("http")
+async def structlog_request_middleware(request: Request, call_next):
+    # Clear context vars for the new request
+    structlog.contextvars.clear_contextvars()
+    
+    # Generate a unique request ID
+    request_id = str(uuid.uuid4())
+    structlog.contextvars.bind_contextvars(
+        request_id=request_id,
+        method=request.method,
+        path=request.url.path,
+        client_ip=request.client.host if request.client else "unknown"
+    )
+    
+    # Do not log healthchecks to avoid spam
+    skip_logging = request.url.path in ["/health", "/", "/metrics"]
+    
+    if not skip_logging:
+        logger.info("request_started")
+        
+    start_time = time.perf_counter()
+    
+    try:
+        response = await call_next(request)
+        process_time = time.perf_counter() - start_time
+        
+        # Add response status code to the log context
+        structlog.contextvars.bind_contextvars(status_code=response.status_code)
+        
+        if not skip_logging:
+            if response.status_code >= 500:
+                logger.error("request_failed", duration_s=round(process_time, 4))
+            elif response.status_code >= 400:
+                logger.warning("request_client_error", duration_s=round(process_time, 4))
+            else:
+                logger.info("request_completed", duration_s=round(process_time, 4))
+                
+        return response
+    except Exception as exc:
+        process_time = time.perf_counter() - start_time
+        logger.exception("request_crashed", duration_s=round(process_time, 4), error=str(exc))
+        raise
+
 
 
 @app.middleware("http")

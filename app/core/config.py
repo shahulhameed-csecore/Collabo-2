@@ -3,6 +3,7 @@ from typing import List, Optional
 
 class Settings(BaseSettings):
     ENVIRONMENT: str = "development"
+    LOG_LEVEL: str = "INFO"
     SUPABASE_URL: str
     SUPABASE_ANON_KEY: str
     GEMINI_API_KEY: Optional[str] = None
