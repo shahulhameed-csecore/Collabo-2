@@ -70,13 +70,13 @@ def format_single_campaign_summary(campaign: dict, platform: str = "wa") -> str:
     if not notes_clean:
         notes_clean = 'None'
     
-    summary = f"Campaign Name:\n{campaign_name}\n\n"
-    summary += f"Creator:\n{influencer}\n\n"
-    summary += f"Platform:\n{plat}\n\n"
-    summary += f"Deliverables:\n{deliverables}\n\n"
-    summary += f"Payment:\n{payment_str}\n\n"
-    summary += f"Deadline:\n{deadline}\n\n"
-    summary += f"Special Notes:\n{notes_clean}\n"
+    summary = f"Campaign Name: {campaign_name}\n"
+    summary += f"Creator: {influencer}\n"
+    summary += f"Platform: {plat}\n"
+    summary += f"Deliverables: {deliverables}\n"
+    summary += f"Payment: {payment_str}\n"
+    summary += f"Deadline: {deadline}\n"
+    summary += f"Special Notes: {notes_clean}\n"
     
     # Calculate Missing Fields (Mandatory for activation)
     actions_required = []
@@ -93,7 +93,7 @@ def format_single_campaign_summary(campaign: dict, platform: str = "wa") -> str:
             summary += f"{act}\n"
             
     ux_status = resolve_ux_status(campaign)
-    summary += f"\nStatus:\n{ux_status}"
+    summary += f"\nStatus: {ux_status}"
     
     return summary
 
@@ -103,7 +103,7 @@ def get_whatsapp_single_campaign_buttons(campaign: dict) -> dict:
     status_text = resolve_ux_status(campaign)
     return {
         "type": "button",
-        "body": {"text": f"Campaign:\n{brand}\n\nStatus:\n{status_text}"},
+        "body": {"text": f"Campaign: {brand}\nStatus: {status_text}"},
         "action": {
             "buttons": [
                 {"type": "reply", "reply": {"id": f"act_camp:{camp_id}", "title": "Activate"}},
