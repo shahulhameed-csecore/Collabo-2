@@ -20,3 +20,27 @@ def get_client_ip(request: Request) -> str:
 
 
 limiter = Limiter(key_func=get_client_ip)
+
+import time
+from collections import defaultdict
+
+# Simple in-memory rate limiter for webhooks (sender_id)
+# 20 requests per minute
+_USER_RATE_LIMITS = defaultdict(list)
+_RATE_LIMIT_WINDOW = 60
+_RATE_LIMIT_MAX = 20
+
+def is_webhook_rate_limited(sender_id: str) -> bool:
+    now = time.time()
+    times = _USER_RATE_LIMITS[sender_id]
+    
+    # Prune old
+    times = [t for t in times if now - t < _RATE_LIMIT_WINDOW]
+    
+    if len(times) >= _RATE_LIMIT_MAX:
+        _USER_RATE_LIMITS[sender_id] = times
+        return True
+        
+    times.append(now)
+    _USER_RATE_LIMITS[sender_id] = times
+    return False

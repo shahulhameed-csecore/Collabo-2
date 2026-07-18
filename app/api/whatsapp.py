@@ -13,6 +13,7 @@ from app.services.gemini import extract_campaign_data
 from app.services.ai_manager import process_with_ai_manager, IntentType
 from app.core.parsers import parse_corrections, parse_date_string
 from app.core.formatters import format_single_campaign_summary, get_whatsapp_single_campaign_buttons, get_whatsapp_edit_menu
+from app.services.intent_executor import execute_intent
 from app.services.whatsapp import send_whatsapp_message, download_whatsapp_media
 
 logger = structlog.get_logger(__name__)
@@ -88,6 +89,11 @@ async def _process_whatsapp_message_locked(sender_id: str, message: dict):
     Inner logic for processing WhatsApp messages.
     """
     try:
+        from app.core.limiter import is_webhook_rate_limited
+        if is_webhook_rate_limited(sender_id):
+            logger.warning(f"Rate limited WhatsApp webhook for {sender_id}")
+            return
+
         logger.info("Started process_whatsapp_message", sender_id=sender_id)
         supabase_admin = await get_supabase_admin()
         if not supabase_admin:
@@ -375,166 +381,10 @@ async def _process_whatsapp_message_locked(sender_id: str, message: dict):
         indicator_task.cancel()
 
         from app.core.formatters import format_single_campaign_summary
+        from app.services.intent_executor import execute_intent
 
-        # 5. Handle Intents
-        if intent_res.intent == IntentType.CREATE:
-            # Phase 1: Creator Name Validation
-            valid_campaigns_to_create = []
-            skipped_count = 0
-            for c in intent_res.campaigns:
-                if not c.influencer_name or c.influencer_name.strip() == "":
-                    skipped_count += 1
-                    continue
-                valid_campaigns_to_create.append(c)
-                
-            if not valid_campaigns_to_create:
-                await send_whatsapp_message(sender_id, "No valid creators found to extract.")
-                return
-
-            saved_campaigns = []
-            campaign_name_for_intro = "Unknown Campaign"
-            for c in valid_campaigns_to_create:
-                campaign_data = c.model_dump(exclude={"id"}, exclude_none=True)
-                brand = campaign_data.pop("brand_name", None)
-                camp_name = campaign_data.pop("campaign_name", brand)
-                
-                if camp_name and campaign_name_for_intro == "Unknown Campaign":
-                    campaign_name_for_intro = camp_name
-                    
-                # We can store the campaign_name logically or just pop it if there is no column yet.
-                # Assuming no column yet, we ignore it in db insert.
-                
-                campaign_data["user_id"] = user_id
-                campaign_data["status"] = "draft"
-                campaign_data["influencer_handle"] = campaign_data.get("influencer_name") or "Unknown"
-                if message_id:
-                    campaign_data["special_notes"] = f"{campaign_data.get('special_notes', '')} [wa_msg:{message_id}]".strip()
-                
-                resp = await supabase_admin.table("campaigns").insert(campaign_data).execute()
-                if resp.data:
-                    saved_c = resp.data[0]
-                else:
-                    saved_c = campaign_data
-                    
-                if camp_name:
-                    saved_c["campaign_name"] = camp_name
-                elif brand:
-                    saved_c["brand_name"] = brand
-                saved_campaigns.append(saved_c)
-                
-            intro_msg = f"AI Campaign Manager\n\nExtraction completed successfully.\n\nCampaign:\n{campaign_name_for_intro}\n\nCreators Found:\n{len(saved_campaigns)}\n\nPlease review the extracted creator details below before activating them."
-            if skipped_count > 0:
-                intro_msg += f"\n\nNote: {skipped_count} creator(s) were skipped because their names were missing."
-            await send_whatsapp_message(sender_id, intro_msg)
-                
-            for campaign in saved_campaigns:
-                summary_msg = format_single_campaign_summary(
-                    campaign, 
-                    platform="wa"
-                )
-                await send_whatsapp_message(sender_id, summary_msg)
-                await send_whatsapp_message(sender_id, "", interactive=get_whatsapp_single_campaign_buttons(campaign))
-
-        elif intent_res.intent in [IntentType.UPDATE, IntentType.DELETE, IntentType.ACTIVATE, IntentType.PAUSE]:
-            target_ids = intent_res.target_campaign_ids
-            if not target_ids and intent_res.campaigns:
-                target_ids = [c.id for c in intent_res.campaigns if c.id]
-                
-            if not target_ids:
-                if intent_res.campaigns:
-                    valid_ids = [rc["id"] for rc in (recent_campaigns.data or [])]
-                    if valid_ids: target_ids = [valid_ids[0]]
-            
-            if not target_ids:
-                await send_whatsapp_message(sender_id, "❌ I couldn't determine which creator collaboration you'd like to update. Please mention the creator's name.")
-                return
-                
-            if len(target_ids) > 1 and not (msg_type == "text" and message.get("text", {}).get("body", "").strip().upper() in ["YES", "Y", "DELETE ALL", "ACTIVATE ALL", "PAUSE ALL", "UPDATE ALL"]):
-                BULK_CACHE[user_id] = intent_res
-                action_name = intent_res.intent.value.lower()
-                cancel_interactive = {
-                    "type": "button",
-                    "action": {
-                        "buttons": [
-                            {
-                                "type": "reply",
-                                "reply": {
-                                    "id": "cancel_ai_action",
-                                    "title": "❌ Cancel"
-                                }
-                            }
-                        ]
-                    }
-                }
-                await send_whatsapp_message(sender_id, f"AI Campaign Manager\n\nYou are about to {action_name} {len(target_ids)} creator collaborations.\n\nPlease confirm.\n\nReply with:\n- YES\n- {action_name.upper()} ALL", interactive=cancel_interactive)
-                return
-                
-            if intent_res.intent == IntentType.DELETE:
-                await supabase_admin.table("campaigns").update({"status": "cancelled"}).in_("id", target_ids).execute()
-                if len(target_ids) > 1:
-                    await send_whatsapp_message(sender_id, f"AI Campaign Manager\n\nSuccessfully cancelled {len(target_ids)} creator collaborations.")
-                else:
-                    await send_whatsapp_message(sender_id, "🗑️ Creator collaboration cancelled successfully.")
-            else:
-                updates = {}
-                if intent_res.intent == IntentType.ACTIVATE: updates["status"] = "active"
-                elif intent_res.intent == IntentType.PAUSE: updates["status"] = "paused"
-                
-                if intent_res.intent == IntentType.UPDATE and intent_res.campaigns:
-                    c = intent_res.campaigns[0]
-                    updates = c.model_dump(exclude={"id", "campaign_name"}, exclude_none=True)
-                    updates.pop("brand_name", None)
-                    
-                if updates:
-                    await supabase_admin.table("campaigns").update(updates).in_("id", target_ids).execute()
-                    
-                updated_resp = await (supabase_admin.table("campaigns").select("*").in_("id", target_ids).execute())
-                data = updated_resp.data or []
-                
-                if len(target_ids) > 1:
-                    counts = {}
-                    for cmp in data:
-                        b = cmp.get("brand_name") or cmp.get("campaign_name") or "Unknown"
-                        counts[b] = counts.get(b, 0) + 1
-                    summary_text = f"AI Campaign Manager\n\nSuccessfully {intent_res.intent.value.lower()}d {len(target_ids)} creator collaborations.\n\nSummary:\n"
-                    for b, count in counts.items():
-                        summary_text += f"- {b} ({count})\n"
-                    summary_text += "\nWould you like to review any creator collaboration?"
-                    await send_whatsapp_message(sender_id, summary_text)
-                else:
-                    for cmp in data:
-                        summary_msg = format_single_campaign_summary(cmp, platform="wa")
-                        await send_whatsapp_message(sender_id, summary_msg)
-                        await send_whatsapp_message(sender_id, "", interactive=get_whatsapp_single_campaign_buttons(cmp))
-
-        elif intent_res.intent == IntentType.QUERY:
-            filters = intent_res.query_filters
-            query = supabase_admin.table("campaigns").select("*").eq("user_id", user_id)
-            if filters:
-                if filters.status: query = query.eq("status", filters.status)
-                if filters.brand_name: query = query.ilike("brand_name", f"%{filters.brand_name}%")
-                
-            resp = await query.order("created_at", desc=True).limit(20).execute()
-            data = resp.data or []
-            
-            if filters and filters.is_negotiation:
-                data = [c for c in data if "NEGOTIATION:" in (c.get("special_notes") or "")]
-            if filters and filters.missing_payment:
-                data = [c for c in data if c.get("payment_amount") in [None, 0.0, 0]]
-                
-            if not data:
-                await send_whatsapp_message(sender_id, "📊 No matching campaigns found.")
-            else:
-                await send_whatsapp_message(sender_id, f"📊 Found {len(data)} matching creator collaborations.\n\nHere they are:")
-                for c in data[:3]:
-                    summary_msg = format_single_campaign_summary(c, platform="wa")
-                    await send_whatsapp_message(sender_id, summary_msg)
-                    await send_whatsapp_message(sender_id, "", interactive=get_whatsapp_single_campaign_buttons(c))
-                if len(data) > 3:
-                    await send_whatsapp_message(sender_id, f"...and {len(data)-3} more.\n\n_View all {len(data)} results on your Collabo Dashboard._")
-
-        elif intent_res.intent == IntentType.CLARIFICATION:
-            cancel_interactive = {
+        def _get_cancel_interactive():
+            return {
                 "type": "button",
                 "action": {
                     "buttons": [
@@ -548,19 +398,23 @@ async def _process_whatsapp_message_locked(sender_id: str, message: dict):
                     ]
                 }
             }
-            if isinstance(content_for_gemini, str):
-                BULK_CACHE[user_id] = {"action": "clarification", "original_msg": content_for_gemini}
-                
-            await send_whatsapp_message(sender_id, f"AI Campaign Manager\n\n{intent_res.recommendation_text}", interactive=cancel_interactive)
 
-        elif intent_res.intent == IntentType.RECOMMENDATION:
-            await send_whatsapp_message(sender_id, f"💡 *Suggestion*\n\n{intent_res.recommendation_text}")
-
-        elif intent_res.intent == IntentType.GREETING:
-            await send_whatsapp_message(sender_id, "👋 *Hi! I'm Collabo AI.*\n\nForward me a brand negotiation, send a voice note, or drop a screenshot of an invoice to start tracking campaigns!")
-
-        else:
-            await send_whatsapp_message(sender_id, intent_res.recommendation_text or "Sorry, I didn't catch that. Could you rephrase?")
+        is_bulk_confirm = msg_type == "text" and message.get("text", {}).get("body", "").strip().upper() in ["YES", "Y", "DELETE ALL", "ACTIVATE ALL", "PAUSE ALL", "UPDATE ALL"]
+        
+        await execute_intent(
+            intent_res=intent_res,
+            user_id=user_id,
+            target_id=sender_id,
+            supabase_admin=supabase_admin,
+            recent_campaigns_data=recent_campaigns.data,
+            platform="wa",
+            send_message_func=send_whatsapp_message,
+            get_buttons_func=get_whatsapp_single_campaign_buttons,
+            get_cancel_interactive_func=_get_cancel_interactive,
+            is_bulk_confirm=is_bulk_confirm,
+            bulk_cache_dict=BULK_CACHE,
+            message_id_str=f"wa_msg:{message_id}" if message_id else None
+        )
 
     except Exception as e:
         logger.error("WhatsApp processing error", error=str(e), exc_info=True)
