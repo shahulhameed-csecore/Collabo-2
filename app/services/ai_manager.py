@@ -220,8 +220,7 @@ async def process_with_ai_manager(
             continue
 
     # Provide AI Fallback if all keys fail
-        # Provide AI Fallback per user requirements
-        return IntentResponse(
-            intent=IntentType.UNKNOWN,
-            recommendation_text="Oops, I couldn't quite understand that. Could you send the campaign details again, or upload a clear screenshot?"
-        )
+    return IntentResponse(
+        intent=IntentType.UNKNOWN,
+        recommendation_text="Oops, I couldn't quite understand that. Could you send the campaign details again, or upload a clear screenshot?"
+    )
