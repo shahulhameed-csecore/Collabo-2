@@ -20,130 +20,62 @@ def resolve_ux_status(campaign: dict, missing_fields: list = None) -> str:
         
     return db_status.upper()
 
-def format_grouped_campaign_summary(campaigns: list[dict], is_review: bool = False, missing_fields: list = None, platform: str = "wa") -> str:
-    if not campaigns:
-        return "No campaigns found."
-
-    grouped = defaultdict(list)
-    for c in campaigns:
-        brand = c.get('brand_name') or 'Brand Campaign'
-        grouped[brand].append(c)
-        
-    is_tg = (platform == "tg")
-    b_tag = "<b>" if is_tg else "*"
-    b_end = "</b>" if is_tg else "*"
+def format_single_campaign_summary(campaign: dict, missing_fields: list = None, platform: str = "wa") -> str:
+    brand = campaign.get('brand_name') or campaign.get('influencer_name') or 'Brand Campaign'
     
-    prefix = f"🤖 {b_tag}EXTRACTION COMPLETE{b_end}\n\n{b_tag}Campaign Summary{b_end}\n\n"
-    summary = prefix
+    summary = f"AI Campaign Manager\n\nExtraction Completed Successfully.\n\nCampaign Name:\n{brand}\n\nFields Extracted:\n\n"
     
-    camp_counter = 1
-    for brand, creators in grouped.items():
-        clean_brand = html.escape(brand) if is_tg else brand
-        summary += f"───\n{b_tag}Campaign {camp_counter}{b_end}\n"
-        summary += f"{b_tag}Brand:{b_end} {clean_brand}\n\n"
-        
-        # Creators list
-        creator_names = []
-        for c in creators:
-            name = c.get('influencer_name') or c.get('influencer_handle') or 'Unknown'
-            creator_names.append(html.escape(name) if is_tg else name)
-            
-        summary += f"{b_tag}Creators:{b_end}\n"
-        for name in creator_names:
-            summary += f"- {name}\n"
-        summary += "\n"
-        
-        # Deliverables
-        summary += f"{b_tag}Deliverables:{b_end}\n"
-        for c in creators:
-            name = html.escape(c.get('influencer_name') or 'Unknown') if is_tg else (c.get('influencer_name') or 'Unknown')
-            d = html.escape(c.get('deliverables') or 'N/A') if is_tg else (c.get('deliverables') or 'N/A')
-            summary += f"- {name} -> {d}\n"
-        summary += "\n"
-        
-        # Payments
-        summary += f"{b_tag}Payments / Budget:{b_end}\n"
-        for c in creators:
-            name = html.escape(c.get('influencer_name') or 'Unknown') if is_tg else (c.get('influencer_name') or 'Unknown')
-            raw_pay = c.get('payment_amount')
-            notes = c.get('special_notes') or ''
-            
-            if "NEGOTIATION:" in notes:
-                # Extract negotiation text safely
-                try:
-                    neg_text = notes.split("NEGOTIATION:")[1].split("]")[0].strip()
-                    neg_text = html.escape(neg_text) if is_tg else neg_text
-                    summary += f"- {name} -> {neg_text}\n"
-                except IndexError:
-                    summary += f"- {name} -> Pending Negotiation\n"
-            elif raw_pay is not None:
-                try:
-                    pay = float(raw_pay)
-                    summary += f"- {name} -> ₹{pay:,.2f}\n"
-                except ValueError:
-                    summary += f"- {name} -> N/A\n"
-            else:
-                summary += f"- {name} -> N/A\n"
-        summary += "\n"
-        
-        # Deadlines
-        deadlines = list(set([c.get('deadline') for c in creators if c.get('deadline')]))
-        summary += f"{b_tag}Deadline:{b_end}\n"
-        if not deadlines:
-            summary += "N/A\n\n"
-        elif len(deadlines) == 1:
-            d = html.escape(deadlines[0]) if is_tg else deadlines[0]
-            summary += f"{d}\n\n"
+    fields_present = []
+    fields_missing = []
+    
+    field_map = {
+        'influencer_name': 'Influencer Name',
+        'influencer_handle': 'Handle',
+        'platform': 'Platform',
+        'payment_amount': 'Payment',
+        'deadline': 'Deadline',
+        'deliverables': 'Deliverables',
+        'special_notes': 'Special Notes',
+        'destination_url': 'Destination URL'
+    }
+    
+    for key, display_name in field_map.items():
+        val = campaign.get(key)
+        if val is not None and str(val).strip() != "":
+            fields_present.append(display_name)
         else:
-            for c in creators:
-                name = html.escape(c.get('influencer_name') or 'Unknown') if is_tg else (c.get('influencer_name') or 'Unknown')
-                d = html.escape(c.get('deadline') or 'N/A') if is_tg else (c.get('deadline') or 'N/A')
-                summary += f"- {name} -> {d}\n"
-            summary += "\n"
+            fields_missing.append(display_name)
             
-        # Status
-        ux_status = resolve_ux_status(creators[0], missing_fields)
-        summary += f"{b_tag}Status:{b_end}\n{ux_status}\n\n"
+    for f in fields_present:
+        summary += f"✓ {f}\n"
         
-        camp_counter += 1
-        
-    summary += "───\n\n"
+    if fields_missing:
+        summary += "\nMissing Fields:\n\n"
+        for f in fields_missing:
+            summary += f"- {f}\n"
+            
+    ux_status = resolve_ux_status(campaign, missing_fields)
+    summary += f"\nStatus:\n\n{ux_status}"
     
-    if missing_fields:
-        missing_str = "\n- ".join([f.field_name for f in missing_fields])
-        summary += f"⚠️ {b_tag}Missing Information:{b_end}\n- {missing_str}\n\nPlease reply naturally to provide the missing details."
-        
     return summary
 
-def get_whatsapp_campaign_buttons(campaigns: list[dict]) -> dict:
-    if len(campaigns) > 1:
-        return {
-            "type": "button",
-            "body": {"text": f"Found {len(campaigns)} campaigns. What would you like to do?"},
-            "action": {
-                "buttons": [
-                    {"type": "reply", "reply": {"id": "act_all", "title": "Activate All"}},
-                    {"type": "reply", "reply": {"id": "camp_edit", "title": "Edit Campaigns"}},
-                    {"type": "reply", "reply": {"id": "opts_menu", "title": "More Options"}}
-                ]
-            }
+def get_whatsapp_single_campaign_buttons(campaign: dict) -> dict:
+    camp_id = campaign.get('id', '')
+    brand = campaign.get('brand_name') or campaign.get('influencer_name') or 'Campaign'
+    status_text = resolve_ux_status(campaign).upper()
+    return {
+        "type": "button",
+        "body": {"text": f"Campaign:\n{brand}\n\nStatus:\n{status_text}"},
+        "action": {
+            "buttons": [
+                {"type": "reply", "reply": {"id": f"act_camp:{camp_id}", "title": "Activate"}},
+                {"type": "reply", "reply": {"id": f"camp_edit:{camp_id}", "title": "Edit"}},
+                {"type": "reply", "reply": {"id": f"del_camp:{camp_id}", "title": "Delete"}}
+            ]
         }
-    else:
-        camp = campaigns[0] if campaigns else {}
-        brand = camp.get('brand_name') or camp.get('influencer_name') or 'Campaign'
-        return {
-            "type": "button",
-            "body": {"text": f"What would you like to do with {brand[:15]}?"},
-            "action": {
-                "buttons": [
-                    {"type": "reply", "reply": {"id": "act_all", "title": "Activate"}},
-                    {"type": "reply", "reply": {"id": "camp_edit", "title": "Edit"}},
-                    {"type": "reply", "reply": {"id": "opts_menu", "title": "Options"}}
-                ]
-            }
-        }
+    }
 
-def get_whatsapp_edit_menu() -> dict:
+def get_whatsapp_edit_menu(campaign_id: str) -> dict:
     return {
         "type": "list",
         "header": {"type": "text", "text": "Edit Campaign"},
@@ -155,67 +87,36 @@ def get_whatsapp_edit_menu() -> dict:
                 {
                     "title": "Campaign Details",
                     "rows": [
-                        {"id": "edit_field:payment", "title": "Payment Amount"},
-                        {"id": "edit_field:deadline", "title": "Deadline"},
-                        {"id": "edit_field:deliverables", "title": "Deliverables"},
-                        {"id": "edit_field:creators", "title": "Creators"},
-                        {"id": "edit_field:notes", "title": "Notes"}
+                        {"id": f"edit_field:payment:{campaign_id}", "title": "Payment"},
+                        {"id": f"edit_field:deadline:{campaign_id}", "title": "Deadline"},
+                        {"id": f"edit_field:deliverables:{campaign_id}", "title": "Deliverables"},
+                        {"id": f"edit_field:platform:{campaign_id}", "title": "Platform"},
+                        {"id": f"edit_field:creators:{campaign_id}", "title": "Creator Name"},
+                        {"id": f"edit_field:notes:{campaign_id}", "title": "Notes"},
+                        {"id": f"edit_field:status:{campaign_id}", "title": "Status"},
+                        {"id": f"edit_field:url:{campaign_id}", "title": "Destination URL"}
                     ]
                 }
             ]
         }
     }
 
-def get_whatsapp_options_menu() -> dict:
-    return {
-        "type": "list",
-        "header": {"type": "text", "text": "More Options"},
-        "body": {"text": "Select an action for your campaign:"},
-        "action": {
-            "button": "Select Action",
-            "sections": [
-                {
-                    "title": "Management",
-                    "rows": [
-                        {"id": "opts_pause", "title": "Pause Campaign"},
-                        {"id": "opts_delete", "title": "Delete Campaign"},
-                        {"id": "opts_export", "title": "Export Summary"},
-                        {"id": "opts_help", "title": "Help"}
-                    ]
-                }
-            ]
-        }
-    }
-
-def get_telegram_campaign_buttons(campaigns: list[dict]) -> dict:
-    if len(campaigns) > 1:
-        return {
-            "inline_keyboard": [
-                [{"text": "✅ Activate All", "callback_data": "act_all"}],
-                [{"text": "✏️ Edit Campaigns", "callback_data": "camp_edit"}, {"text": "⚙️ More Options", "callback_data": "opts_menu"}]
-            ]
-        }
-    else:
-        return {
-            "inline_keyboard": [
-                [{"text": "✅ Activate Campaign", "callback_data": "act_all"}],
-                [{"text": "✏️ Edit Campaign", "callback_data": "camp_edit"}, {"text": "⚙️ More Options", "callback_data": "opts_menu"}]
-            ]
-        }
-
-def get_telegram_edit_menu() -> dict:
+def get_telegram_single_campaign_buttons(campaign: dict) -> dict:
+    camp_id = campaign.get('id', '')
     return {
         "inline_keyboard": [
-            [{"text": "💰 Payment", "callback_data": "edit_field:payment"}, {"text": "📅 Deadline", "callback_data": "edit_field:deadline"}],
-            [{"text": "📝 Deliverables", "callback_data": "edit_field:deliverables"}, {"text": "👥 Creators", "callback_data": "edit_field:creators"}],
-            [{"text": "📌 Notes", "callback_data": "edit_field:notes"}]
+            [{"text": "✅ Activate", "callback_data": f"act_camp:{camp_id}"}],
+            [{"text": "✏️ Edit", "callback_data": f"camp_edit:{camp_id}"}],
+            [{"text": "🗑️ Delete", "callback_data": f"del_camp:{camp_id}"}]
         ]
     }
 
-def get_telegram_options_menu() -> dict:
+def get_telegram_edit_menu(campaign_id: str) -> dict:
     return {
         "inline_keyboard": [
-            [{"text": "⏸️ Pause Campaign", "callback_data": "opts_pause"}, {"text": "🗑️ Delete Campaign", "callback_data": "opts_delete"}],
-            [{"text": "📥 Export", "callback_data": "opts_export"}, {"text": "❓ Help", "callback_data": "opts_help"}]
+            [{"text": "💰 Payment", "callback_data": f"edit_field:payment:{campaign_id}"}, {"text": "📅 Deadline", "callback_data": f"edit_field:deadline:{campaign_id}"}],
+            [{"text": "📝 Deliverables", "callback_data": f"edit_field:deliverables:{campaign_id}"}, {"text": "👥 Creator Name", "callback_data": f"edit_field:creators:{campaign_id}"}],
+            [{"text": "📱 Platform", "callback_data": f"edit_field:platform:{campaign_id}"}, {"text": "📌 Notes", "callback_data": f"edit_field:notes:{campaign_id}"}],
+            [{"text": "⚙️ Status", "callback_data": f"edit_field:status:{campaign_id}"}, {"text": "🔗 Destination URL", "callback_data": f"edit_field:url:{campaign_id}"}]
         ]
     }

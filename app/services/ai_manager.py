@@ -39,6 +39,7 @@ class CampaignExtraction(BaseModel):
     platform: Optional[str] = Field(default=None, description="Platform (Optional)")
     special_notes: Optional[str] = Field(default=None, description="Notes (Optional)")
     influencer_handle: Optional[str] = Field(default=None, description="Creator Handle (Optional)")
+    destination_url: Optional[str] = Field(default=None, description="Destination URL (Optional)")
     status: Optional[str] = Field(default="draft", description="Status of the campaign: draft, active, cancelled")
 
 class IntentResponse(BaseModel):

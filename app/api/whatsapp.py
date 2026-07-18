@@ -11,7 +11,7 @@ from app.services.supabase import get_supabase_admin
 from app.services.gemini import extract_campaign_data
 from app.services.ai_manager import process_with_ai_manager, IntentType
 from app.core.parsers import parse_corrections, parse_date_string
-from app.core.formatters import format_grouped_campaign_summary, get_whatsapp_campaign_buttons, get_whatsapp_edit_menu, get_whatsapp_options_menu
+from app.core.formatters import format_single_campaign_summary, get_whatsapp_single_campaign_buttons, get_whatsapp_edit_menu
 from app.services.whatsapp import send_whatsapp_message, download_whatsapp_media
 
 logger = structlog.get_logger(__name__)
@@ -168,35 +168,35 @@ async def process_whatsapp_message(sender_id: str, message: dict):
                         
                     await send_whatsapp_message(sender_id, res_msg)
                     return
-                elif action_id == "camp_edit":
-                    await send_whatsapp_message(sender_id, "", interactive=get_whatsapp_edit_menu())
+                elif action_id.startswith("camp_edit:"):
+                    camp_id = action_id.split(":")[1]
+                    await send_whatsapp_message(sender_id, "", interactive=get_whatsapp_edit_menu(camp_id))
                     return
-                elif action_id == "opts_menu":
-                    await send_whatsapp_message(sender_id, "", interactive=get_whatsapp_options_menu())
+                elif action_id.startswith("act_camp:"):
+                    camp_id = action_id.split(":")[1]
+                    await supabase_admin.table("campaigns").update({"status": "active"}).eq("id", camp_id).execute()
+                    await send_whatsapp_message(sender_id, "✅ Campaign Activated successfully.")
+                    return
+                elif action_id.startswith("del_camp:"):
+                    camp_id = action_id.split(":")[1]
+                    await supabase_admin.table("campaigns").delete().eq("id", camp_id).execute()
+                    await send_whatsapp_message(sender_id, "🗑️ Campaign Deleted.")
                     return
                 elif action_id.startswith("edit_field:"):
-                    field = action_id.split(":")[1]
+                    parts = action_id.split(":")
+                    field = parts[1]
+                    camp_id = parts[2] if len(parts) > 2 else ""
                     prompts = {
-                        "payment": "Enter the new payment amount.\n\nExamples:\n30000\n25k\n1.2L",
-                        "deadline": "Enter the new deadline.\n\nExamples:\n20 October\nTomorrow\nNext Friday",
-                        "deliverables": "Enter the deliverables.\n\nExamples:\n1 Reel\n2 Stories\n1 YT Integration",
-                        "creators": "Which creator would you like to update?",
-                        "notes": "Please enter any special notes for this campaign."
+                        "payment": "Current Payment selected.\n\nPlease enter the new payment amount.",
+                        "deadline": "Current Deadline selected.\n\nPlease enter the new deadline.",
+                        "deliverables": "Current Deliverables selected.\n\nPlease enter the deliverables.",
+                        "creators": "Current Creator Name selected.\n\nPlease enter the new creator name.",
+                        "notes": "Current Notes selected.\n\nPlease enter any special notes for this campaign.",
+                        "platform": "Current Platform selected.\n\nPlease enter the platform.",
+                        "status": "Current Status selected.\n\nPlease enter the new status (e.g. Active, Paused).",
+                        "url": "Current Destination URL selected.\n\nPlease enter the new URL."
                     }
-                    await send_whatsapp_message(sender_id, f"📝 *Edit {field.title()}*\n\n{prompts.get(field, 'Enter the new value:')}")
-                    return
-                elif action_id == "opts_pause":
-                    # Simple fallback
-                    await send_whatsapp_message(sender_id, "⏸️ Reply with 'Pause [Creator Name]' to pause a campaign.")
-                    return
-                elif action_id == "opts_delete":
-                    await send_whatsapp_message(sender_id, "🗑️ Reply with 'Delete [Creator Name]' to remove a campaign.")
-                    return
-                elif action_id == "opts_export":
-                    await send_whatsapp_message(sender_id, "📥 Export is currently only supported via the web dashboard.")
-                    return
-                elif action_id == "opts_help":
-                    await send_whatsapp_message(sender_id, "ℹ️ *Help*\n\nJust type what you want to do! Example: 'Change Rohan's deadline to Friday' or 'Increase payment to 25k'.")
+                    await send_whatsapp_message(sender_id, prompts.get(field, 'Enter the new value:'))
                     return
 
         elif msg_type == "text":
@@ -235,7 +235,7 @@ async def process_whatsapp_message(sender_id: str, message: dict):
             if not content_for_gemini:
                 await send_whatsapp_message(sender_id, "🤖 Please send text, screenshots, or voice notes.")
                 return
-            await send_whatsapp_message(sender_id, "🤖 AI is extracting your campaign details... ⏳")
+            await send_whatsapp_message(sender_id, "AI Campaign Manager\n\nExtracting campaign details...\n\nPlease wait while I analyze:\n\n- Creators\n- Deliverables\n- Payments\n- Deadlines\n- Special Notes\n- Platforms\n- Campaign Information")
         elif msg_type == "audio":
             audio_id = message.get("audio", {}).get("id")
             if audio_id:
@@ -279,12 +279,6 @@ async def process_whatsapp_message(sender_id: str, message: dict):
         async def _thinking_indicator():
             try:
                 await asyncio.sleep(3)
-                await send_whatsapp_message(
-                    sender_id,
-                    "🤖 AI is analysing your campaign...\n\n"
-                    "Detected:\n- Multiple creators\n- Payments\n- Deadlines\n\n"
-                    "Organising campaign details..."
-                )
             except asyncio.CancelledError:
                 pass
         
@@ -312,7 +306,7 @@ async def process_whatsapp_message(sender_id: str, message: dict):
         intent_res = await process_with_ai_manager(file_bytes, mime_type, text_content, context_str)
         indicator_task.cancel()
 
-        from app.core.formatters import format_grouped_campaign_summary
+        from app.core.formatters import format_single_campaign_summary
 
         # 5. Handle Intents
         if intent_res.intent == IntentType.CREATE:
@@ -336,15 +330,17 @@ async def process_whatsapp_message(sender_id: str, message: dict):
                     saved_c["brand_name"] = brand
                 saved_campaigns.append(saved_c)
                 
-            summary_msg = format_grouped_campaign_summary(
-                saved_campaigns, 
-                is_review=bool(intent_res.missing_fields), 
-                missing_fields=intent_res.missing_fields,
-                platform="wa"
-            )
-            await send_whatsapp_message(sender_id, summary_msg)
-            if not intent_res.missing_fields:
-                await send_whatsapp_message(sender_id, "", interactive=get_whatsapp_campaign_buttons(saved_campaigns))
+            for campaign in saved_campaigns:
+                summary_msg = format_single_campaign_summary(
+                    campaign, 
+                    missing_fields=intent_res.missing_fields,
+                    platform="wa"
+                )
+                await send_whatsapp_message(sender_id, summary_msg)
+                
+                # Only send buttons if not missing fields, or decide to send regardless
+                # Based on requirements, users should be able to activate when ready
+                await send_whatsapp_message(sender_id, "", interactive=get_whatsapp_single_campaign_buttons(campaign))
 
         elif intent_res.intent == IntentType.UPDATE:
             updated_campaigns = []
@@ -383,15 +379,14 @@ async def process_whatsapp_message(sender_id: str, message: dict):
                             updated_campaigns.append(fresh_c)
             
             if updated_campaigns:
-                summary_msg = format_grouped_campaign_summary(
-                    updated_campaigns, 
-                    is_review=False, 
-                    missing_fields=intent_res.missing_fields,
-                    platform="wa"
-                )
-                await send_whatsapp_message(sender_id, summary_msg)
-                if not intent_res.missing_fields:
-                    await send_whatsapp_message(sender_id, "", interactive=get_whatsapp_campaign_buttons(updated_campaigns))
+                for campaign in updated_campaigns:
+                    summary_msg = format_single_campaign_summary(
+                        campaign, 
+                        missing_fields=intent_res.missing_fields,
+                        platform="wa"
+                    )
+                    await send_whatsapp_message(sender_id, summary_msg)
+                    await send_whatsapp_message(sender_id, "", interactive=get_whatsapp_single_campaign_buttons(campaign))
             else:
                 await send_whatsapp_message(sender_id, "❌ I couldn't find a recent campaign to update.")
 
