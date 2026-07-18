@@ -3,6 +3,7 @@ import hmac
 import hashlib
 import structlog
 import json
+from collections import defaultdict
 from fastapi import APIRouter, Request, HTTPException, Response, BackgroundTasks
 import sentry_sdk
 from app.core.config import settings
@@ -19,6 +20,7 @@ logger = structlog.get_logger(__name__)
 router = APIRouter(prefix="/webhook", tags=["WhatsApp Webhook"])
 
 BULK_CACHE = {}
+USER_LOCKS = defaultdict(asyncio.Lock)
 
 # Maximum bytes we allow to be downloaded from WhatsApp media (16 MB)
 _MAX_MEDIA_BYTES = 16 * 1024 * 1024
@@ -76,7 +78,14 @@ async def verify_webhook(request: Request):
 async def process_whatsapp_message(sender_id: str, message: dict):
     """
     Background task to process the incoming WhatsApp message.
-    Looks up the user, routes through Stage 1 Rules or Stage 2 AI, and manages context.
+    Wraps the core logic in a user-specific lock to prevent race conditions.
+    """
+    async with USER_LOCKS[sender_id]:
+        await _process_whatsapp_message_locked(sender_id, message)
+
+async def _process_whatsapp_message_locked(sender_id: str, message: dict):
+    """
+    Inner logic for processing WhatsApp messages.
     """
     try:
         logger.info("Started process_whatsapp_message", sender_id=sender_id)
@@ -267,28 +276,8 @@ async def process_whatsapp_message(sender_id: str, message: dict):
             
             # Exact matches for instant actions
             if not is_intent_pending and len(text_lower) < 20 and text_lower in ["yes", "y", "yep", "no", "wrong", "delete", "cancel", "pause", "activate"]:
-                recent_draft_resp = await (supabase_admin.table("campaigns")
-                    .select("*")
-                    .eq("user_id", user_id)
-                    .order("created_at", desc=True)
-                    .limit(1)
-                    .execute()
-                )
-                if recent_draft_resp.data:
-                    draft = recent_draft_resp.data[0]
-                    name = draft.get("influencer_name") or draft.get("influencer_handle") or "Unknown"
-                    if text_lower in ["yes", "y", "yep", "activate"]:
-                        await (supabase_admin.table("campaigns").update({"status": "active"}).eq("id", draft["id"]).execute())
-                        await send_whatsapp_message(sender_id, f"✅ Done! The campaign for *{name}* is now Active.")
-                        return
-                    elif text_lower in ["no", "wrong", "pause"]:
-                        await (supabase_admin.table("campaigns").update({"status": "draft"}).eq("id", draft["id"]).execute())
-                        await send_whatsapp_message(sender_id, f"📝 Saved! The campaign for *{name}* is paused as a Draft.")
-                        return
-                    elif text_lower in ["delete", "cancel"]:
-                        await (supabase_admin.table("campaigns").delete().eq("id", draft["id"]).execute())
-                        await send_whatsapp_message(sender_id, f"🗑️ Campaign Deleted. Removed *{name}*.")
-                        return
+                await send_whatsapp_message(sender_id, "🤖 Please use the interactive buttons (Activate, Edit, Delete) attached to the campaign summary to perform this action safely.")
+                return
 
         # Prepare payload for AI Manager
         content_for_gemini = None
@@ -481,11 +470,11 @@ async def process_whatsapp_message(sender_id: str, message: dict):
                 return
                 
             if intent_res.intent == IntentType.DELETE:
-                await supabase_admin.table("campaigns").delete().in_("id", target_ids).execute()
+                await supabase_admin.table("campaigns").update({"status": "cancelled"}).in_("id", target_ids).execute()
                 if len(target_ids) > 1:
-                    await send_whatsapp_message(sender_id, f"AI Campaign Manager\n\nSuccessfully deleted {len(target_ids)} creator collaborations.")
+                    await send_whatsapp_message(sender_id, f"AI Campaign Manager\n\nSuccessfully cancelled {len(target_ids)} creator collaborations.")
                 else:
-                    await send_whatsapp_message(sender_id, "🗑️ Creator collaboration deleted successfully.")
+                    await send_whatsapp_message(sender_id, "🗑️ Creator collaboration cancelled successfully.")
             else:
                 updates = {}
                 if intent_res.intent == IntentType.ACTIVATE: updates["status"] = "active"
@@ -537,12 +526,12 @@ async def process_whatsapp_message(sender_id: str, message: dict):
                 await send_whatsapp_message(sender_id, "📊 No matching campaigns found.")
             else:
                 await send_whatsapp_message(sender_id, f"📊 Found {len(data)} matching creator collaborations.\n\nHere they are:")
-                for c in data[:5]:
+                for c in data[:3]:
                     summary_msg = format_single_campaign_summary(c, platform="wa")
                     await send_whatsapp_message(sender_id, summary_msg)
                     await send_whatsapp_message(sender_id, "", interactive=get_whatsapp_single_campaign_buttons(c))
-                if len(data) > 5:
-                    await send_whatsapp_message(sender_id, f"...and {len(data)-5} more.")
+                if len(data) > 3:
+                    await send_whatsapp_message(sender_id, f"...and {len(data)-3} more.\n\n_View all {len(data)} results on your Collabo Dashboard._")
 
         elif intent_res.intent == IntentType.CLARIFICATION:
             cancel_interactive = {
@@ -567,6 +556,9 @@ async def process_whatsapp_message(sender_id: str, message: dict):
         elif intent_res.intent == IntentType.RECOMMENDATION:
             await send_whatsapp_message(sender_id, f"💡 *Suggestion*\n\n{intent_res.recommendation_text}")
 
+        elif intent_res.intent == IntentType.GREETING:
+            await send_whatsapp_message(sender_id, "👋 *Hi! I'm Collabo AI.*\n\nForward me a brand negotiation, send a voice note, or drop a screenshot of an invoice to start tracking campaigns!")
+
         else:
             await send_whatsapp_message(sender_id, intent_res.recommendation_text or "Sorry, I didn't catch that. Could you rephrase?")
 
@@ -575,7 +567,6 @@ async def process_whatsapp_message(sender_id: str, message: dict):
         await send_whatsapp_message(sender_id, "🤖 *Oops!* My servers hit a snag. Please try again.")
 
 @router.post("/whatsapp")
-@limiter.limit("60/minute")
 async def meta_whatsapp_webhook(request: Request, background_tasks: BackgroundTasks):
     """
     Receives incoming WhatsApp messages via Meta Cloud API.

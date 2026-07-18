@@ -3,7 +3,7 @@ import structlog
 import os
 import asyncio
 from enum import Enum
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 from pydantic import BaseModel, Field
 from google import genai
 from google.genai import types
@@ -22,6 +22,7 @@ class IntentType(str, Enum):
     QUERY = "QUERY"
     RECOMMENDATION = "RECOMMENDATION"
     CLARIFICATION = "CLARIFICATION"
+    GREETING = "GREETING"
     UNKNOWN = "UNKNOWN"
 
 # Missing fields are now calculated in the UI formatter, removing MissingFieldInfo classes
@@ -57,6 +58,10 @@ class IntentResponse(BaseModel):
     target_campaign_ids: List[str] = Field(default_factory=list, description="List of target campaign UUIDs for UPDATE, DELETE, ACTIVATE, PAUSE.")
 
 def get_ai_manager_prompt(context: str = "") -> str:
+    ist_now = datetime.now(timezone(timedelta(hours=5, minutes=30)))
+    current_date = ist_now.strftime("%Y-%m-%d")
+    current_year = ist_now.year
+    
     return f"""You are the Collabo AI Campaign Manager, an expert assistant for busy founders.
 
 **Context (Recent Drafts/Campaigns)**:
@@ -99,12 +104,16 @@ def get_ai_manager_prompt(context: str = "") -> str:
 
 6. **Ambiguity & Date Parsing Rule**:
    - If a value (like payment) is ambiguous, set it to `null`. 
-   - If a date is provided without a year (e.g. '20 july' or '20/07'), assume the current year is {datetime.now().year} and format it as YYYY-MM-DD. Do NOT mark it as null.
+   - If a date is provided without a year (e.g. '20 july' or '20/07'), assume the current year is {current_year} and format it as YYYY-MM-DD. Do NOT mark it as null.
+   - For relative dates like "tomorrow" or "today", calculate the date based on the current IST date: {current_date}.
 
 7. **Clarification Follow-ups**:
    - If the user's message starts with "Previous Context:" followed by "User Clarification:", this means the user is answering a previous clarifying question.
    - You MUST combine the details from BOTH the previous context and the clarification into a SINGLE cohesive request.
-   - For example, if the previous context was a new campaign brief, the combined result is a `CREATE` intent. Do not mistake it for an `UPDATE` to existing campaigns. Do not ask for clarification again.
+    - For example, if the previous context was a new campaign brief, the combined result is a `CREATE` intent. Do not mistake it for an `UPDATE` to existing campaigns. Do not ask for clarification again.
+
+8. **Greetings**:
+   - If the user sends a simple greeting like "Hi", "Hello", "Good morning", or "Hey bot", set the intent to `GREETING` and do not populate any other fields.
 
 **Output Rules**:
 Respond STRICTLY in JSON format matching the schema provided. Do not include markdown formatting or outside text.

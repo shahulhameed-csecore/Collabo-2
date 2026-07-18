@@ -2,6 +2,7 @@ import asyncio
 import structlog
 import json
 import html
+from collections import defaultdict
 import httpx
 from pydantic import ValidationError
 import sentry_sdk
@@ -18,6 +19,7 @@ logger = structlog.get_logger(__name__)
 router = APIRouter(prefix="/webhook", tags=["Telegram Webhook"])
 
 BULK_CACHE = {}
+USER_LOCKS = defaultdict(asyncio.Lock)
 
 # Maximum bytes we allow to be downloaded from Telegram media (16 MB)
 _MAX_MEDIA_BYTES = 16 * 1024 * 1024
@@ -58,7 +60,22 @@ async def process_telegram_message(update: dict):
         if not chat_id:
             return
 
-        logger.info("Started process_telegram_message", chat_id=chat_id, username=username)
+        async with USER_LOCKS[str(chat_id)]:
+            await _process_telegram_message_locked(update, chat_id, username, supabase_admin)
+
+async def _process_telegram_message_locked(update: dict, chat_id, username, supabase_admin):
+        update_id = update.get("update_id")
+        
+        is_callback = "callback_query" in update
+        if is_callback:
+            cb = update["callback_query"]
+            message = cb.get("message", {})
+            sender = cb.get("from", {})
+        else:
+            message = update.get("message") or update.get("channel_post")
+            sender = message.get("from", {})
+
+        logger.info("Started _process_telegram_message_locked", chat_id=chat_id, username=username)
 
         # 1. Deduplicate
         if update_id:
@@ -232,27 +249,8 @@ async def process_telegram_message(update: dict):
             is_intent_pending = cached_obj and not isinstance(cached_obj, dict)
 
             if not is_intent_pending and len(text_lower) < 20 and text_lower in ["yes", "y", "yep", "no", "wrong", "delete", "cancel", "pause", "activate"]:
-                recent_draft_resp = await (supabase_admin.table("campaigns")
-                    .select("*")
-                    .eq("user_id", user_id)
-                    .order("created_at", desc=True)
-                    .limit(1)
-                    .execute()
-                )
-                if recent_draft_resp.data:
-                    draft = recent_draft_resp.data[0]
-                    if text_lower in ["yes", "y", "yep", "activate"]:
-                        await (supabase_admin.table("campaigns").update({"status": "active"}).eq("id", draft["id"]).execute())
-                        await send_telegram_message(chat_id, "✅ <b>Done! The campaign is now Active.</b>")
-                        return
-                    elif text_lower in ["no", "wrong", "pause"]:
-                        await (supabase_admin.table("campaigns").update({"status": "draft"}).eq("id", draft["id"]).execute())
-                        await send_telegram_message(chat_id, "📝 <b>Saved! The campaign is paused as a Draft.</b>")
-                        return
-                    elif text_lower in ["delete", "cancel"]:
-                        await (supabase_admin.table("campaigns").delete().eq("id", draft["id"]).execute())
-                        await send_telegram_message(chat_id, "🗑️ <b>Campaign Deleted.</b>")
-                        return
+                await send_telegram_message(chat_id, "🤖 <b>Please use the inline buttons (Activate, Edit, Delete) attached to the campaign summary to perform this action safely.</b>")
+                return
 
         # 5. Prepare content for AI
         content_for_gemini = None
@@ -434,11 +432,11 @@ async def process_telegram_message(update: dict):
                 return
                 
             if intent_res.intent == IntentType.DELETE:
-                await supabase_admin.table("campaigns").delete().in_("id", target_ids).execute()
+                await supabase_admin.table("campaigns").update({"status": "cancelled"}).in_("id", target_ids).execute()
                 if len(target_ids) > 1:
-                    await send_telegram_message(chat_id, f"AI Campaign Manager\n\nSuccessfully deleted {len(target_ids)} creator collaborations.")
+                    await send_telegram_message(chat_id, f"<b>AI Campaign Manager</b>\n\nSuccessfully cancelled {len(target_ids)} creator collaborations.")
                 else:
-                    await send_telegram_message(chat_id, "🗑️ Creator collaboration deleted successfully.")
+                    await send_telegram_message(chat_id, "🗑️ Creator collaboration cancelled successfully.")
             else:
                 updates = {}
                 if intent_res.intent == IntentType.ACTIVATE: updates["status"] = "active"
@@ -489,11 +487,11 @@ async def process_telegram_message(update: dict):
                 await send_telegram_message(chat_id, "📊 No matching campaigns found.")
             else:
                 await send_telegram_message(chat_id, f"📊 Found {len(data)} matching creator collaborations.\n\nHere they are:")
-                for c in data[:5]:
+                for c in data[:3]:
                     summary_msg = format_single_campaign_summary(c, platform="tg")
                     await send_telegram_message(chat_id, summary_msg, reply_markup=get_telegram_single_campaign_buttons(c))
-                if len(data) > 5:
-                    await send_telegram_message(chat_id, f"...and {len(data)-5} more.")
+                if len(data) > 3:
+                    await send_telegram_message(chat_id, f"...and {len(data)-3} more.\n\n_View all {len(data)} results on your Collabo Dashboard._")
 
         elif intent_res.intent == IntentType.CLARIFICATION:
             cancel_markup = {
@@ -509,6 +507,9 @@ async def process_telegram_message(update: dict):
         elif intent_res.intent == IntentType.RECOMMENDATION:
             await send_telegram_message(chat_id, f"💡 *Suggestion*\n\n{intent_res.recommendation_text}")
 
+        elif intent_res.intent == IntentType.GREETING:
+            await send_telegram_message(chat_id, "👋 <b>Hi! I'm Collabo AI.</b>\n\nForward me a brand negotiation, send a voice note, or drop a screenshot of an invoice to start tracking campaigns!")
+
         else:
             await send_telegram_message(chat_id, intent_res.recommendation_text or "Sorry, I didn't catch that. Could you rephrase?")
 
@@ -517,7 +518,6 @@ async def process_telegram_message(update: dict):
         await send_telegram_message(chat_id, "🤖 <b>Oops!</b> My servers hit a snag.")
 
 @router.post("/telegram")
-@limiter.limit("60/minute")
 async def telegram_webhook(
     request: Request, 
     background_tasks: BackgroundTasks,
