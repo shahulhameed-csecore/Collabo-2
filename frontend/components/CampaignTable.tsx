@@ -19,6 +19,8 @@ interface CampaignTableProps {
   onCreateNew: () => void;
   onEdit?: (campaign: Campaign) => void;
   onLoadSampleData?: () => void;
+  onOptimisticUpdate?: (id: string, updates: Partial<Campaign>) => void;
+  onOptimisticDelete?: (id: string) => void;
 }
 
 import {
@@ -43,7 +45,7 @@ const formatCSVDate = (dateStr?: string | null) => {
   }
 };
 
-export default function CampaignTable({ campaigns, isLoading, onRefresh, onCreateNew, onEdit, onLoadSampleData }: CampaignTableProps) {
+export default function CampaignTable({ campaigns, isLoading, onRefresh, onCreateNew, onEdit, onLoadSampleData, onOptimisticUpdate, onOptimisticDelete }: CampaignTableProps) {
   const [filters, setFilters] = useState<FilterState>({ search: '', status: 'all', platform: '' });
   const [sortKey, setSortKey] = useState<keyof Campaign>('created_at');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
@@ -169,6 +171,7 @@ export default function CampaignTable({ campaigns, isLoading, onRefresh, onCreat
 
   const handleStatusChange = async (id: string, status: CampaignStatus) => {
     setUpdatingId(id);
+    if (onOptimisticUpdate) onOptimisticUpdate(id, { status });
     try {
       const campaign = campaigns.find(c => c.id === id);
       await updateCampaignStatus(id, { status });
@@ -178,9 +181,12 @@ export default function CampaignTable({ campaigns, isLoading, onRefresh, onCreat
       } else {
         toast.success(`Marked as ${STATUS_CONFIG[status].label}!`);
       }
+      // No need to onRefresh if it's optimistic, unless we want the real timestamp.
+      // But we will refresh in the background silently.
       onRefresh();
     } catch (err) {
-      toast.error(getApiErrorMessage(err, 'Failed to update status.'));
+      toast.error(getApiErrorMessage(err, 'Failed to update status. Reverting.'));
+      onRefresh(); // Revert
     } finally {
       setUpdatingId(null);
     }
@@ -189,12 +195,14 @@ export default function CampaignTable({ campaigns, isLoading, onRefresh, onCreat
   const handleDelete = async (id: string, name: string) => {
     if (!window.confirm(`Delete campaign for ${name}? This cannot be undone.`)) return;
     setDeletingId(id);
+    if (onOptimisticDelete) onOptimisticDelete(id);
     try {
       await deleteCampaign(id);
       toast.success('Campaign deleted.');
       onRefresh();
     } catch (err) {
-      toast.error(getApiErrorMessage(err, 'Failed to delete campaign.'));
+      toast.error(getApiErrorMessage(err, 'Failed to delete campaign. Reverting.'));
+      onRefresh();
     } finally {
       setDeletingId(null);
     }

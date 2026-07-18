@@ -107,12 +107,12 @@ export function EmptyState({ onCreateNew, onLoadSampleData, hasFilters, onClearF
       <div className="relative mb-6 group">
         <div className="absolute inset-0 bg-emerald-500/20 rounded-full blur-2xl group-hover:bg-emerald-500/30 group-hover:scale-110 transition-all duration-700" />
         <div className="relative p-6 bg-white dark:bg-slate-900 rounded-full border border-emerald-100 dark:border-emerald-500/20 shadow-xl shadow-emerald-500/10 transform group-hover:-translate-y-1 transition-all duration-300">
-          <DollarSign className="w-10 h-10 text-emerald-500 dark:text-emerald-400" />
+          <MessageCircle className="w-10 h-10 text-emerald-500 dark:text-emerald-400" />
         </div>
       </div>
-      <h3 className="text-2xl font-bold text-slate-900 dark:text-white mb-2 tracking-tight">Your campaign hub awaits</h3>
-      <p className="text-slate-500 dark:text-slate-400 text-sm max-w-sm mb-8 leading-relaxed">
-        Start tracking your influencer deals today. Just upload a DM screenshot and let our AI instantly extract all the campaign details.
+      <h3 className="text-2xl font-bold text-slate-900 dark:text-white mb-2 tracking-tight">Forward a message to get started!</h3>
+      <p className="text-slate-500 dark:text-slate-400 text-sm max-w-md mb-8 leading-relaxed">
+        Connect your WhatsApp or Telegram and simply forward any brand negotiation, voice note, or creator invoice to Collabo AI. We'll automatically track it here!
       </p>
       <div className="flex flex-col sm:flex-row items-center gap-4">
         <button

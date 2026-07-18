@@ -169,15 +169,26 @@ export default function DashboardPage() {
   const [error, setError] = useState<string | null>(null);
   const [isDownloading, setIsDownloading] = useState(false);
   const [showDownloadMenu, setShowDownloadMenu] = useState(false);
+  
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(false);
+  const [totalCount, setTotalCount] = useState(0);
 
-  const fetchCampaigns = useCallback(async (silent = false) => {
-    if (!silent) setIsLoading(true);
+  const fetchCampaigns = useCallback(async (silent = false, pageNum = 1) => {
+    if (!silent && pageNum === 1) setIsLoading(true);
     else setIsRefreshing(true);
     setError(null);
     try {
-      const data = await getCampaigns();
-      setCampaigns(data.data);
-      setStats(computeDashboardStats(data.data));
+      const limit = 50;
+      const offset = (pageNum - 1) * limit;
+      const data = await getCampaigns(limit, offset);
+      setCampaigns(prev => {
+        const newData = pageNum === 1 ? data.data : [...prev, ...data.data];
+        setStats(computeDashboardStats(newData));
+        return newData;
+      });
+      setHasMore(data.data.length === limit);
+      setTotalCount(data.count);
     } catch (err) {
       const msg = getApiErrorMessage(err, 'Failed to load campaigns.');
       if (!silent) setError(msg);
@@ -190,12 +201,19 @@ export default function DashboardPage() {
 
   useEffect(() => { fetchCampaigns(); }, [fetchCampaigns]);
 
+  const loadMore = () => {
+    const next = page + 1;
+    setPage(next);
+    fetchCampaigns(true, next);
+  };
+
   const loadSampleData = async () => {
     try {
       setIsLoading(true);
       await loadSampleDataApi();
       toast.success('Sample data loaded! Feel free to explore.');
-      await fetchCampaigns(true);
+      setPage(1);
+      await fetchCampaigns(true, 1);
     } catch (err) {
       toast.error(getApiErrorMessage(err, 'Failed to load sample data.'));
       setIsLoading(false);
@@ -231,9 +249,9 @@ export default function DashboardPage() {
           <p className="text-slate-500 dark:text-slate-500 text-sm mt-0.5">
             {isLoading
               ? 'Loading your campaigns...'
-              : campaigns.length === 0
+              : totalCount === 0
               ? 'No campaigns yet — create your first one!'
-              : `${campaigns.length} campaign${campaigns.length !== 1 ? 's' : ''} tracked`}
+              : `${totalCount} campaign${totalCount !== 1 ? 's' : ''} tracked`}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -425,11 +443,25 @@ export default function DashboardPage() {
             <CampaignTable
               campaigns={campaigns}
               isLoading={isLoading}
-              onRefresh={() => fetchCampaigns(true)}
+              onRefresh={() => fetchCampaigns(true, 1)}
               onCreateNew={openModal}
               onEdit={setEditingCampaign}
               onLoadSampleData={loadSampleData}
+              onOptimisticUpdate={(id, updates) => setCampaigns(prev => prev.map(c => c.id === id ? { ...c, ...updates } : c))}
+              onOptimisticDelete={(id) => setCampaigns(prev => prev.filter(c => c.id !== id))}
             />
+            {hasMore && !isLoading && (
+              <div className="mt-4 flex justify-center">
+                <button
+                  onClick={loadMore}
+                  disabled={isRefreshing}
+                  className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
+                >
+                  {isRefreshing && <RefreshCw className="w-4 h-4 animate-spin" />}
+                  {isRefreshing ? 'Loading...' : 'Load More'}
+                </button>
+              </div>
+            )}
           </div>
         </div>
 
