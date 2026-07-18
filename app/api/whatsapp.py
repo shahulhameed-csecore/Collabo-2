@@ -240,15 +240,26 @@ async def process_whatsapp_message(sender_id: str, message: dict):
                             update_val = float(''.join(c for c in text_val.lower().replace("k", "000") if c.isdigit() or c == '.'))
                         except:
                             pass
+                    elif db_field == "deadline":
+                        import re
+                        m = re.search(r"(\d{1,2})[/-](\d{1,2})[/-](\d{4})", text_val)
+                        if m:
+                            d, mo, y = m.groups()
+                            if int(mo) > 12 and int(d) <= 12:
+                                d, mo = mo, d # swap if user gave MM/DD/YYYY
+                            update_val = f"{y}-{int(mo):02d}-{int(d):02d}"
                     
                     update_payload = {db_field: update_val}
                     if db_field == "influencer_name":
                         update_payload["influencer_handle"] = update_val  # satisfy constraint
                         
-                    await supabase_admin.table("campaigns").update(update_payload).eq("id", camp_id).execute()
-                    
-                BULK_CACHE.pop(user_id, None)
-                await send_whatsapp_message(sender_id, f"✅ Updated successfully!")
+                    try:
+                        await supabase_admin.table("campaigns").update(update_payload).eq("id", camp_id).execute()
+                        BULK_CACHE.pop(user_id, None)
+                        await send_whatsapp_message(sender_id, f"✅ Updated successfully!")
+                    except Exception as e:
+                        logger.error("Direct edit update failed", error=str(e))
+                        await send_whatsapp_message(sender_id, f"❌ Failed to update. Please ensure the value is formatted correctly (e.g., Dates as DD/MM/YYYY).")
                 return
             
             # Exact matches for instant actions
