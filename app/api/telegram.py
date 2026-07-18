@@ -316,6 +316,7 @@ async def process_telegram_message(update: dict):
                 
                 campaign_data["user_id"] = user_id
                 campaign_data["status"] = "draft"
+                campaign_data["influencer_handle"] = campaign_data.get("influencer_name") or "Unknown"
                 if update_id:
                     campaign_data["special_notes"] = f"{campaign_data.get('special_notes', '')} [tg_update:{update_id}]".strip()
                 

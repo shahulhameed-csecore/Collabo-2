@@ -353,6 +353,7 @@ async def process_whatsapp_message(sender_id: str, message: dict):
                 
                 campaign_data["user_id"] = user_id
                 campaign_data["status"] = "draft"
+                campaign_data["influencer_handle"] = campaign_data.get("influencer_name") or "Unknown"
                 if message_id:
                     campaign_data["special_notes"] = f"{campaign_data.get('special_notes', '')} [wa_msg:{message_id}]".strip()
                 
