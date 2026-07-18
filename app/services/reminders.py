@@ -367,7 +367,10 @@ def _parse_deadline_utc(deadline_raw: str, clog) -> Optional[datetime]:
     try:
         if "T" in deadline_raw or (" " in deadline_raw and len(deadline_raw) > 10):
             # Already a datetime string (legacy rows)
-            dt = datetime.fromisoformat(deadline_raw.replace("Z", "+00:00"))
+            _ts = deadline_raw.replace("Z", "+00:00")
+            if "." in _ts:
+                _ts = _ts.split(".")[0] + "+00:00"
+            dt = datetime.fromisoformat(_ts)
             if dt.tzinfo is None:
                 dt = dt.replace(tzinfo=timezone.utc)
             result = dt.astimezone(timezone.utc)
@@ -629,7 +632,10 @@ async def check_deadlines_job() -> dict:
 
         # Payments
         if status == "completed" and campaign.get("updated_at"):
-            completed_utc = datetime.fromisoformat(campaign["updated_at"].replace("Z", "+00:00"))
+            _ts = campaign["updated_at"].replace("Z", "+00:00")
+            if "." in _ts:
+                _ts = _ts.split(".")[0] + "+00:00"
+            completed_utc = datetime.fromisoformat(_ts)
             if completed_utc.tzinfo is None:
                 completed_utc = completed_utc.replace(tzinfo=timezone.utc)
             days_since = (now_utc - completed_utc).total_seconds() / 86400.0
@@ -653,7 +659,10 @@ async def check_deadlines_job() -> dict:
 
         # Inactivity
         if status == "active" and campaign.get("updated_at"):
-            updated_utc = datetime.fromisoformat(campaign["updated_at"].replace("Z", "+00:00"))
+            _ts = campaign["updated_at"].replace("Z", "+00:00")
+            if "." in _ts:
+                _ts = _ts.split(".")[0] + "+00:00"
+            updated_utc = datetime.fromisoformat(_ts)
             if updated_utc.tzinfo is None:
                 updated_utc = updated_utc.replace(tzinfo=timezone.utc)
             days_inactive = (now_utc - updated_utc).total_seconds() / 86400.0

@@ -168,16 +168,55 @@ async def process_telegram_message(update: dict):
                     "status": "Current Status selected.\n\nPlease enter the new status (e.g. Active, Paused).",
                     "url": "Current Destination URL selected.\n\nPlease enter the new URL."
                 }
+                BULK_CACHE[user_id] = {"action": "edit", "field": field, "campaign_id": camp_id}
                 await send_telegram_message(chat_id, prompts.get(field, 'Enter the new value:'))
                 return
-            # Legacy fallbacks
-            # Legacy fallbacks removed
             return
 
         # 4. Stage 1: Rules Engine (Text exact matches)
         if "text" in message:
             text_val = message["text"].strip()
             text_lower = text_val.lower()
+            
+            # Check for pending edit
+            pending_edit = BULK_CACHE.get(user_id)
+            if pending_edit and pending_edit.get("action") == "edit":
+                if text_lower == "cancel":
+                    BULK_CACHE.pop(user_id, None)
+                    await send_telegram_message(chat_id, "❌ Edit cancelled.")
+                    return
+                
+                camp_id = pending_edit["campaign_id"]
+                field = pending_edit["field"]
+                db_field_map = {
+                    "payment": "payment_amount",
+                    "deadline": "deadline",
+                    "deliverables": "deliverables",
+                    "creators": "influencer_name",
+                    "notes": "special_notes",
+                    "platform": "platform",
+                    "status": "status",
+                    "url": "destination_url"
+                }
+                db_field = db_field_map.get(field)
+                
+                if db_field:
+                    update_val = text_val
+                    if db_field == "payment_amount":
+                        try:
+                            update_val = float(''.join(c for c in text_val.lower().replace("k", "000") if c.isdigit() or c == '.'))
+                        except:
+                            pass
+                    
+                    update_payload = {db_field: update_val}
+                    if db_field == "influencer_name":
+                        update_payload["influencer_handle"] = update_val  # satisfy constraint
+                        
+                    await supabase_admin.table("campaigns").update(update_payload).eq("id", camp_id).execute()
+                    
+                BULK_CACHE.pop(user_id, None)
+                await send_telegram_message(chat_id, f"✅ Updated successfully!")
+                return
             
             if len(text_lower) < 20 and text_lower in ["yes", "y", "yep", "no", "wrong", "delete", "cancel", "pause", "activate"]:
                 recent_draft_resp = await (supabase_admin.table("campaigns")
