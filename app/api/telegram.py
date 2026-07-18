@@ -180,7 +180,7 @@ async def process_telegram_message(update: dict):
             
             # Check for pending edit
             pending_edit = BULK_CACHE.get(user_id)
-            if pending_edit and pending_edit.get("action") == "edit":
+            if isinstance(pending_edit, dict) and pending_edit.get("action") == "edit":
                 if text_lower == "cancel":
                     BULK_CACHE.pop(user_id, None)
                     await send_telegram_message(chat_id, "❌ Edit cancelled.")
@@ -228,8 +228,10 @@ async def process_telegram_message(update: dict):
                         logger.error("Direct edit update failed", error=str(e))
                         await send_telegram_message(chat_id, f"❌ Failed to update. Please ensure the value is formatted correctly (e.g., Dates as DD/MM/YYYY).")
                 return
-            
-            if len(text_lower) < 20 and text_lower in ["yes", "y", "yep", "no", "wrong", "delete", "cancel", "pause", "activate"]:
+            cached_obj = BULK_CACHE.get(user_id)
+            is_intent_pending = cached_obj and not isinstance(cached_obj, dict)
+
+            if not is_intent_pending and len(text_lower) < 20 and text_lower in ["yes", "y", "yep", "no", "wrong", "delete", "cancel", "pause", "activate"]:
                 recent_draft_resp = await (supabase_admin.table("campaigns")
                     .select("*")
                     .eq("user_id", user_id)
@@ -259,7 +261,7 @@ async def process_telegram_message(update: dict):
             
             # Check for pending clarification
             pending_clarif = BULK_CACHE.get(user_id)
-            if pending_clarif and pending_clarif.get("action") == "clarification":
+            if isinstance(pending_clarif, dict) and pending_clarif.get("action") == "clarification":
                 original_msg = pending_clarif.get("original_msg", "")
                 content_for_gemini = f"Previous Context: {original_msg}\n\nUser Clarification: {content_for_gemini}"
                 BULK_CACHE.pop(user_id, None)
