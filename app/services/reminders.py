@@ -582,16 +582,16 @@ async def check_deadlines_job() -> dict:
         if action == "48h_warning":
             notif_title = "Deadline in 48 Hours"
             notif_desc = f"Campaign for {inf_name} is due on {deadline_ist}."
-            wa_text = f"⏰ *Deadline Approaching*\\n\\nYour campaign with *{inf_name}* is due in less than 48 hours ({deadline_ist}).\\n\\nPlease follow up with the creator to ensure deliverables are on track."
-            tg_text = f"⏰ <b>Deadline Approaching</b>\\n\\nYour campaign with <b>{inf_name}</b> is due in less than 48 hours ({deadline_ist}).\\n\\nPlease follow up with the creator."
+            wa_text = f"⏰ *Deadline Approaching*\n\nYour campaign with *{inf_name}* is due in less than 48 hours ({deadline_ist}).\n\nPlease follow up with the creator to ensure deliverables are on track."
+            tg_text = f"⏰ <b>Deadline Approaching</b>\n\nYour campaign with <b>{inf_name}</b> is due in less than 48 hours ({deadline_ist}).\n\nPlease follow up with the creator."
             email_subj, email_html = _build_reminder_email(inf_name, deadline_ist)
             flag_to_update = "reminder_48h_sent"
             notif_type = "warning"
         else:
             notif_title = "Campaign Overdue"
             notif_desc = f"Campaign for {inf_name} has missed its deadline ({deadline_ist})."
-            wa_text = f"🚨 *Campaign Overdue*\\n\\nYour campaign with *{inf_name}* has passed its deadline ({deadline_ist}).\\n\\nPlease contact the creator and update the status on your dashboard."
-            tg_text = f"🚨 <b>Campaign Overdue</b>\\n\\nYour campaign with <b>{inf_name}</b> has passed its deadline ({deadline_ist}).\\n\\nPlease contact the creator."
+            wa_text = f"🚨 *Campaign Overdue*\n\nYour campaign with *{inf_name}* has passed its deadline ({deadline_ist}).\n\nPlease contact the creator and update the status on your dashboard."
+            tg_text = f"🚨 <b>Campaign Overdue</b>\n\nYour campaign with <b>{inf_name}</b> has passed its deadline ({deadline_ist}).\n\nPlease contact the creator."
             email_subj, email_html = _build_overdue_email(inf_name, deadline_ist)
             flag_to_update = "overdue_alert_sent"
             notif_type = "error"
