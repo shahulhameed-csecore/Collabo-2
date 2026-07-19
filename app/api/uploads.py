@@ -1,6 +1,12 @@
 import logging
 import uuid
-import magic
+try:
+    import magic
+    HAS_MAGIC = True
+except ImportError:
+    HAS_MAGIC = False
+    logger.warning("python-magic not installed or missing libmagic DLLs. Mime type detection will fallback to basic validation.")
+
 from fastapi import APIRouter, UploadFile, File, HTTPException, BackgroundTasks
 from app.core.limiter import limiter
 from fastapi import Request
@@ -107,7 +113,11 @@ async def upload_proof(
     if not first_chunk:
         raise HTTPException(status_code=400, detail="Empty file.")
         
-    file_mime = magic.from_buffer(first_chunk, mime=True)
+    if HAS_MAGIC:
+        file_mime = magic.from_buffer(first_chunk, mime=True)
+    else:
+        file_mime = file.content_type or "application/octet-stream"
+        
     if file_mime not in ALLOWED_MIME_TYPES:
         raise HTTPException(status_code=400, detail="Invalid file type. Only JPEG, PNG, MP4, and MOV are allowed.")
         
