@@ -1,5 +1,5 @@
 import {
-  Clock, CheckCircle2, Check, DollarSign, XCircle, Globe, Search, X, Plus, Database
+  Clock, CheckCircle2, Check, DollarSign, XCircle, Globe, Search, X, Plus, Database, MessageCircle
 } from 'lucide-react';
 import type { CampaignStatus, FilterState } from '@/lib/types';
 

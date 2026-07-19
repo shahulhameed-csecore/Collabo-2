@@ -11,7 +11,8 @@ const nextConfig: NextConfig = {
       process.env.NEXT_PUBLIC_API_URL ?? "https://collabo-2.onrender.com",
   },
   typescript: {
-    ignoreBuildErrors: true,
+    // Re-enabled type checking for production builds
+    ignoreBuildErrors: false,
   },
   async headers() {
     return [
