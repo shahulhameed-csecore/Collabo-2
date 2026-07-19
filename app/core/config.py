@@ -13,6 +13,9 @@ class Settings(BaseSettings):
     ALLOWED_ORIGINS: str = "https://mycollabo.online,http://localhost:3000"
     SENTRY_DSN: Optional[str] = None
     
+    # Redis Integration for rate limiting and distributed locks
+    REDIS_URL: Optional[str] = None
+    
     # WhatsApp (Meta Cloud API) Integration
     WHATSAPP_TOKEN: Optional[str] = None
     WHATSAPP_PHONE_NUMBER_ID: Optional[str] = None

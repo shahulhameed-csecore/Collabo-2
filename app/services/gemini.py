@@ -3,7 +3,7 @@ import os
 import structlog
 from datetime import datetime
 from pydantic import BaseModel, Field
-from tenacity import retry, wait_exponential, stop_after_attempt, retry_if_exception, RetryError
+from tenacity import retry, wait_exponential, stop_after_attempt, RetryError
 import asyncio
 import sentry_sdk
 from pypdf import PdfReader
@@ -27,35 +27,46 @@ def _get_full_err_str(e: Exception) -> str:
             pass
     return err_str.lower()
 
+import re
+
 def detect_prompt_injection(text: str) -> bool:
     """
     Checks for explicit prompt injection patterns.
-    Uses multi-word phrases to avoid false positives on words like 'system' or 'ignore'.
+    Uses regex and word density to avoid false positives on words like 'system' or 'ignore'.
     """
     if not text:
         return False
         
     lower_text = text.lower()
-    suspicious_phrases = [
-        "ignore previous instructions",
-        "disregard all instructions",
-        "system prompt",
-        "you are now an",
-        "override instructions",
-        "output the preceding",
-        "print your instructions",
-        "forget previous",
-        "bypass security",
-        "new rule:"
+    
+    # 1. Regex for common injection patterns (handles variations and punctuation)
+    injection_patterns = [
+        r"(ignore|disregard|forget|drop)\s+(all\s+)?(previous\s+)?(instructions|prompts|directions|rules)",
+        r"(you\s+are\s+now|act\s+as|pretend\s+to\s+be)\s+(a|an)?\s*(system|admin|developer|unrestricted|jailbreak)",
+        r"(override|bypass)\s+(security|instructions|filters|system|rules)",
+        r"output\s+the\s+(preceding|above|previous)",
+        r"print\s+(your\s+)?(instructions|prompt)",
+        r"new\s+rule:",
+        r"system\s+prompt"
     ]
     
-    # Check for direct phrase matches
-    for phrase in suspicious_phrases:
-        if phrase in lower_text:
-            logger.warning("prompt_injection_detected", phrase=phrase)
+    for pattern in injection_patterns:
+        if re.search(pattern, lower_text):
+            logger.warning("prompt_injection_pattern_detected", pattern=pattern)
             return True
             
-    # Check for suspicious JSON structure injection
+    # 2. Suspicious word density check
+    suspicious_words = {"ignore", "disregard", "override", "bypass", "system", "prompt", "instructions", "jailbreak", "dan", "rule", "forget"}
+    words = re.findall(r'\b\w+\b', lower_text)
+    if len(words) > 0:
+        suspicious_count = sum(1 for word in words if word in suspicious_words)
+        density = suspicious_count / len(words)
+        # If a text is highly dense with injection verbs/nouns, block it
+        if density > 0.15 and suspicious_count >= 3:
+            logger.warning("prompt_injection_density_detected", density=density)
+            return True
+            
+    # 3. Check for suspicious JSON structure injection
     if '{"influencer_name":' in lower_text and '}' in lower_text and "ignore" in lower_text:
         return True
         
@@ -357,7 +368,8 @@ async def extract_campaign_data(file_bytes: bytes, filename: str, mime_type: str
     except Exception as e:
         logger.error("gemini_extraction_failed_completely", error=str(e), exc_info=True)
         
-        error_msg = f"AI Extraction failed ({str(e)}). Please enter details manually."
+        # Default clean error message
+        error_msg = "We couldn't automatically extract the details from your upload. Please enter them manually."
         
         # Check for Google API Quota limits (429 RESOURCE_EXHAUSTED)
         full_err_str = _get_full_err_str(e)

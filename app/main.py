@@ -19,22 +19,20 @@ BUG FIXES in this version
 4. Added GET /internal/scheduler-status to see next scheduled run time.
 """
 
+import os
+import uuid
 import logging
 import structlog
-import sentry_sdk
-from datetime import datetime, timezone
-
-# ─── Step 1: Configure structlog FIRST ────────────────────────────────────────
-# This MUST happen before any module-level structlog.get_logger() call.
-# Previously this was on line 73, after reminders.py was imported on line 17.
-import os
-from app.core.config import settings
-import uuid
 from typing import Any
 
+# ─── Step 1: Configure structlog FIRST ────────────────────────────────────────
+# This MUST happen before any module-level structlog.get_logger() call and before ANY
+# internal `app.*` imports to prevent brittle/circular logger initialization.
+
 # Use configured log level (default INFO)
-log_level = getattr(logging, settings.LOG_LEVEL.upper(), logging.INFO)
-logging.basicConfig(level=log_level, format="%(message)s")
+_log_level_str = os.getenv("LOG_LEVEL", "INFO").upper()
+_log_level = getattr(logging, _log_level_str, logging.INFO)
+logging.basicConfig(level=_log_level, format="%(message)s")
 
 def redact_secrets(logger, log_method, event_dict):
     """Redacts sensitive information from logs."""
@@ -45,7 +43,7 @@ def redact_secrets(logger, log_method, event_dict):
     return event_dict
 
 # Choose renderer based on environment (Console for dev, JSON for production)
-if settings.ENVIRONMENT.lower() == "development":
+if os.getenv("ENVIRONMENT", "development").lower() == "development":
     renderer = structlog.dev.ConsoleRenderer(colors=True)
 else:
     renderer = structlog.processors.JSONRenderer()
@@ -69,6 +67,11 @@ structlog.configure(
 
 # ─── Step 2: Get a logger for this module ─────────────────────────────────────
 logger = structlog.get_logger(__name__)
+
+# ─── Step 3: Now safe to import internal modules and everything else ──────────
+import sentry_sdk
+from datetime import datetime, timezone
+from app.core.config import settings
 
 # ─── Step 3: Now safe to import modules that call structlog.get_logger() ──────
 from fastapi import FastAPI, Request, HTTPException, Response
@@ -102,16 +105,38 @@ if settings.SENTRY_DSN:
     )
 
 # ─── Scheduler ────────────────────────────────────────────────────────────────
-# SCALING NOTE: Duplicate Cron Jobs
-# Currently, this runs inside the single web server process. It is free and safe for the MVP.
-# However, if you scale to 2+ Render instances, EVERY instance will run this scheduler,
-# meaning influencers will receive duplicate reminder emails and WhatsApp messages.
-# 
-# How to fix for 50k+ users:
-# 1. Use a separate Render Background Worker Dyno specifically for the scheduler.
-# 2. Or, use a distributed lock (e.g., Redis via redis-lock) to ensure only one instance executes the job.
 _executors = {"default": AsyncIOExecutor()}
 scheduler = AsyncIOScheduler(executors=_executors)
+
+import functools
+
+def with_redis_lock(lock_name: str, lock_timeout: int = 60 * 15):
+    """
+    Prevents duplicate cron job execution across multiple worker instances.
+    Uses a simple Redis SET NX to acquire a lock for the expected duration.
+    """
+    def decorator(func):
+        @functools.wraps(func)
+        async def wrapper(*args, **kwargs):
+            if settings.REDIS_URL:
+                try:
+                    import redis.asyncio as redis_async
+                    r = redis_async.from_url(settings.REDIS_URL, decode_responses=True)
+                    # Acquire lock (returns True if acquired, False if already locked)
+                    lock_acquired = await r.set(lock_name, "locked", ex=lock_timeout, nx=True)
+                    await r.aclose()
+                    
+                    if not lock_acquired:
+                        logger.info("job_skipped_due_to_lock", job=func.__name__, lock=lock_name)
+                        return
+                except ImportError:
+                    pass
+                except Exception as e:
+                    logger.warning("redis_lock_failed_running_anyway", error=str(e))
+            
+            return await func(*args, **kwargs)
+        return wrapper
+    return decorator
 
 
 # Store background tasks so they aren't garbage collected
@@ -123,7 +148,7 @@ async def lifespan(app: FastAPI):
     interval_minutes = settings.SCHEDULER_INTERVAL_MINUTES
 
     scheduler.add_job(
-        check_deadlines_job,
+        with_redis_lock("lock:deadlines_job")(check_deadlines_job),
         trigger="interval",
         minutes=interval_minutes,
         id="deadlines_job",
@@ -134,7 +159,7 @@ async def lifespan(app: FastAPI):
     )
     
     scheduler.add_job(
-        check_expired_trials_job,
+        with_redis_lock("lock:billing_downgrade_job")(check_expired_trials_job),
         trigger="interval",
         minutes=interval_minutes,
         id="billing_downgrade_job",
@@ -165,11 +190,11 @@ async def lifespan(app: FastAPI):
 
     # Fire immediately so the first check isn't delayed by a full hour after deploy.
     # We must hold a reference to the task so the garbage collector doesn't cancel it mid-run.
-    task = asyncio.create_task(check_deadlines_job())
+    task = asyncio.create_task(with_redis_lock("lock:deadlines_job")(check_deadlines_job)())
     background_tasks.add(task)
     task.add_done_callback(background_tasks.discard)
     
-    billing_task = asyncio.create_task(check_expired_trials_job())
+    billing_task = asyncio.create_task(with_redis_lock("lock:billing_downgrade_job")(check_expired_trials_job)())
     background_tasks.add(billing_task)
     billing_task.add_done_callback(background_tasks.discard)
 
@@ -209,28 +234,21 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-app.state.limiter = limiter
-app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+async def custom_rate_limit_exceeded_handler(request: Request, exc: RateLimitExceeded):
+    logger.warning("rate_limit_exceeded", client_ip=request.client.host if request.client else "unknown", url=str(request.url))
+    return JSONResponse(
+        status_code=429,
+        content={"detail": "Too many requests. Please slow down and try again in a minute."}
+    )
 
-# SCALING NOTE: Distributed Rate Limiting
-# `slowapi` is currently using in-memory storage (defined in app/core/limiter.py).
-# This means if you have 3 servers, users get 3x their rate limit because memory is isolated.
-# 
-# How to fix for 50k+ users:
-# Change the storage backend in `limiter.py` to Redis storage:
-# from slowapi.util import get_remote_address
-# from slowapi import Limiter
-# limiter = Limiter(key_func=get_remote_address, storage_uri="redis://...")
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, custom_rate_limit_exceeded_handler)
 
 app.add_middleware(GZipMiddleware, minimum_size=1000)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",
-        "https://mycollabo.online",
-        "https://www.mycollabo.online"
-    ],
+    allow_origins=settings.cors_origins_list,
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allow_headers=["Authorization", "Content-Type", "Accept", "X-Internal-Secret"],
@@ -300,9 +318,6 @@ async def add_security_headers(request: Request, call_next):
         "frame-ancestors 'none';"
     )
     return response
-
-
-from fastapi import HTTPException
 
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
