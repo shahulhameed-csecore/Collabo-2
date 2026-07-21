@@ -111,7 +111,7 @@ async def process_telegram_message(update: dict):
             cb_id = cb.get("id")
             cb_data = cb.get("data", "")
             from app.services.telegram import answer_callback_query
-            from app.core.formatters import get_telegram_edit_menu, get_telegram_options_menu
+            from app.core.formatters import get_telegram_edit_menu
             await answer_callback_query(cb_id)
 
             if cb_data == "act_all":
