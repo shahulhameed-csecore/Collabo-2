@@ -24,3 +24,5 @@ tenacity>=8.3.0
 google-genai>=1.0.0
 razorpay>=1.4.1
 redis>=5.0.0
+PyJWT>=2.8.0  
+ 

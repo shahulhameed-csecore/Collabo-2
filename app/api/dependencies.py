@@ -16,11 +16,48 @@ class AuthenticatedUser:
 
 async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)) -> AuthenticatedUser:
     """
-    Validates the JWT token against Supabase Auth (server-side verification).
-    Raises 401 if the token is missing, expired, or invalid.
-    Error details are intentionally generic to prevent information leakage.
+    Validates the JWT token.
+    Fast path: Uses local PyJWT verification via Supabase JWKS (JSON Web Key Set).
+    Fallback path: Uses Supabase Auth API (get_user) if local validation fails.
     """
     token = credentials.credentials
+    
+    try:
+        import jwt
+        # PyJWKClient automatically caches the JWKS so it only makes a network request once
+        jwks_url = f"{settings.SUPABASE_URL.rstrip('/')}/auth/v1/jwks"
+        jwks_client = jwt.PyJWKClient(jwks_url)
+        signing_key = jwks_client.get_signing_key_from_jwt(token)
+        
+        payload = jwt.decode(
+            token,
+            signing_key.key,
+            algorithms=["HS256", "ES256", "RS256"],
+            audience="authenticated"
+        )
+        
+        class MockUser:
+            def __init__(self, id, email):
+                self.id = id
+                self.email = email
+                
+        user_id = payload.get("sub")
+        email = payload.get("email")
+        if not user_id:
+            raise ValueError("Missing 'sub' in token payload")
+            
+        return AuthenticatedUser(MockUser(id=user_id, email=email), token)
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token expired",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    except Exception as e:
+        # If local decoding fails (e.g., PyJWKClient error), we silently fall back to Supabase API
+        pass
+        
+    # Fallback to Supabase Auth API
     try:
         service_client = await get_service_client()
         user_response = await service_client.auth.get_user(token)
@@ -35,8 +72,7 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
     except HTTPException:
         raise
     except Exception as e:
-        # Log internally but never expose exception internals to the caller
-        logger.warning("Token validation failed", error=type(e).__name__)
+        logger.warning("Token validation fallback failed", error=type(e).__name__)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid authentication credentials",
