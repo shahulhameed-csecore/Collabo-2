@@ -393,8 +393,8 @@ export interface RazorpayOrderResponse {
   currency: string;
 }
 
-export async function createRazorpayOrder(): Promise<RazorpayOrderResponse> {
-  const res = await api.post<RazorpayOrderResponse>('/billing/create-razorpay-order', {});
+export async function createRazorpayOrder(is_annual: boolean = false): Promise<RazorpayOrderResponse> {
+  const res = await api.post<RazorpayOrderResponse>('/billing/create-razorpay-order', { is_annual });
   return res.data;
 }
 
