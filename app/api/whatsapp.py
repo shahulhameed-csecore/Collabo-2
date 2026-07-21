@@ -440,7 +440,7 @@ async def process_whatsapp_messages(sender_id: str, messages: list):
             get_cancel_interactive_func=_get_cancel_interactive,
             is_bulk_confirm=is_bulk_confirm,
             
-            message_id_str=f"wa_msg:{message_id}" if message_id else None
+            message_id_str=f"wa_msg:{message.get('id')}" if message.get('id') else None
         )
 
     except Exception as e:
