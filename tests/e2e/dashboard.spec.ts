@@ -1,11 +1,21 @@
 import { test, expect } from '@playwright/test';
 
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': '*',
+  'Access-Control-Allow-Headers': '*',
+};
+
 test.describe('Dashboard Interactions', () => {
   test.beforeEach(async ({ page }) => {
     // Mock Supabase getUser to accept our fake local storage token
     await page.route('**/auth/v1/user*', async route => {
+      if (route.request().method() === 'OPTIONS') {
+        return route.fulfill({ status: 200, headers: corsHeaders });
+      }
       await route.fulfill({
         status: 200,
+        headers: corsHeaders,
         json: { id: 'test-user', aud: 'authenticated', role: 'authenticated', email: 'test@collabo.com' }
       });
     });
@@ -13,9 +23,11 @@ test.describe('Dashboard Interactions', () => {
 
   test('displays empty state when no campaigns exist', async ({ page }) => {
     // Mock the backend response to simulate zero campaigns.
-    // Use **/* to ensure trailing slashes and query parameters are matched.
     await page.route('**/campaigns/**', async route => {
-      await route.fulfill({ status: 200, json: { data: [], count: 0 } });
+      if (route.request().method() === 'OPTIONS') {
+        return route.fulfill({ status: 200, headers: corsHeaders });
+      }
+      await route.fulfill({ status: 200, headers: corsHeaders, json: { data: [], count: 0 } });
     });
 
     await page.goto('/dashboard');

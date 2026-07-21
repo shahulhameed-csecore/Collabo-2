@@ -1,19 +1,33 @@
 import { test, expect } from '@playwright/test';
 
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': '*',
+  'Access-Control-Allow-Headers': '*',
+};
+
 test.describe('Campaign Management', () => {
   test.beforeEach(async ({ page }) => {
     // Mock Supabase getUser to accept our fake local storage token
     await page.route('**/auth/v1/user*', async route => {
+      if (route.request().method() === 'OPTIONS') {
+        return route.fulfill({ status: 200, headers: corsHeaders });
+      }
       await route.fulfill({
         status: 200,
+        headers: corsHeaders,
         json: { id: 'test-user', aud: 'authenticated', role: 'authenticated', email: 'test@collabo.com' }
       });
     });
 
     // Mock campaigns endpoint to avoid hitting the real API and getting 401
     await page.route('**/campaigns/**', async route => {
+      if (route.request().method() === 'OPTIONS') {
+        return route.fulfill({ status: 200, headers: corsHeaders });
+      }
       await route.fulfill({
         status: 200,
+        headers: corsHeaders,
         json: { data: [], count: 0 }
       });
     });
@@ -65,7 +79,10 @@ test.describe('Campaign Management', () => {
   test('AI Extraction handles errors gracefully', async ({ page }) => {
     // Mock the FastAPI AI extraction endpoint to fail
     await page.route('**/extract/**', async route => {
-      await route.fulfill({ status: 500, json: { detail: "AI processing failed" } });
+      if (route.request().method() === 'OPTIONS') {
+        return route.fulfill({ status: 200, headers: corsHeaders });
+      }
+      await route.fulfill({ status: 500, headers: corsHeaders, json: { detail: "AI processing failed" } });
     });
 
     await page.goto('/dashboard');
