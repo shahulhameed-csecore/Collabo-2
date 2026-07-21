@@ -439,7 +439,7 @@ async def process_whatsapp_messages(sender_id: str, messages: list):
         logger.error("WhatsApp processing error", error=str(e), exc_info=True)
         await send_whatsapp_message(sender_id, "🤖 *Oops!* My servers hit a snag. Please try again.")
 
-async def _process_batched_wrapper(sender_id: str, background_tasks: BackgroundTasks):
+async def _process_batched_wrapper(sender_id: str):
     from app.core.redis import get_redis
     redis_client = get_redis()
     
@@ -461,7 +461,7 @@ async def _process_batched_wrapper(sender_id: str, background_tasks: BackgroundT
         if not messages:
             return
             
-    background_tasks.add_task(process_whatsapp_messages, sender_id, messages)
+    await process_whatsapp_messages(sender_id, messages)
 
 @router.post("/whatsapp")
 async def meta_whatsapp_webhook(request: Request, background_tasks: BackgroundTasks):
@@ -519,7 +519,7 @@ async def meta_whatsapp_webhook(request: Request, background_tasks: BackgroundTa
                             lock_acquired = await redis_client.set(lock_key, "1", ex=4, nx=True)
                             
                             if lock_acquired:
-                                asyncio.create_task(_process_batched_wrapper(sender_id, background_tasks))
+                                asyncio.create_task(_process_batched_wrapper(sender_id))
                         else:
                             # In-memory fallback
                             if sender_id not in _message_buffer:
@@ -528,7 +528,7 @@ async def meta_whatsapp_webhook(request: Request, background_tasks: BackgroundTa
                             
                             if sender_id not in _batch_locks:
                                 _batch_locks.add(sender_id)
-                                asyncio.create_task(_process_batched_wrapper(sender_id, background_tasks))
+                                asyncio.create_task(_process_batched_wrapper(sender_id))
     except Exception as e:
         logger.error("Error queueing Meta webhook payload for processing", error=str(e))
 
