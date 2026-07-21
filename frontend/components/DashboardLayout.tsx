@@ -104,29 +104,33 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   useEffect(() => {
     setMounted(true);
     const getUser = async () => {
-      const { data: { user }, error } = await supabase.auth.getUser();
-      if (!user || error) {
-        if (error) console.error('Auth error:', error.message);
-        router.replace('/login');
-        return;
+      try {
+        const { data: { user }, error } = await supabase.auth.getUser();
+        if (!user || error) {
+          if (error) console.error('Auth error:', error.message);
+          router.replace('/login');
+          return;
+        }
+        setUser(user);
+
+        const { data: subData } = await supabase
+          .from('subscriptions')
+          .select('tier, trial_ends_at')
+          .eq('user_id', user.id)
+          .single();
+        if (subData) setSubscription(subData);
+
+        const { data: settingsData } = await supabase
+          .from('user_settings')
+          .select('username')
+          .eq('user_id', user.id)
+          .single();
+        if (settingsData?.username) setCustomUsername(settingsData.username);
+      } catch (err) {
+        console.error('Error fetching user data:', err);
+      } finally {
+        setLoading(false);
       }
-      setUser(user);
-
-      const { data: subData } = await supabase
-        .from('subscriptions')
-        .select('tier, trial_ends_at')
-        .eq('user_id', user.id)
-        .single();
-      if (subData) setSubscription(subData);
-
-      const { data: settingsData } = await supabase
-        .from('user_settings')
-        .select('username')
-        .eq('user_id', user.id)
-        .single();
-      if (settingsData?.username) setCustomUsername(settingsData.username);
-
-      setLoading(false);
     };
     getUser();
 

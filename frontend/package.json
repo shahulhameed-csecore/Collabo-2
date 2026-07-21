@@ -11,7 +11,6 @@
   "dependencies": {
     "@react-oauth/google": "^0.13.5",
     "@sentry/nextjs": "^10.63.0",
-    "@supabase/ssr": "^0.12.0",
     "@supabase/supabase-js": "^2.108.1",
     "axios": "^1.17.0",
     "clsx": "^2.1.1",
@@ -29,6 +28,7 @@
   },
   "devDependencies": {
     "@playwright/test": "^1.61.1",
+    "@supabase/ssr": "^0.12.3",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",

@@ -1,3 +1,4 @@
+import React, { useState, useEffect, useId } from 'react';
 import { Sparkles } from 'lucide-react';
 
 export function Field({
@@ -9,27 +10,25 @@ export function Field({
   highlight?: boolean;
   children: React.ReactNode;
 }) {
+  const id = useId();
   return (
     <div>
-      <label className={`flex items-center gap-1.5 text-xs font-bold mb-2 tracking-wide ${highlight ? 'text-amber-400' : 'text-slate-400'}`}>
+      <label htmlFor={id} className={`flex items-center gap-1.5 text-xs font-bold mb-2 tracking-wide ${highlight ? 'text-amber-400' : 'text-slate-400'}`}>
         <Icon className="w-3.5 h-3.5" />
         {label}
         {required && <span className="text-rose-400 font-bold">*</span>}
         {highlight && <span className="text-amber-400/60 font-normal ml-1">- please fill</span>}
       </label>
-      {children}
+      {React.isValidElement(children) ? React.cloneElement(children as React.ReactElement<any>, { id }) : children}
     </div>
   );
 }
-
 export const inputCls = (highlight = false) =>
   `w-full bg-slate-800/50 border text-white placeholder-slate-600 rounded-xl px-3.5 py-2.5 text-sm
    focus:outline-none focus:ring-1 transition-all resize-none
    ${highlight
      ? 'border-amber-500/40 focus:border-amber-500/60 focus:ring-amber-500/15'
      : 'border-slate-700/50 focus:border-emerald-500/50 focus:ring-emerald-500/15'}`;
-
-import { useState, useEffect } from 'react';
 
 export function AiThinkingAnimation() {
   const [elapsed, setElapsed] = useState(0);
