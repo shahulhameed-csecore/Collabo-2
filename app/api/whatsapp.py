@@ -92,19 +92,26 @@ async def process_whatsapp_messages(sender_id: str, messages: list):
             logger.error("Supabase Admin client not initialized.")
             return
 
-        # 1. Deduplicate via webhook_events (only use the first message id for tracking)
+        # 1. Deduplicate via webhook_events (deduplicate all messages in batch)
         message_ids = [msg.get("id") for msg in messages if msg.get("id")]
-        message_id = message_ids[-1] if message_ids else None
-        if message_id:
-            try:
-                # Attempt to insert, if fails due to unique constraint, it's a duplicate
-                res = await supabase_admin.table("webhook_events").insert({"message_id": message_id, "platform": "wa"}).execute()
-            except Exception as e:
-                # If constraint violation occurs, it means duplicate
-                if "duplicate key value" in str(e).lower() or "unique constraint" in str(e).lower():
-                    logger.info("Duplicate WhatsApp message ignored", msg_id=message_id)
-                    return
-                # otherwise just continue
+        valid_messages = []
+        for msg in messages:
+            msg_id = msg.get("id")
+            if msg_id:
+                try:
+                    await supabase_admin.table("webhook_events").insert({"message_id": msg_id, "platform": "wa"}).execute()
+                    valid_messages.append(msg)
+                except Exception as e:
+                    if "duplicate key value" in str(e).lower() or "unique constraint" in str(e).lower():
+                        logger.info("Duplicate WhatsApp message ignored", msg_id=msg_id)
+                        continue
+                    valid_messages.append(msg)
+            else:
+                valid_messages.append(msg)
+
+        if not valid_messages:
+            return
+        messages = valid_messages
         
         # 2. Number Matching
         clean_sender = "".join(filter(str.isdigit, sender_id))
@@ -252,8 +259,9 @@ async def process_whatsapp_messages(sender_id: str, messages: list):
                             # basic extraction of numbers
                             clean_val = text_val.lower().replace("k", "000").replace("l", "00000")
                             update_val = float(''.join(c for c in clean_val if c.isdigit() or c == '.'))
-                        except:
-                            pass
+                        except Exception:
+                            await send_whatsapp_message(sender_id, "❌ Please enter a valid number for the payment amount.")
+                            return
                     elif db_field == "deadline":
                         from app.core.parsers import parse_date_string
                         parsed_date = parse_date_string(text_val)
@@ -447,9 +455,16 @@ async def _process_batched_wrapper(sender_id: str):
     
     if redis_client:
         redis_key = f"wa_batch:{sender_id}"
-        # Pop all items from the list atomically
-        raw_messages = await redis_client.lrange(redis_key, 0, -1)
-        await redis_client.delete(redis_key)
+        temp_key = f"wa_batch_temp:{sender_id}"
+        
+        # Atomically rename to avoid dropping messages appended between lrange and delete
+        try:
+            await redis_client.rename(redis_key, temp_key)
+        except Exception:
+            return  # Key doesn't exist anymore
+            
+        raw_messages = await redis_client.lrange(temp_key, 0, -1)
+        await redis_client.delete(temp_key)
         
         if not raw_messages:
             return

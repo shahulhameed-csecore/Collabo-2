@@ -215,8 +215,9 @@ async def process_telegram_message(update: dict):
                         try:
                             clean_val = text_val.lower().replace("k", "000").replace("l", "00000")
                             update_val = float(''.join(c for c in clean_val if c.isdigit() or c == '.'))
-                        except:
-                            pass
+                        except Exception:
+                            await send_telegram_message(chat_id, "❌ Please enter a valid number for the payment amount.")
+                            return
                     elif db_field == "deadline":
                         from app.core.parsers import parse_date_string
                         parsed_date = parse_date_string(text_val)
