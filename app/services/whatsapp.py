@@ -1,6 +1,7 @@
 import httpx
 import structlog
 from app.core.config import settings
+from tenacity import retry, wait_exponential, stop_after_attempt, retry_if_exception_type
 
 logger = structlog.get_logger(__name__)
 
@@ -11,7 +12,39 @@ _GRAPH_API_VERSION = "v20.0"
 _DEFAULT_MAX_MEDIA_BYTES = 16 * 1024 * 1024
 
 
-async def send_whatsapp_message(to_number: str, body: str, interactive: dict | None = None) -> bool:
+@retry(
+    wait=wait_exponential(multiplier=1, min=2, max=10),
+    stop=stop_after_attempt(3),
+    retry=retry_if_exception_type((httpx.RequestError, httpx.TimeoutException)),
+    reraise=True
+)
+async def _do_send_whatsapp_message(url: str, headers: dict, payload: dict, client: httpx.AsyncClient | None = None) -> bool:
+    is_local_client = client is None
+    http_client = client or httpx.AsyncClient()
+    try:
+        response = await http_client.post(url, headers=headers, json=payload, timeout=10.0)
+        if response.status_code not in (200, 201):
+            error_msg = "Unknown error"
+            try:
+                err_json = response.json()
+                if "error" in err_json:
+                    error_msg = f"{err_json['error'].get('message', '')} (Code: {err_json['error'].get('code', '')}, Subcode: {err_json['error'].get('error_subcode', '')})"
+            except Exception:
+                error_msg = response.text[:200]
+                
+            logger.error(
+                "WhatsApp API error",
+                status=response.status_code,
+                detail=error_msg,
+            )
+            return False
+        return True
+    finally:
+        if is_local_client:
+            await http_client.aclose()
+
+
+async def send_whatsapp_message(to_number: str, body: str, interactive: dict | None = None, client: httpx.AsyncClient | None = None) -> bool:
     """
     Sends a WhatsApp text message using the Official Meta Cloud API.
     If `interactive` is provided, sends an interactive message instead.
@@ -55,24 +88,7 @@ async def send_whatsapp_message(to_number: str, body: str, interactive: dict | N
         payload["text"] = {"preview_url": False, "body": body}
 
     try:
-        async with httpx.AsyncClient() as client:
-            response = await client.post(url, headers=headers, json=payload, timeout=10.0)
-            if response.status_code not in (200, 201):
-                error_msg = "Unknown error"
-                try:
-                    err_json = response.json()
-                    if "error" in err_json:
-                        error_msg = f"{err_json['error'].get('message', '')} (Code: {err_json['error'].get('code', '')}, Subcode: {err_json['error'].get('error_subcode', '')})"
-                except:
-                    error_msg = response.text[:200]
-                    
-                logger.error(
-                    "WhatsApp API error",
-                    status=response.status_code,
-                    detail=error_msg,
-                )
-                return False
-            return True
+        return await _do_send_whatsapp_message(url, headers, payload, client=client)
     except Exception as e:
         logger.error("Exception sending WhatsApp message", error=str(e), exc_info=True)
         return False

@@ -27,6 +27,12 @@ v2 bugs fixed in this file:
 
   5. Internal trigger endpoint: improved secret validation and logging.
   6. Exhaustive per-campaign structured logging at every decision point.
+
+v3 bugs fixed:
+  1. Concurrency control using asyncio.Semaphore(10).
+  2. Connection pooling using a shared httpx.AsyncClient.
+  3. Strict flag checking — skip sending if DB update fails.
+  4. Retry logic with tenacity for external APIs.
 """
 
 import asyncio
@@ -36,48 +42,45 @@ from typing import Optional, Any
 
 import pytz
 import structlog
+import httpx
+from tenacity import retry, wait_exponential, stop_after_attempt, retry_if_exception_type
 from app.services.supabase import get_supabase_admin
 import sentry_sdk
 
 from app.core.config import settings
 
 # ---------------------------------------------------------------------------
-# Email sending via GMail Webhook
+# WhatsApp & Telegram helpers
 # ---------------------------------------------------------------------------
 
-# WhatsApp helper — optional (during Meta App Review period)
 try:
     from app.services.whatsapp import send_whatsapp_message as _send_wa
 except ImportError:
     _send_wa = None  # type: ignore[assignment]
 
-# NOTE: structlog.configure() is called in main.py at module load time.
-# We call get_logger() here (module level) which is fine — structlog lazy-binds
-# the configuration on first use, not at get_logger() call time.
 logger = structlog.get_logger(__name__)
 
-# Removed _FROM_ADDRESS because the Webhook handles the sender identity natively
-# Reminder window: send 48h reminder when deadline is between 0 and 48h away
 _REMINDER_WINDOW_HOURS = 48
-
-# IST timezone — used for display formatting and date parsing
 _IST = pytz.timezone("Asia/Kolkata")
-
-
-# ---------------------------------------------------------------------------
-# Supabase admin client
-# ---------------------------------------------------------------------------
-
-# _get_supabase_admin is removed, using global singleton from app.services.supabase
 
 
 # ---------------------------------------------------------------------------
 # Email sending via Webhook
 # ---------------------------------------------------------------------------
 
-import httpx
+@retry(
+    wait=wait_exponential(multiplier=1, min=2, max=10),
+    stop=stop_after_attempt(3),
+    retry=retry_if_exception_type((httpx.RequestError, httpx.TimeoutException)),
+    reraise=True
+)
+async def _do_send_email(payload: dict, client: httpx.AsyncClient) -> httpx.Response:
+    resp = await client.post(settings.GMAIL_WEBHOOK_URL, json=payload, timeout=15.0)
+    resp.raise_for_status()
+    return resp
 
-async def _send_email(to_email: str, subject: str, html: str) -> bool:
+
+async def _send_email(to_email: str, subject: str, html: str, client: httpx.AsyncClient) -> bool:
     """
     Send a transactional email using a Webhook (e.g., Google Apps Script).
     Runs asynchronously using httpx to prevent blocking.
@@ -99,10 +102,7 @@ async def _send_email(to_email: str, subject: str, html: str) -> bool:
     }
 
     try:
-        async with httpx.AsyncClient(timeout=15.0, follow_redirects=True) as client:
-            resp = await client.post(settings.GMAIL_WEBHOOK_URL, json=payload)
-            resp.raise_for_status()
-            
+        resp = await _do_send_email(payload, client)
         logger.info(
             "reminders.email_sent",
             to=to_email,
@@ -148,11 +148,10 @@ async def _send_email(to_email: str, subject: str, html: str) -> bool:
 # WhatsApp sending
 # ---------------------------------------------------------------------------
 
-async def _send_whatsapp(to_number: str, body: str) -> bool:
+async def _send_whatsapp(to_number: str, body: str, client: httpx.AsyncClient) -> bool:
     """
     Send a WhatsApp message via the Meta Cloud API.
-    Returns False (not an error) if WhatsApp is not yet configured —
-    this is expected during the Meta App Review period.
+    Returns False (not an error) if WhatsApp is not yet configured.
     """
     if _send_wa is None:
         logger.warning("reminders.whatsapp_skipped", reason="whatsapp service not available")
@@ -167,7 +166,7 @@ async def _send_whatsapp(to_number: str, body: str) -> bool:
         return False
 
     try:
-        ok = await _send_wa(to_number, body)
+        ok = await _send_wa(to_number, body, client=client)
         if ok:
             logger.info("reminders.whatsapp_sent", to=to_number)
         else:
@@ -331,7 +330,6 @@ def _build_overdue_email(inf_name: str, deadline_ist: str) -> tuple[str, str]:
 async def _get_user_email(supabase_admin, user_id: str) -> Optional[str]:
     """Fetch user email from Supabase Auth admin API."""
     try:
-        import asyncio
         resp = supabase_admin.auth.admin.get_user_by_id(user_id)
         if resp and resp.user and resp.user.email:
             return resp.user.email
@@ -351,13 +349,6 @@ async def _get_user_email(supabase_admin, user_id: str) -> Optional[str]:
 # ---------------------------------------------------------------------------
 
 def _parse_deadline_utc(deadline_raw: str, clog) -> Optional[datetime]:
-    """
-    Parse a deadline string to a UTC-aware datetime.
-
-    Supabase `date` columns return "YYYY-MM-DD" (no time, no tz).
-    We treat that as end-of-day IST (23:59:59 IST) so Indian users get their
-    reminder the day before the deadline, not two days before.
-    """
     if not deadline_raw:
         clog.warning("reminders.deadline_empty")
         return None
@@ -366,7 +357,6 @@ def _parse_deadline_utc(deadline_raw: str, clog) -> Optional[datetime]:
 
     try:
         if "T" in deadline_raw or (" " in deadline_raw and len(deadline_raw) > 10):
-            # Already a datetime string (legacy rows)
             _ts = deadline_raw.replace("Z", "+00:00")
             if "." in _ts:
                 _ts = _ts.split(".")[0] + "+00:00"
@@ -377,7 +367,6 @@ def _parse_deadline_utc(deadline_raw: str, clog) -> Optional[datetime]:
             clog.debug("reminders.deadline_parsed_datetime", utc=result.isoformat())
             return result
 
-        # Plain date — treat as end-of-day IST
         naive_eod = datetime.strptime(deadline_raw[:10], "%Y-%m-%d").replace(
             hour=23, minute=59, second=59
         )
@@ -403,22 +392,24 @@ def _parse_deadline_utc(deadline_raw: str, clog) -> Optional[datetime]:
 # Idempotency flag updater
 # ---------------------------------------------------------------------------
 
-async def _mark_flag(supabase_admin, campaign_id: str, flag: str, clog) -> None:
+async def _mark_flag(supabase_admin, campaign_id: str, flag: str, clog) -> bool:
     """
     Set a reminder flag to True on the campaign row.
-
-    Plain UPDATE with no extra filter. We already checked the flag value from
-    the SELECT result, so the double-check is not needed. Setting True twice
-    is idempotent and harmless even if two job instances run concurrently.
+    Returns True if the update was successful, False otherwise.
     """
     try:
-        import asyncio
-        await (supabase_admin.table("campaigns")
+        res = await (supabase_admin.table("campaigns")
             .update({flag: True})
             .eq("id", campaign_id)
             .execute()
         )
-        clog.info("reminders.flag_set", flag=flag, campaign_id=campaign_id)
+        # Check if any rows were returned
+        if res.data and len(res.data) > 0:
+            clog.info("reminders.flag_set_success", flag=flag, campaign_id=campaign_id)
+            return True
+        else:
+            clog.warning("reminders.flag_set_no_rows_affected", flag=flag, campaign_id=campaign_id)
+            return False
     except Exception as exc:
         clog.error(
             "reminders.flag_update_failed",
@@ -426,34 +417,14 @@ async def _mark_flag(supabase_admin, campaign_id: str, flag: str, clog) -> None:
             campaign_id=campaign_id,
             error=str(exc),
         )
+        return False
 
 
 # ---------------------------------------------------------------------------
-# Two-step fetch: campaigns + user_settings (no PostgREST join required)
+# Two-step fetch
 # ---------------------------------------------------------------------------
 
 async def _fetch_campaigns_with_settings(supabase_admin, log) -> list[dict]:
-    """
-    Fetch all active campaigns and merge their user_settings in Python.
-
-    WHY TWO STEPS INSTEAD OF A POSTGREST JOIN?
-    ------------------------------------------
-    PostgREST's embedded resource syntax  user_settings(...)  only works when
-    PostgreSQL has an explicit FOREIGN KEY from campaigns.user_id to
-    user_settings.user_id.  If that FK is missing or hasn't been refreshed in
-    PostgREST's schema cache, you get:
-
-        "Could not find a relationship between 'campaigns' and 'user_settings'"
-
-    This two-step approach is 100% reliable regardless of FK state and uses
-    exactly ONE extra query for the entire batch — not one per campaign.
-
-    Steps:
-      1. SELECT active campaigns (no join).
-      2. Collect unique user_ids → SELECT user_settings WHERE user_id IN (...).
-      3. Build a dict keyed by user_id and merge into each campaign dict.
-    """
-    # ── Step 1: Fetch active campaigns ────────────────────────────────────
     try:
         campaigns_resp = await (supabase_admin.table("campaigns")
             .select(
@@ -477,7 +448,6 @@ async def _fetch_campaigns_with_settings(supabase_admin, log) -> list[dict]:
     if not campaigns:
         return []
 
-    # ── Step 2: Fetch user_settings for all unique user_ids ───────────────
     user_ids = list({c["user_id"] for c in campaigns if c.get("user_id")})
     settings_by_user: dict[str, dict] = {}
 
@@ -492,21 +462,13 @@ async def _fetch_campaigns_with_settings(supabase_admin, log) -> list[dict]:
                 uid = row.get("user_id")
                 if uid:
                     settings_by_user[uid] = row
-            log.info(
-                "reminders.user_settings_fetched",
-                users_with_campaigns=len(user_ids),
-                users_with_settings=len(settings_by_user),
-            )
         except Exception as exc:
-            # Non-fatal: we proceed with empty settings (defaults will apply)
             log.warning(
                 "reminders.user_settings_fetch_failed",
                 error=str(exc),
-                error_type=type(exc).__name__,
                 detail="Proceeding with default reminder settings for all users",
             )
 
-    # ── Step 3: Merge settings into each campaign dict ────────────────────
     for campaign in campaigns:
         uid = campaign.get("user_id")
         campaign["user_settings"] = settings_by_user.get(uid, {}) if uid else {}
@@ -515,29 +477,12 @@ async def _fetch_campaigns_with_settings(supabase_admin, log) -> list[dict]:
 
 
 # ---------------------------------------------------------------------------
-# Main job
+# Individual Campaign Processor
 # ---------------------------------------------------------------------------
 
-async def check_deadlines_job() -> dict:
-    log = logger.bind(job="check_deadlines_job")
-    now_utc = datetime.now(timezone.utc)
-    
-    try:
-        from app.services.supabase import get_supabase_admin
-        from app.services.notifications import create_notification
-        supabase_admin = await get_supabase_admin()
-    except Exception as exc:
-        log.error("reminders.job_aborted", reason=str(exc))
-        return {"error": str(exc)}
-
-    # Use the existing two-step fetcher for robust data retrieval
-    campaigns = await _fetch_campaigns_with_settings(supabase_admin, log)
-    if not campaigns:
-        return {"processed": 0}
-
-    processed = 0
-
-    for campaign in campaigns:
+async def _process_campaign(campaign: dict, now_utc: datetime, supabase_admin, client: httpx.AsyncClient, semaphore: asyncio.Semaphore) -> bool:
+    """Process a single campaign under concurrency limits."""
+    async with semaphore:
         campaign_id = campaign.get("id")
         user_id = campaign.get("user_id")
         inf_name = campaign.get("influencer_name") or campaign.get("influencer_handle") or "Unknown Creator"
@@ -554,29 +499,26 @@ async def check_deadlines_job() -> dict:
         tg_chat_id = user_settings.get("telegram_chat_id")
 
         if not deadline_raw:
-            continue
-
-        deadline_utc = _parse_deadline_utc(deadline_raw, log)
+            return False
+            
+        clog = logger.bind(campaign_id=campaign_id)
+        deadline_utc = _parse_deadline_utc(deadline_raw, clog)
         if not deadline_utc:
-            continue
+            return False
             
         days_until = (deadline_utc - now_utc).total_seconds() / 86400.0
         
-        # Determine the action required
         action = None
-        
         if 0 < days_until <= 2.0 and not rem_48h_sent:
             action = "48h_warning"
         elif days_until <= 0 and not overdue_sent:
             action = "overdue_alert"
             
         if not action:
-            continue
+            return False
             
-        processed += 1
-        log.info(f"reminders.processing_{action}", campaign_id=campaign_id, user_id=user_id, days_until=round(days_until, 2))
+        clog.info(f"reminders.processing_{action}", user_id=user_id, days_until=round(days_until, 2))
 
-        # Prepare messages
         deadline_ist = deadline_utc.astimezone(_IST).strftime("%b %d, %Y")
         
         if action == "48h_warning":
@@ -596,31 +538,69 @@ async def check_deadlines_job() -> dict:
             flag_to_update = "overdue_alert_sent"
             notif_type = "error"
 
-        # 1. Update Database Flag immediately to prevent race conditions
-        await _mark_flag(supabase_admin, campaign_id, flag_to_update, log)
+        # STRICT DB UPDATE
+        # Only proceed to send notifications if the database successfully toggles the flag.
+        db_success = await _mark_flag(supabase_admin, campaign_id, flag_to_update, clog)
+        if not db_success:
+            clog.warning("reminders.skipped_due_to_db_failure")
+            return False
 
-        # 2. In-App Notification
+        # If DB update succeeded, send notifications best-effort
+        from app.services.notifications import create_notification
         try:
             await create_notification(supabase_admin, user_id, notif_title, notif_desc, notif_type, "/dashboard")
         except Exception as e:
-            log.error("reminders.notif_failed", error=str(e))
+            clog.error("reminders.notif_failed", error=str(e))
 
-        # 3. Email Dispatch
         if email_enabled:
             email_address = await _get_user_email(supabase_admin, user_id)
             if email_address:
-                await _send_email(email_address, email_subj, email_html)
+                await _send_email(email_address, email_subj, email_html, client)
                 
-        # 4. WhatsApp Dispatch
         if wa_enabled and wa_num:
-            from app.services.whatsapp import send_whatsapp_message
-            await send_whatsapp_message(wa_num, wa_text)
+            await _send_whatsapp(wa_num, wa_text, client)
             
-        # 5. Telegram Dispatch
         if tg_chat_id:
-            from app.services.telegram import send_telegram_message
-            await send_telegram_message(tg_chat_id, tg_text)
+            try:
+                from app.services.telegram import send_telegram_message
+                await send_telegram_message(tg_chat_id, tg_text)
+            except Exception as e:
+                clog.error("reminders.telegram_failed", error=str(e))
 
-    log.info("reminders.job_completed", processed=processed)
+        return True
+
+
+# ---------------------------------------------------------------------------
+# Main job
+# ---------------------------------------------------------------------------
+
+async def check_deadlines_job() -> dict:
+    log = logger.bind(job="check_deadlines_job")
+    now_utc = datetime.now(timezone.utc)
+    
+    try:
+        from app.services.supabase import get_supabase_admin
+        supabase_admin = await get_supabase_admin()
+    except Exception as exc:
+        log.error("reminders.job_aborted", reason=str(exc))
+        return {"error": str(exc)}
+
+    campaigns = await _fetch_campaigns_with_settings(supabase_admin, log)
+    if not campaigns:
+        return {"processed": 0}
+
+    # Use a Semaphore to prevent thundering herd when sending emails/webhooks
+    semaphore = asyncio.Semaphore(10)
+    
+    # Use a shared httpx client for the entire batch to pool connections
+    async with httpx.AsyncClient(timeout=15.0, follow_redirects=True) as http_client:
+        tasks = [
+            _process_campaign(c, now_utc, supabase_admin, http_client, semaphore)
+            for c in campaigns
+        ]
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+
+    processed = sum(1 for r in results if r is True)
+    log.info("reminders.job_completed", processed=processed, total_campaigns=len(campaigns))
+    
     return {"processed": processed}
-
