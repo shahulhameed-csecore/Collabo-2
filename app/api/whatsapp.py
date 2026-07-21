@@ -164,13 +164,18 @@ async def process_whatsapp_messages(sender_id: str, messages: list):
                     )
                     activated = []
                     skipped = []
+                    ids_to_activate = []
+                    
                     for draft in drafts.data:
                         notes = draft.get("special_notes") or ""
                         if "NEGOTIATION:" in notes:
                             skipped.append(draft.get("influencer_name") or "Unknown")
                         else:
-                            await supabase_admin.table("campaigns").update({"status": "active"}).eq("id", draft["id"]).execute()
+                            ids_to_activate.append(draft["id"])
                             activated.append(draft.get("influencer_name") or "Unknown")
+                            
+                    if ids_to_activate:
+                        await supabase_admin.table("campaigns").update({"status": "active"}).in_("id", ids_to_activate).execute()
                     
                     res_msg = "✅ *Campaign Results*\n\n"
                     if activated:

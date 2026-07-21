@@ -40,6 +40,9 @@ async def execute_intent(
 
             saved_campaigns = []
             campaign_name_for_intro = "Unknown Campaign"
+            
+            # Prepare all payloads
+            payloads_to_insert = []
             for c in valid_campaigns_to_create:
                 campaign_data = c.model_dump(exclude={"id"}, exclude_none=True)
                 brand = campaign_data.pop("brand_name", None)
@@ -53,18 +56,29 @@ async def execute_intent(
                 campaign_data["influencer_handle"] = campaign_data.get("influencer_name") or "Unknown"
                 if message_id_str:
                     campaign_data["special_notes"] = f"{campaign_data.get('special_notes', '')} [{message_id_str}]".strip()
-                
-                res = await supabase_admin.table("campaigns").insert(campaign_data).execute()
-                if res.data:
-                    saved_c = res.data[0]
-                else:
-                    saved_c = campaign_data
                     
-                if camp_name:
-                    saved_c["campaign_name"] = camp_name
-                elif brand:
-                    saved_c["brand_name"] = brand
-                saved_campaigns.append(saved_c)
+                # We temporarily store camp_name and brand in the payload dict so we can restore them
+                # after Supabase insert (Supabase will ignore extra keys if strict=False, but it's safer to not send them)
+                payload_for_db = campaign_data.copy()
+                
+                payloads_to_insert.append({
+                    "db_payload": payload_for_db,
+                    "meta": {"camp_name": camp_name, "brand": brand}
+                })
+                
+            if payloads_to_insert:
+                db_inserts = [p["db_payload"] for p in payloads_to_insert]
+                res = await supabase_admin.table("campaigns").insert(db_inserts).execute()
+                
+                inserted_rows = res.data if res.data else db_inserts
+                
+                for idx, saved_c in enumerate(inserted_rows):
+                    meta = payloads_to_insert[idx]["meta"]
+                    if meta["camp_name"]:
+                        saved_c["campaign_name"] = meta["camp_name"]
+                    elif meta["brand"]:
+                        saved_c["brand_name"] = meta["brand"]
+                    saved_campaigns.append(saved_c)
                     
             intro_msg = f"AI Campaign Manager\n\nExtraction completed successfully.\n\nCampaign:\n{campaign_name_for_intro}\n\nCreators Found:\n{len(saved_campaigns)}\n\nPlease review the extracted creator details below before activating them."
             if skipped_count > 0:
