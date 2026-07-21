@@ -1,5 +1,5 @@
 import {
-  Clock, CheckCircle2, Check, DollarSign, XCircle, Globe, Search, X, Plus, Database, MessageCircle
+  Clock, CheckCircle2, Check, DollarSign, XCircle, Globe, Search, X, Plus, Database, MessageCircle, AlertCircle
 } from 'lucide-react';
 import type { CampaignStatus, FilterState } from '@/lib/types';
 
@@ -9,6 +9,7 @@ export const STATUS_CONFIG: Record<CampaignStatus, {
   active:           { label: 'Active',           dotClass: 'bg-emerald-500 dark:bg-emerald-400', badgeClass: 'bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-500/25', icon: CheckCircle2 },
   draft:            { label: 'Draft',            dotClass: 'bg-amber-500 dark:bg-amber-400',   badgeClass: 'bg-amber-50 dark:bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-500/25',   icon: Clock },
   content_received: { label: 'In Review',        dotClass: 'bg-purple-500 dark:bg-purple-400',  badgeClass: 'bg-purple-50 dark:bg-purple-500/10 text-purple-700 dark:text-purple-400 border-purple-200 dark:border-purple-500/25', icon: CheckCircle2 },
+  needs_revision:   { label: 'Needs Revision',   dotClass: 'bg-orange-500 dark:bg-orange-400', badgeClass: 'bg-orange-50 dark:bg-orange-500/10 text-orange-700 dark:text-orange-400 border-orange-200 dark:border-orange-500/25', icon: AlertCircle },
   approved:         { label: 'Approved',         dotClass: 'bg-blue-500 dark:bg-blue-400',    badgeClass: 'bg-blue-50 dark:bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-200 dark:border-blue-500/25',      icon: Check },
   paid:             { label: 'Paid',             dotClass: 'bg-slate-500 dark:bg-slate-400',   badgeClass: 'bg-slate-100 dark:bg-slate-700/60 text-slate-700 dark:text-slate-400 border-slate-200 dark:border-slate-600/30',   icon: DollarSign },
   cancelled:        { label: 'Cancelled',        dotClass: 'bg-rose-500 dark:bg-rose-400',    badgeClass: 'bg-rose-50 dark:bg-rose-500/10 text-rose-700 dark:text-rose-400 border-rose-200 dark:border-rose-500/25',      icon: XCircle },
@@ -30,6 +31,7 @@ export const STATUS_FILTERS: { value: FilterState['status']; label: string }[] =
   { value: 'active',           label: 'Active' },
   { value: 'draft',            label: 'Draft' },
   { value: 'content_received', label: 'In Review' },
+  { value: 'needs_revision',   label: 'Needs Revision' },
   { value: 'approved',         label: 'Approved' },
   { value: 'paid',             label: 'Paid' },
   { value: 'rejected',         label: 'Not Approved' },

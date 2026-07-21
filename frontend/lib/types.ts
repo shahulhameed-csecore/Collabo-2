@@ -1,5 +1,5 @@
 // ─── Campaign Status ─────────────────────────────────────────────────────────
-export type CampaignStatus = 'draft' | 'active' | 'content_received' | 'approved' | 'paid' | 'cancelled' | 'rejected';
+export type CampaignStatus = 'draft' | 'active' | 'content_received' | 'needs_revision' | 'approved' | 'paid' | 'cancelled' | 'rejected';
 
 // ─── Platform ────────────────────────────────────────────────────────────────
 export const PLATFORMS = [

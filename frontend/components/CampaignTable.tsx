@@ -720,6 +720,7 @@ export default function CampaignTable({ campaigns, isLoading, onRefresh, onCreat
                               <option value="draft">Draft</option>
                               <option value="active">Active</option>
                               <option value="content_received" disabled>In Review</option>
+                              <option value="needs_revision">Needs Revision</option>
                               <option value="approved">Approved</option>
                               <option value="paid">Paid</option>
                               <option value="rejected">Not Approved</option>
