@@ -132,7 +132,7 @@ async def analyze_message_intent(
     try:
         response = await asyncio.to_thread(
             client.models.generate_content,
-            model='gemini-2.5-flash',
+            model='gemini-3.5-flash',
             contents=contents,
             config=types.GenerateContentConfig(
                 system_instruction=get_ai_manager_prompt(context_str),
@@ -149,10 +149,11 @@ async def analyze_message_intent(
         raise e
 
 async def process_with_ai_manager(
-    file_bytes: bytes, 
-    mime_type: str, 
+    file_bytes: bytes = b"", 
+    mime_type: str = "text/plain", 
     text_content: str = "",
-    context_str: str = ""
+    context_str: str = "",
+    media_items: list = None
 ) -> IntentResponse:
     """
     Main entry point for AI analysis. Handles multi-modal inputs.
@@ -192,9 +193,20 @@ async def process_with_ai_manager(
             contents.append(types.Part.from_bytes(data=compressed, mime_type="image/jpeg"))
     elif mime_type.startswith("audio/"):
         contents.append(types.Part.from_bytes(data=file_bytes, mime_type=mime_type))
-    elif mime_type.startswith("text/"):
+    elif mime_type.startswith("text/") and file_bytes:
         text_fallback = file_bytes.decode('utf-8', errors='ignore')
         contents.append(text_fallback)
+
+    if media_items:
+        for item in media_items:
+            m_type = item.get("mime_type", "")
+            m_bytes = item.get("bytes", b"")
+            if m_type.startswith("image/"):
+                compressed = await asyncio.to_thread(compress_image, m_bytes)
+                if compressed:
+                    contents.append(types.Part.from_bytes(data=compressed, mime_type="image/jpeg"))
+            elif m_type.startswith("audio/"):
+                contents.append(types.Part.from_bytes(data=m_bytes, mime_type=m_type))
 
     if text_content:
         contents.append(text_content)

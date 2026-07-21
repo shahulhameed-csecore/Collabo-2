@@ -63,10 +63,24 @@ async def track_link(request: Request, short_code: str):
             raise HTTPException(status_code=404, detail="Destination URL not found")
             
         # Call the RPC function to atomically increment clicks
-        await supabase_admin.rpc("increment_campaign_clicks", {"p_short_code": short_code}).execute()
+        # But first, check for bots to avoid inflating analytics
+        user_agent = request.headers.get("User-Agent", "").lower()
+        is_bot = False
+        bot_keywords = [
+            "bot", "crawler", "spider", "whatsapp", "telegram", "facebookexternalhit",
+            "twitterbot", "linkedinbot", "slackbot", "discordbot", "skypeuripreview"
+        ]
+        for keyword in bot_keywords:
+            if keyword in user_agent:
+                is_bot = True
+                logger.info("tracker_bot_detected", short_code=short_code, user_agent=user_agent)
+                break
+                
+        if not is_bot:
+            await supabase_admin.rpc("increment_campaign_clicks", {"p_short_code": short_code}).execute()
 
-        # If this is the very first click, notify the owner
-        if clicks == 0:
+        # If this is the very first real click, notify the owner
+        if clicks == 0 and not is_bot:
             user_id = campaign_data.get("user_id")
             inf_name = campaign_data.get("influencer_handle") or campaign_data.get("influencer_name") or "Creator"
             if user_id:

@@ -9,6 +9,7 @@ class CampaignStatus(str, Enum):
     draft = 'draft'
     active = 'active'
     content_received = 'content_received'
+    needs_revision = 'needs_revision'
     approved = 'approved'
     paid = 'paid'
     cancelled = 'cancelled'

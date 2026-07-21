@@ -5,7 +5,8 @@ def get_valid_transitions() -> dict[str, list[str]]:
     return {
         "draft": ["active", "cancelled"],
         "active": ["cancelled"], # 'content_received' happens via file upload only
-        "content_received": ["approved", "rejected", "cancelled"],
+        "content_received": ["needs_revision", "approved", "rejected", "cancelled"],
+        "needs_revision": ["active", "content_received", "approved", "cancelled"],
         "approved": ["paid", "cancelled"],
         "paid": ["cancelled"],
         "rejected": ["active", "cancelled", "approved", "content_received"], # allow restoring to active, or direct approval

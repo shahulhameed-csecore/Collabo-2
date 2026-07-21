@@ -23,6 +23,9 @@ router = APIRouter(prefix="/webhook", tags=["WhatsApp Webhook"])
 # Maximum bytes we allow to be downloaded from WhatsApp media (16 MB)
 _MAX_MEDIA_BYTES = 16 * 1024 * 1024
 
+_message_buffer = {}
+_batch_locks = set()
+
 # Supabase service client (bypasses RLS) is lazily initialized via get_supabase_admin()
 
 
@@ -73,9 +76,9 @@ async def verify_webhook(request: Request):
 
 
 @sentry_sdk.trace(op="webhook", name="Process WhatsApp Message")
-async def process_whatsapp_message(sender_id: str, message: dict):
+async def process_whatsapp_messages(sender_id: str, messages: list):
     """
-    Inner logic for processing WhatsApp messages.
+    Inner logic for processing batched WhatsApp messages.
     """
     try:
         from app.core.limiter import is_webhook_rate_limited
@@ -89,8 +92,9 @@ async def process_whatsapp_message(sender_id: str, message: dict):
             logger.error("Supabase Admin client not initialized.")
             return
 
-        # 1. Deduplicate via webhook_events
-        message_id = message.get("id")
+        # 1. Deduplicate via webhook_events (only use the first message id for tracking)
+        message_ids = [msg.get("id") for msg in messages if msg.get("id")]
+        message_id = message_ids[-1] if message_ids else None
         if message_id:
             try:
                 # Attempt to insert, if fails due to unique constraint, it's a duplicate
@@ -101,6 +105,7 @@ async def process_whatsapp_message(sender_id: str, message: dict):
                     logger.info("Duplicate WhatsApp message ignored", msg_id=message_id)
                     return
                 # otherwise just continue
+        
         # 2. Number Matching
         clean_sender = "".join(filter(str.isdigit, sender_id))
         possible_numbers = [clean_sender, f"+{clean_sender}"]
@@ -129,6 +134,9 @@ async def process_whatsapp_message(sender_id: str, message: dict):
 
         user_id = user_response.data[0]["user_id"]
         pending_action = user_response.data[0].get("pending_action")
+        
+        # Always use the first message in the batch to drive the main type logic
+        message = messages[0]
         msg_type = message.get("type")
 
         # 3. Stage 1: Rules Engine (Hybrid Router)
@@ -271,51 +279,60 @@ async def process_whatsapp_message(sender_id: str, message: dict):
                 await send_whatsapp_message(sender_id, "🤖 Please use the interactive buttons (Activate, Edit, Delete) attached to the campaign summary to perform this action safely.")
                 return
 
-        # Prepare payload for AI Manager
-        content_for_gemini = None
-        if msg_type == "text":
-            content_for_gemini = message.get("text", {}).get("body", "").strip()
-            if not content_for_gemini:
-                await send_whatsapp_message(sender_id, "🤖 Please send text, screenshots, or voice notes.")
-                return
-            
-            # Check for pending clarification
-            pending_clarif = pending_action
-            if isinstance(pending_clarif, dict) and pending_clarif.get("action") == "clarification":
-                original_msg = pending_clarif.get("original_msg", "")
-                content_for_gemini = f"Previous Context: {original_msg}\n\nUser Clarification: {content_for_gemini}"
-                await supabase_admin.table("user_settings").update({"pending_action": None}).eq("user_id", user_id).execute()
-                await send_whatsapp_message(sender_id, "📝 Processing clarification...")
-            elif not pending_action and len(content_for_gemini) > 10:
-                await send_whatsapp_message(sender_id, "📝 Analyzing details...")
-        elif msg_type == "audio":
-            audio_id = message.get("audio", {}).get("id")
-            if audio_id:
-                await send_whatsapp_message(sender_id, "🎧 Listening to your voice note...")
-                audio_bytes = await download_whatsapp_media(audio_id, max_bytes=_MAX_MEDIA_BYTES)
-                if audio_bytes:
-                    content_for_gemini = {"audio_bytes": audio_bytes, "mime_type": "audio/ogg"}
-        elif msg_type == "image":
-            image_id = message.get("image", {}).get("id")
-            if image_id:
-                await send_whatsapp_message(sender_id, "📸 Reading screenshot...")
-                image_bytes = await download_whatsapp_media(image_id, max_bytes=_MAX_MEDIA_BYTES)
-                if image_bytes:
-                    content_for_gemini = {"image_bytes": image_bytes, "mime_type": message.get("image", {}).get("mime_type", "image/jpeg"), "caption": message.get("image", {}).get("caption", "")}
-        elif msg_type == "document":
-            document_id = message.get("document", {}).get("id")
-            if document_id:
-                await send_whatsapp_message(sender_id, "📄 Reading document...")
-                doc_bytes = await download_whatsapp_media(document_id, max_bytes=_MAX_MEDIA_BYTES)
-                if doc_bytes:
-                    content_for_gemini = {"document_bytes": doc_bytes, "mime_type": message.get("document", {}).get("mime_type", "application/pdf"), "filename": message.get("document", {}).get("filename", "document"), "caption": message.get("document", {}).get("caption", "")}
-        else:
-            await send_whatsapp_message(sender_id, "🤖 I can't read this message type yet. Please send text or images.")
-            return
+        # Prepare payload for AI Manager (Batch Support)
+        content_for_gemini = ""
+        media_items = []
+        is_empty = True
+        
+        for msg in messages:
+            m_type = msg.get("type")
+            if m_type == "text":
+                content_for_gemini += msg.get("text", {}).get("body", "").strip() + "\n"
+                is_empty = False
+            elif m_type == "audio":
+                audio_id = msg.get("audio", {}).get("id")
+                if audio_id:
+                    await send_whatsapp_message(sender_id, "🎧 Listening to your voice note...")
+                    audio_bytes = await download_whatsapp_media(audio_id, max_bytes=_MAX_MEDIA_BYTES)
+                    if audio_bytes:
+                        media_items.append({"bytes": audio_bytes, "mime_type": "audio/ogg"})
+                        is_empty = False
+            elif m_type == "image":
+                image_id = msg.get("image", {}).get("id")
+                if image_id:
+                    await send_whatsapp_message(sender_id, "📸 Reading screenshot...")
+                    image_bytes = await download_whatsapp_media(image_id, max_bytes=_MAX_MEDIA_BYTES)
+                    if image_bytes:
+                        media_items.append({"bytes": image_bytes, "mime_type": msg.get("image", {}).get("mime_type", "image/jpeg")})
+                        if msg.get("image", {}).get("caption"):
+                            content_for_gemini += msg.get("image", {}).get("caption", "") + "\n"
+                        is_empty = False
+            elif m_type == "document":
+                document_id = msg.get("document", {}).get("id")
+                if document_id:
+                    await send_whatsapp_message(sender_id, "📄 Reading document...")
+                    doc_bytes = await download_whatsapp_media(document_id, max_bytes=_MAX_MEDIA_BYTES)
+                    if doc_bytes:
+                        media_items.append({"bytes": doc_bytes, "mime_type": msg.get("document", {}).get("mime_type", "application/pdf")})
+                        if msg.get("document", {}).get("caption"):
+                            content_for_gemini += msg.get("document", {}).get("caption", "") + "\n"
+                        is_empty = False
+        
+        content_for_gemini = content_for_gemini.strip()
 
-        if not content_for_gemini:
-            await send_whatsapp_message(sender_id, "❌ The media file is too large (max 16MB) or unavailable. Please try a smaller file.")
+        if is_empty:
+            await send_whatsapp_message(sender_id, "🤖 Please send text, screenshots, or voice notes (max 16MB).")
             return
+            
+        # Check for pending clarification
+        pending_clarif = pending_action
+        if isinstance(pending_clarif, dict) and pending_clarif.get("action") == "clarification":
+            original_msg = pending_clarif.get("original_msg", "")
+            content_for_gemini = f"Previous Context: {original_msg}\n\nUser Clarification: {content_for_gemini}"
+            await supabase_admin.table("user_settings").update({"pending_action": None}).eq("user_id", user_id).execute()
+            await send_whatsapp_message(sender_id, "📝 Processing clarification...")
+        elif not pending_action and (len(content_for_gemini) > 10 or media_items):
+            await send_whatsapp_message(sender_id, "📝 Analyzing details...")
 
         # Fetch Context (Inbox/Most Recent)
         recent_campaigns = await (supabase_admin.table("campaigns")
@@ -338,22 +355,7 @@ async def process_whatsapp_message(sender_id: str, message: dict):
 
         file_bytes = b""
         mime_type = "text/plain"
-        text_content = ""
-        
-        if isinstance(content_for_gemini, str):
-            file_bytes = content_for_gemini.encode("utf-8")
-        elif isinstance(content_for_gemini, dict):
-            if "audio_bytes" in content_for_gemini:
-                file_bytes = content_for_gemini["audio_bytes"]
-                mime_type = content_for_gemini["mime_type"]
-            elif "image_bytes" in content_for_gemini:
-                file_bytes = content_for_gemini["image_bytes"]
-                mime_type = content_for_gemini["mime_type"]
-                text_content = content_for_gemini.get("caption", "")
-            elif "document_bytes" in content_for_gemini:
-                file_bytes = content_for_gemini["document_bytes"]
-                mime_type = content_for_gemini["mime_type"]
-                text_content = content_for_gemini.get("caption", "")
+        text_content = content_for_gemini
 
         intent_res = None
         if msg_type == "text" and pending_action and not isinstance(pending_action, dict):
@@ -365,7 +367,13 @@ async def process_whatsapp_message(sender_id: str, message: dict):
                 await supabase_admin.table("user_settings").update({"pending_action": None}).eq("user_id", user_id).execute()
 
         if not intent_res:
-            intent_res = await process_with_ai_manager(file_bytes, mime_type, text_content, context_str)
+            intent_res = await process_with_ai_manager(
+                file_bytes=file_bytes, 
+                mime_type=mime_type, 
+                text_content=text_content, 
+                context_str=context_str,
+                media_items=media_items
+            )
             
         if not intent_res:
             indicator_task.cancel()
@@ -373,7 +381,7 @@ async def process_whatsapp_message(sender_id: str, message: dict):
             return
         
         if intent_res.intent == IntentType.CLARIFICATION:
-            original_text = text_content if isinstance(content_for_gemini, dict) else content_for_gemini
+            original_text = text_content
             if not original_text and "text" in message:
                 original_text = message["text"].strip() if isinstance(message.get("text"), str) else message.get("text", {}).get("body", "").strip()
             
@@ -426,6 +434,14 @@ async def process_whatsapp_message(sender_id: str, message: dict):
         logger.error("WhatsApp processing error", error=str(e), exc_info=True)
         await send_whatsapp_message(sender_id, "🤖 *Oops!* My servers hit a snag. Please try again.")
 
+async def _process_batched_wrapper(sender_id: str, background_tasks: BackgroundTasks):
+    await asyncio.sleep(3) # Wait window for batching
+    messages = _message_buffer.pop(sender_id, [])
+    _batch_locks.discard(sender_id)
+    if not messages:
+        return
+    background_tasks.add_task(process_whatsapp_messages, sender_id, messages)
+
 @router.post("/whatsapp")
 async def meta_whatsapp_webhook(request: Request, background_tasks: BackgroundTasks):
     """
@@ -462,8 +478,18 @@ async def meta_whatsapp_webhook(request: Request, background_tasks: BackgroundTa
                 for message in value.get("messages", []):
                     sender_id = message.get("from", "")
                     logger.info("Queueing WhatsApp message to background", sender_id=sender_id, msg_id=message.get("id"))
-                    # Send to background task
-                    background_tasks.add_task(process_whatsapp_message, sender_id, message)
+                    
+                    if message.get("type") == "interactive":
+                        background_tasks.add_task(process_whatsapp_messages, sender_id, [message])
+                    else:
+                        if sender_id not in _message_buffer:
+                            _message_buffer[sender_id] = []
+                        _message_buffer[sender_id].append(message)
+                        
+                        if sender_id not in _batch_locks:
+                            _batch_locks.add(sender_id)
+                            # Offload the sleep wait to asyncio background so we don't block the webhook response
+                            asyncio.create_task(_process_batched_wrapper(sender_id, background_tasks))
     except Exception as e:
         logger.error("Error queueing Meta webhook payload for processing", error=str(e))
 
