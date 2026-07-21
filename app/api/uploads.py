@@ -1,5 +1,8 @@
-import logging
 import uuid
+import structlog
+
+logger = structlog.get_logger(__name__)
+
 try:
     import magic
     HAS_MAGIC = True
@@ -12,8 +15,6 @@ from app.core.limiter import limiter
 from fastapi import Request
 from app.services.supabase import get_supabase_admin
 from app.core.config import settings
-
-logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/campaigns", tags=["Uploads"])
 
