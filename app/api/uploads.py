@@ -171,9 +171,6 @@ async def upload_proof(
         os.unlink(tmp_path)
         
         # 6. Update Campaign Status to 'content_received'
-        def update_campaign_db():
-            from datetime import datetime, timezone
-            current_proof = campaign.get("proof_url")
         from datetime import datetime, timezone
         current_proof = campaign.get("proof_url")
         current_history = campaign.get("proof_history") or []
