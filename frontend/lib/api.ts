@@ -60,10 +60,27 @@ api.interceptors.request.use(async (config: InternalAxiosRequestConfig) => {
 api.interceptors.response.use(
   (response) => response,
   async (error: AxiosError) => {
-    if (error.response?.status === 401) {
-      await supabase.auth.signOut();
+    const originalRequest = error.config;
+    
+    // If it's 401 and we haven't already retried this request
+    if (error.response?.status === 401 && originalRequest && !(originalRequest as any)._retry) {
+      (originalRequest as any)._retry = true;
       
-      // Graceful fallback for redirection
+      try {
+        // Attempt to refresh the session via Supabase
+        const { data: { session } } = await supabase.auth.getSession();
+        
+        if (session?.access_token) {
+          // Token refreshed successfully, retry the original request
+          originalRequest.headers.Authorization = `Bearer ${session.access_token}`;
+          return api(originalRequest);
+        }
+      } catch (refreshErr) {
+        console.error('[API] Token refresh failed:', refreshErr);
+      }
+      
+      // If refresh failed or no session, sign out and redirect
+      await supabase.auth.signOut();
       if (typeof window !== 'undefined') {
         window.location.assign('/login');
       }

@@ -27,7 +27,6 @@
     "tailwind-merge": "^3.6.0"
   },
   "devDependencies": {
-    "@playwright/test": "^1.61.1",
     "@supabase/ssr": "^0.12.3",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
