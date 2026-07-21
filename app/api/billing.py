@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 from app.api.dependencies import get_current_user, get_user_supabase_client, AuthenticatedUser, get_service_client
 from app.core.config import settings
 import razorpay
-from fastapi import HTTPException
+from fastapi import APIRouter, Depends, Request, HTTPException, BackgroundTasks
 from datetime import timedelta
 from starlette.concurrency import run_in_threadpool
 
@@ -122,7 +122,10 @@ async def create_razorpay_order(
         
     client = razorpay.Client(auth=(settings.RAZORPAY_KEY_ID, settings.RAZORPAY_KEY_SECRET))
     
-    amount = 300 * 100  # Amount in paise (₹300 monthly)
+    # Dynamic Pricing from Settings
+    base_price = settings.PRO_ANNUAL_INR if req.is_annual else settings.PRO_MONTHLY_INR
+    amount = base_price * 100  # Amount in paise
+    plan_type = "annual_pro" if req.is_annual else "monthly_pro"
     
     data = {
         "amount": amount,
@@ -130,7 +133,7 @@ async def create_razorpay_order(
         "receipt": f"rcpt_{str(user.user.id).replace('-', '')}",
         "notes": {
             "user_id": user.user.id,
-            "type": "monthly_pro"
+            "type": plan_type
         }
     }
     
@@ -280,7 +283,7 @@ async def process_razorpay_webhook_db(order_id: str, user_id: str, notes: dict):
     return {"status": "ok"}
 
 @router.post("/razorpay-webhook")
-async def razorpay_webhook(request: Request):
+async def razorpay_webhook(request: Request, background_tasks: BackgroundTasks):
     if not settings.RAZORPAY_WEBHOOK_SECRET:
         import structlog
         structlog.get_logger(__name__).error("razorpay_webhook_secret_missing")
@@ -316,14 +319,7 @@ async def razorpay_webhook(request: Request):
         user_id = notes.get("user_id")
         
         if user_id and order_id:
-            try:
-                # process_razorpay_webhook_db is async, so we await it directly
-                result = await process_razorpay_webhook_db(order_id, user_id, notes)
-                return result
-            except Exception as e:
-                import structlog
-                structlog.get_logger(__name__).error("razorpay_webhook_processing_failed", error=str(e))
-                # Do NOT return 200 if the DB update failed, let Razorpay retry
-                raise HTTPException(status_code=500, detail="Internal processing error")
+            # Offload database update to background task to instantly return 200 OK
+            background_tasks.add_task(process_razorpay_webhook_db, order_id, user_id, notes)
                 
     return {"status": "ok"}

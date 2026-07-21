@@ -39,6 +39,10 @@ class Settings(BaseSettings):
     GMAIL_WEBHOOK_URL: Optional[str] = None
     GMAIL_WEBHOOK_SECRET: Optional[str] = None
     SCHEDULER_INTERVAL_MINUTES: int = 60  # Default to 1 hour
+    
+    # Dynamic Pricing Settings (in INR)
+    PRO_MONTHLY_INR: int = 300
+    PRO_ANNUAL_INR: int = 3000
 
     # Internal debug endpoint secret (POST /internal/trigger-reminders)
     # Set any random string here; leave empty to disable the endpoint.

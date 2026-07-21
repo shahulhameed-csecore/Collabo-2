@@ -435,11 +435,27 @@ async def process_whatsapp_messages(sender_id: str, messages: list):
         await send_whatsapp_message(sender_id, "🤖 *Oops!* My servers hit a snag. Please try again.")
 
 async def _process_batched_wrapper(sender_id: str, background_tasks: BackgroundTasks):
+    from app.core.redis import get_redis
+    redis_client = get_redis()
+    
     await asyncio.sleep(3) # Wait window for batching
-    messages = _message_buffer.pop(sender_id, [])
-    _batch_locks.discard(sender_id)
-    if not messages:
-        return
+    
+    if redis_client:
+        redis_key = f"wa_batch:{sender_id}"
+        # Pop all items from the list atomically
+        raw_messages = await redis_client.lrange(redis_key, 0, -1)
+        await redis_client.delete(redis_key)
+        
+        if not raw_messages:
+            return
+            
+        messages = [json.loads(m) for m in raw_messages]
+    else:
+        messages = _message_buffer.pop(sender_id, [])
+        _batch_locks.discard(sender_id)
+        if not messages:
+            return
+            
     background_tasks.add_task(process_whatsapp_messages, sender_id, messages)
 
 @router.post("/whatsapp")
@@ -452,7 +468,6 @@ async def meta_whatsapp_webhook(request: Request, background_tasks: BackgroundTa
     signature_header = request.headers.get("X-Hub-Signature-256", "")
     
     # 1. Signature Verification
-    # If signature is wrong, we reject with 403. This stops random scanners.
     if not verify_signature(payload_bytes, signature_header):
         logger.warning("Meta signature validation failed - unauthorized access attempt.")
         raise HTTPException(status_code=403, detail="Invalid signature")
@@ -460,7 +475,6 @@ async def meta_whatsapp_webhook(request: Request, background_tasks: BackgroundTa
     logger.info("Webhook signature verified successfully.")
 
     # 2. Payload parsing
-    # Meta requires a 200 OK for ALL validly signed webhooks, even if we can't parse it.
     try:
         data = json.loads(payload_bytes)
     except (json.JSONDecodeError, ValueError):
@@ -471,6 +485,9 @@ async def meta_whatsapp_webhook(request: Request, background_tasks: BackgroundTa
         return Response(content="OK", status_code=200)
 
     # 3. Offload processing to background task to guarantee < 3s response time
+    from app.core.redis import get_redis
+    redis_client = get_redis()
+    
     try:
         for entry in data.get("entry", []):
             for change in entry.get("changes", []):
@@ -482,14 +499,31 @@ async def meta_whatsapp_webhook(request: Request, background_tasks: BackgroundTa
                     if message.get("type") == "interactive":
                         background_tasks.add_task(process_whatsapp_messages, sender_id, [message])
                     else:
-                        if sender_id not in _message_buffer:
-                            _message_buffer[sender_id] = []
-                        _message_buffer[sender_id].append(message)
-                        
-                        if sender_id not in _batch_locks:
-                            _batch_locks.add(sender_id)
-                            # Offload the sleep wait to asyncio background so we don't block the webhook response
-                            asyncio.create_task(_process_batched_wrapper(sender_id, background_tasks))
+                        if redis_client:
+                            # Redis batching for horizontal scaling
+                            redis_key = f"wa_batch:{sender_id}"
+                            lock_key = f"wa_lock:{sender_id}"
+                            
+                            # Push message to list
+                            await redis_client.rpush(redis_key, json.dumps(message))
+                            # Set expiration on the list just in case (e.g. 5 minutes)
+                            await redis_client.expire(redis_key, 300)
+                            
+                            # Try to acquire lock. NX=True means set ONLY if it doesn't exist
+                            # EX=4 means lock expires automatically slightly after our 3s window
+                            lock_acquired = await redis_client.set(lock_key, "1", ex=4, nx=True)
+                            
+                            if lock_acquired:
+                                asyncio.create_task(_process_batched_wrapper(sender_id, background_tasks))
+                        else:
+                            # In-memory fallback
+                            if sender_id not in _message_buffer:
+                                _message_buffer[sender_id] = []
+                            _message_buffer[sender_id].append(message)
+                            
+                            if sender_id not in _batch_locks:
+                                _batch_locks.add(sender_id)
+                                asyncio.create_task(_process_batched_wrapper(sender_id, background_tasks))
     except Exception as e:
         logger.error("Error queueing Meta webhook payload for processing", error=str(e))
 

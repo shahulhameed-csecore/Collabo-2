@@ -364,8 +364,20 @@ app.include_router(telegram.router)
 async def health_check(request: Request):
     if request.method == "HEAD":
         return Response(status_code=200)
+        
+    redis_status = "unconfigured"
+    try:
+        from app.core.redis import get_redis
+        redis_client = get_redis()
+        if redis_client:
+            await redis_client.ping()
+            redis_status = "connected"
+    except Exception:
+        redis_status = "disconnected"
+        
     return {
         "status": "healthy",
+        "redis": redis_status,
         "timestamp": datetime.now(timezone.utc).isoformat()
     }
 
@@ -392,6 +404,7 @@ async def favicon():
         "Use for debugging — protected by a shared secret header."
     ),
 )
+@limiter.limit("5/minute")
 async def trigger_reminders_now(request: Request):
     """
     Manually fire check_deadlines_job() right now.
@@ -428,7 +441,8 @@ async def trigger_reminders_now(request: Request):
     tags=["Internal"],
     description="Shows the scheduler state and next run time.",
 )
-async def scheduler_status():
+@limiter.limit("10/minute")
+async def scheduler_status(request: Request):
     job = scheduler.get_job("deadlines_job")
     return {
         "scheduler_running": scheduler.running,
