@@ -123,13 +123,17 @@ async def process_telegram_message(update: dict):
                 )
                 activated = []
                 skipped = []
+                ids_to_activate = []
                 for draft in drafts.data:
                     notes = draft.get("special_notes") or ""
                     if "NEGOTIATION:" in notes:
                         skipped.append(draft.get("influencer_name") or "Unknown")
                     else:
-                        await supabase_admin.table("campaigns").update({"status": "active"}).eq("id", draft["id"]).execute()
+                        ids_to_activate.append(draft["id"])
                         activated.append(draft.get("influencer_name") or "Unknown")
+                        
+                if ids_to_activate:
+                    await supabase_admin.table("campaigns").update({"status": "active"}).in_("id", ids_to_activate).execute()
                 
                 res_msg = "✅ <b>Campaign Results</b>\n\n"
                 if activated:
@@ -214,13 +218,13 @@ async def process_telegram_message(update: dict):
                         except:
                             pass
                     elif db_field == "deadline":
-                        import re
-                        m = re.search(r"(\d{1,2})[/-](\d{1,2})[/-](\d{4})", text_val)
-                        if m:
-                            d, mo, y = m.groups()
-                            if int(mo) > 12 and int(d) <= 12:
-                                d, mo = mo, d # swap if user gave MM/DD/YYYY
-                            update_val = f"{y}-{int(mo):02d}-{int(d):02d}"
+                        from app.core.parsers import parse_date_string
+                        parsed_date = parse_date_string(text_val)
+                        if parsed_date:
+                            update_val = parsed_date
+                        else:
+                            await send_telegram_message(chat_id, f"❌ I couldn't understand that date. Please use formats like '12 Oct', 'Tomorrow', or 'DD/MM/YYYY'.")
+                            return
                     
                     update_payload = {db_field: update_val}
                     if db_field == "influencer_name":

@@ -255,13 +255,13 @@ async def process_whatsapp_messages(sender_id: str, messages: list):
                         except:
                             pass
                     elif db_field == "deadline":
-                        import re
-                        m = re.search(r"(\d{1,2})[/-](\d{1,2})[/-](\d{4})", text_val)
-                        if m:
-                            d, mo, y = m.groups()
-                            if int(mo) > 12 and int(d) <= 12:
-                                d, mo = mo, d # swap if user gave MM/DD/YYYY
-                            update_val = f"{y}-{int(mo):02d}-{int(d):02d}"
+                        from app.core.parsers import parse_date_string
+                        parsed_date = parse_date_string(text_val)
+                        if parsed_date:
+                            update_val = parsed_date
+                        else:
+                            await send_whatsapp_message(sender_id, f"❌ I couldn't understand that date. Please use formats like '12 Oct', 'Tomorrow', or 'DD/MM/YYYY'.")
+                            return
                     
                     update_payload = {db_field: update_val}
                     if db_field == "influencer_name":
