@@ -71,17 +71,29 @@ async def track_link(request: Request, short_code: str):
             raise HTTPException(status_code=400, detail="Invalid or unsafe destination URL.")
             
         # [FIX 2] Check for bots
-        user_agent = request.headers.get("User-Agent", "").lower()
+        raw_ua = request.headers.get("User-Agent")
         is_bot = False
-        bot_keywords = [
-            "bot", "crawler", "spider", "whatsapp", "telegram", "facebookexternalhit",
-            "twitterbot", "linkedinbot", "slackbot", "discordbot", "skypeuripreview"
-        ]
-        for keyword in bot_keywords:
-            if keyword in user_agent:
-                is_bot = True
-                logger.info("tracker_bot_detected", short_code=short_code, user_agent=user_agent)
-                break
+        
+        # If there is no User-Agent at all, it's a script/scraper, not a browser.
+        if not raw_ua:
+            is_bot = True
+            logger.info("tracker_bot_detected", short_code=short_code, reason="empty_user_agent")
+        else:
+            user_agent = raw_ua.lower()
+            bot_keywords = [
+                # Social Media Previews
+                "bot", "crawler", "spider", "whatsapp", "telegram", "facebookexternalhit",
+                "twitterbot", "linkedinbot", "slackbot", "discordbot", "skypeuripreview",
+                # Search Engines & Ecosystems
+                "applebot", "googlebot", "bingbot", "yandex", "duckduckbot", "baiduspider",
+                # Programmatic / CLI
+                "curl", "wget", "python-requests", "headless", "puppeteer"
+            ]
+            for keyword in bot_keywords:
+                if keyword in user_agent:
+                    is_bot = True
+                    logger.info("tracker_bot_detected", short_code=short_code, keyword=keyword)
+                    break
                 
         if not is_bot:
             await supabase_admin.rpc("increment_campaign_clicks", {"p_short_code": short_code}).execute()
