@@ -128,6 +128,10 @@ class CampaignStatusUpdate(BaseModel):
     status: CampaignStatus = Field(
         description="The new status to apply to the campaign."
     )
+    feedback: Optional[str] = Field(
+        default=None,
+        description="Optional feedback or rejection reason to save to special_notes."
+    )
 
 
 class CampaignResponse(CampaignBase):

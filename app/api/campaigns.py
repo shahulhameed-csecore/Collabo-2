@@ -273,7 +273,10 @@ async def update_campaign_status(
     if new_status != current_status and new_status not in valid_transitions.get(current_status, []):
         raise HTTPException(status_code=400, detail=f"Invalid transition from {current_status} to {new_status}")
 
-    data = status_update.model_dump(mode="json")
+    data = {"status": new_status}
+    if status_update.feedback is not None:
+        data["special_notes"] = status_update.feedback
+
     response = await client.table("campaigns").update(data).eq("id", id).execute()
     if not response.data:
         raise HTTPException(status_code=404, detail="Campaign not found or access denied")
