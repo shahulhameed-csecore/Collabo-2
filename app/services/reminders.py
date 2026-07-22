@@ -573,7 +573,7 @@ async def _process_campaign(campaign: dict, now_utc: datetime, supabase_admin, c
         if tg_chat_id:
             try:
                 from app.services.telegram import send_telegram_message
-                await send_telegram_message(tg_chat_id, tg_text)
+                await send_telegram_message(tg_chat_id, tg_text, client=client)
             except Exception as e:
                 clog.error("reminders.telegram_failed", error=str(e))
 

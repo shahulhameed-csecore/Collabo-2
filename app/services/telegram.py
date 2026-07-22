@@ -7,7 +7,29 @@ logger = structlog.get_logger(__name__)
 # Default max bytes for media downloads (16 MB) — can be overridden per call
 _DEFAULT_MAX_MEDIA_BYTES = 16 * 1024 * 1024
 
-async def send_telegram_message(chat_id: int | str, text: str, reply_markup: dict | None = None) -> bool:
+from tenacity import retry, wait_exponential, stop_after_attempt, retry_if_exception_type
+
+@retry(
+    wait=wait_exponential(multiplier=1, min=2, max=10),
+    stop=stop_after_attempt(3),
+    retry=retry_if_exception_type((httpx.RequestError, httpx.TimeoutException)),
+    reraise=True
+)
+async def _do_send_telegram_message(url: str, payload: dict, client: httpx.AsyncClient | None = None) -> bool:
+    is_local_client = client is None
+    http_client = client or httpx.AsyncClient()
+    try:
+        response = await http_client.post(url, json=payload, timeout=10.0)
+        if response.status_code != 200:
+            logger.error("Telegram API error", status=response.status_code, detail=response.text)
+            return False
+        return True
+    finally:
+        if is_local_client:
+            await http_client.aclose()
+
+
+async def send_telegram_message(chat_id: int | str, text: str, reply_markup: dict | None = None, client: httpx.AsyncClient | None = None) -> bool:
     """
     Sends a text message using the Telegram Bot API.
     Optionally accepts a reply_markup dict (for inline keyboards).
@@ -26,16 +48,7 @@ async def send_telegram_message(chat_id: int | str, text: str, reply_markup: dic
         payload["reply_markup"] = reply_markup
 
     try:
-        async with httpx.AsyncClient() as client:
-            response = await client.post(url, json=payload, timeout=10.0)
-            if response.status_code != 200:
-                logger.error(
-                    "Telegram API error",
-                    status=response.status_code,
-                    detail=response.text,
-                )
-                return False
-            return True
+        return await _do_send_telegram_message(url, payload, client)
     except Exception as e:
         logger.error("Exception sending Telegram message", error=str(e), exc_info=True)
         return False
