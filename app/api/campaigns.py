@@ -95,12 +95,49 @@ async def bulk_delete(
 async def bulk_remind(
     request: Request,
     payload: BulkDelete,
+    background_tasks: BackgroundTasks,
     client=Depends(get_user_supabase_client),
 ):
     if not payload.campaign_ids:
         raise HTTPException(status_code=400, detail="No campaigns specified")
 
+    from app.services.reminders import process_manual_reminders
+    import httpx
+    
+    async def run_reminders():
+        async with httpx.AsyncClient() as hc:
+            await process_manual_reminders(payload.campaign_ids, hc)
+            
+    background_tasks.add_task(run_reminders)
     return {"message": f"Reminders queued for {len(payload.campaign_ids)} campaigns"}
+
+from fastapi.responses import StreamingResponse
+import io
+import csv
+
+@router.get("/export/csv")
+async def export_csv(client=Depends(get_user_supabase_client)):
+    # Fetch all campaigns for the authenticated user without the 200 limit
+    response = await client.table("campaigns").select("*").execute()
+    
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(['Influencer Name', 'Handle', 'Platform', 'Deliverables', 'Deadline', 'Payment Amount', 'Status', 'Created At'])
+    
+    for c in (response.data or []):
+        writer.writerow([
+            c.get("influencer_name", ""),
+            c.get("influencer_handle", ""),
+            c.get("platform", ""),
+            c.get("deliverables", ""),
+            c.get("deadline", ""),
+            c.get("payment_amount", 0),
+            c.get("status", ""),
+            c.get("created_at", "")
+        ])
+        
+    output.seek(0)
+    return StreamingResponse(iter([output.getvalue()]), media_type="text/csv", headers={"Content-Disposition": "attachment; filename=campaigns.csv"})
 
 @router.get("/", response_model=PaginatedCampaigns)
 @limiter.limit("60/minute")

@@ -609,3 +609,54 @@ async def check_deadlines_job() -> dict:
     log.info("reminders.job_completed", processed=processed, total_campaigns=len(campaigns))
     
     return {"processed": processed}
+
+
+# ---------------------------------------------------------------------------
+# Manual Bulk Reminders
+# ---------------------------------------------------------------------------
+
+async def process_manual_reminders(campaign_ids: list[str], client: httpx.AsyncClient):
+    from app.services.supabase import get_supabase_admin
+    from app.services.notifications import create_notification
+    supabase = await get_supabase_admin()
+    
+    # Fetch campaigns with settings
+    try:
+        c_resp = await (supabase.table("campaigns")
+            .select("*, user_settings(*)")
+            .in_("id", campaign_ids)
+            .execute()
+        )
+    except Exception as exc:
+        logger.error("reminders.manual_fetch_failed", error=str(exc))
+        return
+        
+    campaigns = c_resp.data or []
+    if not campaigns: return
+    
+    for camp in campaigns:
+        user_id = camp.get("user_id")
+        inf_name = camp.get("influencer_name") or camp.get("influencer_handle") or "Creator"
+        status = camp.get("status")
+        
+        # We only remind active or needs_revision
+        if status not in ["active", "needs_revision"]:
+            continue
+            
+        settings_arr = camp.get("user_settings", [])
+        user_settings = settings_arr[0] if isinstance(settings_arr, list) and len(settings_arr) > 0 else {}
+        
+        wa_num = user_settings.get("whatsapp_number")
+        wa_enabled = bool(user_settings.get("whatsapp_reminders_enabled", True))
+        
+        # Send Notification
+        await create_notification(
+            supabase, user_id, "Manual Reminder Sent", 
+            f"A manual reminder was triggered for {inf_name}.", "info", "/dashboard"
+        )
+        
+        if wa_enabled and wa_num:
+            text = f"⏰ *Manual Reminder*\n\nYour Collabo campaign with the brand is pending action. Please check your dashboard or magic link to proceed."
+            await _send_whatsapp(wa_num, text, client)
+    
+    return {"processed": len(campaigns)}
