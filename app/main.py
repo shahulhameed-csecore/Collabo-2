@@ -113,28 +113,43 @@ import functools
 def with_redis_lock(lock_name: str, lock_timeout: int = 60 * 15):
     """
     Prevents duplicate cron job execution across multiple worker instances.
-    Uses a simple Redis SET NX to acquire a lock for the expected duration.
+    Uses the global Redis pool and ensures the lock is released immediately upon completion.
     """
     def decorator(func):
         @functools.wraps(func)
         async def wrapper(*args, **kwargs):
-            if settings.REDIS_URL:
+            from app.core.redis import get_redis
+            r = get_redis()
+            
+            if r:
+                lock_acquired = False
                 try:
-                    import redis.asyncio as redis_async
-                    r = redis_async.from_url(settings.REDIS_URL, decode_responses=True)
                     # Acquire lock (returns True if acquired, False if already locked)
                     lock_acquired = await r.set(lock_name, "locked", ex=lock_timeout, nx=True)
-                    await r.aclose()
                     
                     if not lock_acquired:
                         logger.info("job_skipped_due_to_lock", job=func.__name__, lock=lock_name)
                         return
-                except ImportError:
-                    pass
+                    
+                    # Run the actual background job
+                    return await func(*args, **kwargs)
+                    
                 except Exception as e:
-                    logger.warning("redis_lock_failed_running_anyway", error=str(e))
-            
-            return await func(*args, **kwargs)
+                    logger.error("job_execution_failed", job=func.__name__, error=str(e))
+                    raise e
+                    
+                finally:
+                    # [FIX] Always release the lock when the job finishes or crashes!
+                    if lock_acquired:
+                        try:
+                            await r.delete(lock_name)
+                        except Exception as e:
+                            logger.error("failed_to_release_redis_lock", lock=lock_name, error=str(e))
+            else:
+                # If Redis is completely unavailable, fail-open and run the job anyway
+                logger.warning("redis_unavailable_running_job_unlocked", job=func.__name__)
+                return await func(*args, **kwargs)
+                
         return wrapper
     return decorator
 
