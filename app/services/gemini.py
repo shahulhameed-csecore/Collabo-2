@@ -37,7 +37,11 @@ def detect_prompt_injection(text: str) -> bool:
     if not text:
         return False
         
-    lower_text = text.lower()
+    # [FIX] Strip Zero-Width Spaces, Non-Joiners, and other invisible Unicode characters
+    invisible_chars = r'[\u200b\u200c\u200d\u200e\u200f\ufeff]'
+    clean_text = re.sub(invisible_chars, '', text)
+    
+    lower_text = clean_text.lower()
     
     # 1. Regex for common injection patterns (handles variations and punctuation)
     injection_patterns = [

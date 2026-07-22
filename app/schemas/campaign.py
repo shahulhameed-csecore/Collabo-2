@@ -79,11 +79,9 @@ class CampaignBase(BaseModel):
     @classmethod
     def sanitize_strings(cls, v):
         if isinstance(v, str):
-            import html
             import re
-            # Safely encode HTML entities to prevent XSS without destroying valid text like "1 < 2"
-            v = html.escape(v, quote=True)
-            # Remove javascript:/data: protocol handlers
+            
+            # Remove javascript:/data: protocol handlers to prevent XSS
             v = re.sub(r'(javascript:|data:)', '', v, flags=re.IGNORECASE)
             
             # Remove internal tracking tags like [wa_msg:...] to prevent them from showing in the UI
