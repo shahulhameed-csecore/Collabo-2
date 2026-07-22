@@ -55,7 +55,7 @@ export default function AnalyticsPage() {
 
     
     // [FIX] Only count spend for campaigns that are actually live/completed and have clicks
-    const launchedCampaigns = campaigns.filter(c => (c.clicks || 0) > 0 || c.status === 'completed');
+    const launchedCampaigns = campaigns.filter(c => (c.clicks || 0) > 0 || c.status === 'paid');
     
     const tSpend = launchedCampaigns.reduce((sum, c) => sum + (c.payment_amount || 0), 0);
     const tClicks = campaigns.reduce((sum, c) => sum + (c.clicks || 0), 0);
