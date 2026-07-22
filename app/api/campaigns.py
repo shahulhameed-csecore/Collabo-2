@@ -246,6 +246,11 @@ async def update_campaign(
         if current.data and not current.data[0].get("short_code"):
             data["short_code"] = await _generate_unique_short_code(client)
 
+    # [FIX] If the user manually updated the deadline, reset the reminder flags
+    if "deadline" in data:
+        data["reminder_48h_sent"] = False
+        data["overdue_alert_sent"] = False
+
     response = await client.table("campaigns").update(data).eq("id", id).execute()
     if not response.data:
         raise HTTPException(status_code=404, detail="Campaign not found or access denied")

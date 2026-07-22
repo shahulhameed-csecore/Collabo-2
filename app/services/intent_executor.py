@@ -140,6 +140,10 @@ async def execute_intent(
                     updates.pop("brand_name", None)
                     
                 if updates:
+                    # [FIX] If the AI updated the deadline, reset the reminder flags
+                    if "deadline" in updates:
+                        updates["reminder_48h_sent"] = False
+                        updates["overdue_alert_sent"] = False
                     await supabase_admin.table("campaigns").update(updates).in_("id", target_ids).execute()
                     
                 updated_resp = await (supabase_admin.table("campaigns").select("*").in_("id", target_ids).execute())

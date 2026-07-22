@@ -425,6 +425,9 @@ async def _mark_flag(supabase_admin, campaign_id: str, flag: str, clog) -> bool:
 # ---------------------------------------------------------------------------
 
 async def _fetch_campaigns_with_settings(supabase_admin, log) -> list[dict]:
+    now = datetime.now(timezone.utc)
+    threshold_48h = (now + timedelta(hours=48)).isoformat()
+    
     try:
         campaigns_resp = await (supabase_admin.table("campaigns")
             .select(
@@ -432,6 +435,8 @@ async def _fetch_campaigns_with_settings(supabase_admin, log) -> list[dict]:
                 "status, reminder_48h_sent, overdue_alert_sent"
             )
             .eq("status", "active")
+            .lte("deadline", threshold_48h)
+            .or_("reminder_48h_sent.eq.false,overdue_alert_sent.eq.false")
             .execute()
         )
     except Exception as exc:
