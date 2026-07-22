@@ -240,18 +240,20 @@ export default function InfluencersPage() {
                             <div className="w-16 h-1.5 bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden">
                               <div
                                 className={`h-full rounded-full ${
+                                  inf.success_rate < 0 ? 'bg-slate-300 dark:bg-slate-600' :
                                   inf.success_rate >= 70 ? 'bg-emerald-400' :
                                   inf.success_rate >= 40 ? 'bg-amber-400' :
                                   'bg-rose-400'
                                 }`}
-                                style={{ width: `${inf.success_rate}%` }}
+                                style={{ width: `${inf.success_rate < 0 ? 100 : inf.success_rate}%` }}
                               />
                             </div>
                             <span className={`text-xs font-bold ${
+                              inf.success_rate < 0 ? 'text-slate-500 dark:text-slate-400' :
                               inf.success_rate >= 70 ? 'text-emerald-500 dark:text-emerald-400' :
                               inf.success_rate >= 40 ? 'text-amber-500 dark:text-amber-400' :
                               'text-rose-500 dark:text-rose-400'
-                            }`}>{inf.success_rate}%</span>
+                            }`}>{inf.success_rate < 0 ? 'N/A' : `${inf.success_rate}%`}</span>
                           </div>
                         </td>
                         <td className="px-6 py-4 text-slate-500 dark:text-slate-400 text-xs">
