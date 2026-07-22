@@ -297,29 +297,49 @@ export function computeDashboardStats(campaigns: Campaign[]): DashboardStats {
   const sevenDaysLater = new Date(now);
   sevenDaysLater.setDate(now.getDate() + 7);
 
+  // Define logical buckets for financial calculations
+  const pendingStatuses: string[] = ['draft', 'active', 'content_received', 'needs_revision', 'approved'];
+
   const active    = campaigns.filter(c => c.status === 'active');
   const completed = campaigns.filter(c => c.status === 'paid');
   const cancelled = campaigns.filter(c => c.status === 'cancelled');
-  const overdue   = active.filter(c => c.deadline && new Date(c.deadline) < now);
+  const rejected  = campaigns.filter(c => c.status === 'rejected');
 
-  const upcomingDeadlines = active
+  // Overdue: Only states where the influencer owes us action (draft, active, needs_revision)
+  const overdue = campaigns.filter(c => 
+    ['draft', 'active', 'needs_revision'].includes(c.status) && 
+    c.deadline && new Date(c.deadline) < now
+  );
+
+  // Upcoming deadlines (next 7 days, influencer owes action)
+  const upcomingDeadlines = campaigns
     .filter(c => {
-      if (!c.deadline) return false;
+      if (!['draft', 'active', 'needs_revision'].includes(c.status) || !c.deadline) return false;
       const d = new Date(c.deadline);
       return d >= now && d <= sevenDaysLater;
     })
     .sort((a, b) => new Date(a.deadline!).getTime() - new Date(b.deadline!).getTime());
 
-  const closedCount = completed.length + cancelled.length;
+  // Success rate: completed vs (completed + cancelled + rejected)
+  const closedCount = completed.length + cancelled.length + rejected.length;
   const successRate = closedCount > 0
     ? Math.round((completed.length / closedCount) * 100)
     : 0;
 
-  const paidCampaigns = campaigns.filter(c => (c.payment_amount || 0) > 0);
-  const totalSpend   = campaigns.reduce((s, c) => s + (c.payment_amount || 0), 0);
-  const pendingSpend = active.reduce((s, c) => s + (c.payment_amount || 0), 0);
-  const avgPayment   = paidCampaigns.length > 0
-    ? Math.round(totalSpend / paidCampaigns.length)
+  // Financials
+  const paidSpend = completed.reduce((s, c) => s + (c.payment_amount || 0), 0);
+  
+  // Pending spend is ANY campaign that is currently ongoing/pending payment
+  const pendingSpend = campaigns
+    .filter(c => pendingStatuses.includes(c.status))
+    .reduce((s, c) => s + (c.payment_amount || 0), 0);
+    
+  // Total budget should only be the sum of money actually spent + money currently pending (excluding cancelled)
+  const totalSpend = paidSpend + pendingSpend;
+
+  const validPaidCampaigns = completed.filter(c => (c.payment_amount || 0) > 0);
+  const avgPayment = validPaidCampaigns.length > 0
+    ? Math.round(paidSpend / validPaidCampaigns.length)
     : 0;
 
   return {
