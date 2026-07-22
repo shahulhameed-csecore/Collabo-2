@@ -256,9 +256,18 @@ async def process_whatsapp_messages(sender_id: str, messages: list):
                     update_val = text_val
                     if db_field == "payment_amount":
                         try:
-                            # basic extraction of numbers
-                            clean_val = text_val.lower().replace("k", "000").replace("l", "00000")
-                            update_val = float(''.join(c for c in clean_val if c.isdigit() or c == '.'))
+                            # [FIX] Properly handle decimal multipliers like 10.5k -> 10500
+                            clean_str = text_val.lower().replace(",", "")
+                            multiplier = 1
+                            if "k" in clean_str: multiplier = 1000
+                            if "l" in clean_str or "lakh" in clean_str: multiplier = 100000
+                            
+                            import re
+                            match = re.search(r"(\d+(\.\d+)?)", clean_str)
+                            if match:
+                                update_val = float(match.group(1)) * multiplier
+                            else:
+                                raise ValueError("No number found")
                         except Exception:
                             await send_whatsapp_message(sender_id, "❌ Please enter a valid number for the payment amount.")
                             return
@@ -312,23 +321,31 @@ async def process_whatsapp_messages(sender_id: str, messages: list):
                         is_empty = False
             elif m_type == "image":
                 image_id = msg.get("image", {}).get("id")
+                # [FIX] Always extract caption, even if the image download fails
+                caption = msg.get("image", {}).get("caption", "")
+                if caption:
+                    content_for_gemini += caption + "\n"
+                    is_empty = False
+                    
                 if image_id:
                     await send_whatsapp_message(sender_id, "📸 Reading screenshot...")
                     image_bytes = await download_whatsapp_media(image_id, max_bytes=_MAX_MEDIA_BYTES)
                     if image_bytes:
                         media_items.append({"bytes": image_bytes, "mime_type": msg.get("image", {}).get("mime_type", "image/jpeg")})
-                        if msg.get("image", {}).get("caption"):
-                            content_for_gemini += msg.get("image", {}).get("caption", "") + "\n"
                         is_empty = False
             elif m_type == "document":
                 document_id = msg.get("document", {}).get("id")
+                # [FIX] Always extract caption
+                caption = msg.get("document", {}).get("caption", "")
+                if caption:
+                    content_for_gemini += caption + "\n"
+                    is_empty = False
+                    
                 if document_id:
                     await send_whatsapp_message(sender_id, "📄 Reading document...")
                     doc_bytes = await download_whatsapp_media(document_id, max_bytes=_MAX_MEDIA_BYTES)
                     if doc_bytes:
                         media_items.append({"bytes": doc_bytes, "mime_type": msg.get("document", {}).get("mime_type", "application/pdf")})
-                        if msg.get("document", {}).get("caption"):
-                            content_for_gemini += msg.get("document", {}).get("caption", "") + "\n"
                         is_empty = False
         
         content_for_gemini = content_for_gemini.strip()
@@ -357,15 +374,6 @@ async def process_whatsapp_messages(sender_id: str, messages: list):
         )
         context_str = json.dumps(recent_campaigns.data) if recent_campaigns.data else ""
 
-        # 4. Stage 2: AI Intent Engine
-        async def _thinking_indicator():
-            try:
-                await asyncio.sleep(3)
-            except asyncio.CancelledError:
-                pass
-        
-        indicator_task = asyncio.create_task(_thinking_indicator())
-
         file_bytes = b""
         mime_type = "text/plain"
         text_content = content_for_gemini
@@ -389,7 +397,6 @@ async def process_whatsapp_messages(sender_id: str, messages: list):
             )
             
         if not intent_res:
-            indicator_task.cancel()
             await send_whatsapp_message(sender_id, "I'm having trouble understanding that right now. Please try rephrasing or sending a shorter message.")
             return
         
@@ -404,8 +411,6 @@ async def process_whatsapp_messages(sender_id: str, messages: list):
                     "original_msg": str(original_text)
                 }
             }).eq("user_id", user_id).execute()
-        
-        indicator_task.cancel()
 
         from app.core.formatters import format_single_campaign_summary
         from app.services.intent_executor import execute_intent
