@@ -24,17 +24,23 @@ def is_safe_url(url: str) -> bool:
             return False
             
         # 2. Prevent DNS rebinding / internal IP resolution
-        # First check if it's a direct IP
+        # Hardcoded bypass list
+        if hostname.lower() in ("localhost", "127.0.0.1", "[::1]", "::1"):
+            return False
+
+        # Attempt to detect decimal, octal, or hex encoded IP addresses
+        # socket.inet_aton natively understands these obfuscated formats (unlike ipaddress)
         try:
-            ip = ipaddress.ip_address(hostname)
+            # This converts '0x7f000001' or '2130706433' into '127.0.0.1'
+            normalized_ip = socket.inet_ntoa(socket.inet_aton(hostname))
+            ip = ipaddress.ip_address(normalized_ip)
+            
+            # Block private, loopback, link-local, and multicast
             if ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_multicast:
                 return False
-        except ValueError:
-            # It's a domain name, not an IP string.
-            # In a very strict environment, you would resolve it and check the resulting IP.
-            # For this SaaS, blocking obvious internal IPs/localhost is sufficient.
-            if hostname in ("localhost", "127.0.0.1", "[::1]"):
-                return False
+        except OSError:
+            # It's a standard domain name (e.g. amazon.com)
+            pass
         
         return True
     except Exception:
