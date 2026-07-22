@@ -125,50 +125,35 @@ async def upload_proof(
     is_image = file_mime.startswith("image/")
     max_size_allowed = MAX_IMAGE_SIZE if is_image else MAX_VIDEO_SIZE
 
-    bytes_read = len(first_chunk)
+    # Check file size if content-length is provided, otherwise rely on SpooledTemporaryFile
+    # But since we want to prevent large uploads strictly, we can just check the underlying spool size.
+    await file.seek(0, 2) # Seek to end
+    file_size = file.file.tell()
+    await file.seek(0) # Reset to start
     
-    # Safely stream the rest of the file to a temporary file on disk (so we don't hold 50MB in RAM)
-    with tempfile.NamedTemporaryFile(delete=False) as tmp:
-        tmp.write(first_chunk)
-        
-        while chunk := await file.read(1024 * 1024):  # 1MB chunks
-            bytes_read += len(chunk)
-            if bytes_read > max_size_allowed:
-                import os
-                tmp.close()
-                os.unlink(tmp.name)
-                raise HTTPException(status_code=413, detail=f"File size exceeds the limit ({'5MB' if is_image else '50MB'}).")
-            tmp.write(chunk)
-            
-        tmp_path = tmp.name
+    if file_size > max_size_allowed:
+        raise HTTPException(status_code=413, detail=f"File size exceeds the limit ({'5MB' if is_image else '50MB'}).")
 
-    # 4. Generate Secure Filename
+    # 3. Generate Secure Filename
     ext = ALLOWED_MIME_TYPES[file_mime]
     secure_filename = f"{uuid.uuid4()}{ext}"
 
-    # 5. Upload to Supabase Storage (Async)
+    # 4. Upload to Supabase Storage (Async, Streaming)
     try:
         bucket_name = "proof-uploads"
-        with open(tmp_path, "rb") as f:
-            file_bytes = f.read()
-            
+        
+        # [FIX] Stream the file directly from FastAPI's SpooledTemporaryFile to Supabase
+        # This completely avoids holding the 50MB file in RAM or creating redundant temp files.
         await service_client.storage.from_(bucket_name).upload(
             path=secure_filename,
-            file=file_bytes,
+            file=file.file, 
             file_options={"content-type": file_mime}
         )
         
-        # In supabase-py AsyncClient, get_public_url might be synchronous or async depending on the version.
-        # But get_public_url does no network IO (it just constructs a string).
-        # We'll just construct it directly to be safe, or try calling it.
         try:
             public_url = await service_client.storage.from_(bucket_name).get_public_url(secure_filename)
         except TypeError:
             public_url = service_client.storage.from_(bucket_name).get_public_url(secure_filename)
-        
-        # Clean up temp file
-        import os
-        os.unlink(tmp_path)
         
         # 6. Update Campaign Status to 'content_received'
         from datetime import datetime, timezone
