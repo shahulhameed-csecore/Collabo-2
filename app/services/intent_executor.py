@@ -100,11 +100,7 @@ async def execute_intent(
                 target_ids = [c.id for c in intent_res.campaigns if c.id]
                 
             if not target_ids:
-                if intent_res.campaigns:
-                    valid_ids = [rc["id"] for rc in (recent_campaigns_data or [])]
-                    if valid_ids: target_ids = [valid_ids[0]]
-            
-            if not target_ids:
+                # [FIX] Never blindly guess the target campaign. If the AI didn't specify IDs, ask the user.
                 await send_message_func(target_id, "❌ I couldn't determine which creator collaboration you'd like to update. Please mention the creator's name.")
                 return
                 
