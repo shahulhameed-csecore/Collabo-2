@@ -8,7 +8,7 @@ import {
   Calendar, DollarSign, AlertCircle, CheckCircle2,
   Clock, XCircle, Search, Filter,
   Globe, X, Check, ExternalLink, Edit2, FileSpreadsheet, Database,
-  MessageCircle, Download, CheckSquare, Link as LinkIcon, TrendingUp, Loader2
+  MessageCircle, Download, CheckSquare, Link as LinkIcon, TrendingUp, Loader2, RotateCcw
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -56,6 +56,9 @@ export default function CampaignTable({ campaigns, isLoading, onRefresh, onCreat
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [isBulkActioning, setIsBulkActioning] = useState(false);
   const [trackingModalCampaign, setTrackingModalCampaign] = useState<Campaign | null>(null);
+
+  type FeedbackStep = 'input' | 'share';
+  const [feedbackModal, setFeedbackModal] = useState<{ id: string, step: FeedbackStep, feedback: string } | null>(null);
 
   const handleSort = (key: keyof Campaign) => {
     if (sortKey === key) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
@@ -660,12 +663,12 @@ export default function CampaignTable({ campaigns, isLoading, onRefresh, onCreat
                                   </a>
                                 )}
                                 <button
-                                  onClick={() => handleStatusChange(c.id, 'rejected')}
+                                  onClick={() => setFeedbackModal({ id: c.id, step: 'input', feedback: '' })}
                                   disabled={!!updatingId}
-                                  title="Not Approved (Reject Content)"
-                                  className="p-1.5 text-slate-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all opacity-100 sm:opacity-0 sm:group-hover:opacity-100 disabled:opacity-30"
+                                  title="Needs Revision (Request Changes)"
+                                  className="p-1.5 text-slate-500 hover:text-orange-400 hover:bg-orange-500/10 rounded-lg transition-all opacity-100 sm:opacity-0 sm:group-hover:opacity-100 disabled:opacity-30"
                                 >
-                                  <XCircle className="w-3.5 h-3.5" />
+                                  <RotateCcw className="w-3.5 h-3.5" />
                                 </button>
                                 <button
                                   onClick={() => handleStatusChange(c.id, 'approved')}
@@ -800,6 +803,107 @@ export default function CampaignTable({ campaigns, isLoading, onRefresh, onCreat
               >
                 Close Analytics
               </button>
+            </div>
+          </div>
+      {/* Feedback Modal */}
+      {feedbackModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-fade-in">
+          <div 
+            className="w-full max-w-md bg-white dark:bg-slate-900 rounded-3xl shadow-2xl overflow-hidden border border-slate-200 dark:border-slate-800 animate-slide-up"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="p-6 border-b border-slate-100 dark:border-slate-800/60 flex items-center justify-between bg-slate-50/50 dark:bg-slate-800/20">
+              <h2 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                {feedbackModal.step === 'input' ? 'Request Revision' : 'Notify Influencer'}
+              </h2>
+              <button 
+                onClick={() => setFeedbackModal(null)}
+                className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 rounded-full transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            
+            <div className="p-6">
+              {feedbackModal.step === 'input' ? (
+                <>
+                  <p className="text-sm text-slate-600 dark:text-slate-400 mb-4">
+                    What needs to be changed? This feedback will be saved to the campaign notes.
+                  </p>
+                  <textarea
+                    autoFocus
+                    value={feedbackModal.feedback}
+                    onChange={e => setFeedbackModal({ ...feedbackModal, feedback: e.target.value })}
+                    placeholder="E.g., The logo isn't visible in the first 3 seconds..."
+                    className="w-full h-32 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-3 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50 resize-none"
+                  />
+                  <div className="mt-6 flex gap-3">
+                    <button
+                      onClick={() => setFeedbackModal(null)}
+                      className="flex-1 px-4 py-2.5 text-sm font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={async () => {
+                        try {
+                          await updateCampaignStatus(feedbackModal.id, { status: 'needs_revision', feedback: feedbackModal.feedback });
+                          toast.success('Status updated to Needs Revision');
+                          onRefresh();
+                          setFeedbackModal({ ...feedbackModal, step: 'share' });
+                        } catch (err) {
+                          toast.error(getApiErrorMessage(err, 'Failed to update status'));
+                        }
+                      }}
+                      disabled={!feedbackModal.feedback.trim()}
+                      className="flex-1 px-4 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-white text-sm font-bold rounded-xl transition-colors disabled:opacity-50"
+                    >
+                      Save & Continue
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <p className="text-sm text-slate-600 dark:text-slate-400 mb-4">
+                    Copy and send this message to the influencer via WhatsApp or DM.
+                  </p>
+                  {(() => {
+                    const campaign = campaigns.find(c => c.id === feedbackModal.id);
+                    const link = campaign?.magic_link_token ? `${window.location.origin}/submit-proof/${campaign.magic_link_token}` : '';
+                    const message = `Hi ${campaign?.influencer_name || 'there'},\n\nYour recent Collabo proof needs a quick revision.\n\nFeedback: ${feedbackModal.feedback}\n\nPlease upload the new version here:\n${link}`;
+                    
+                    return (
+                      <>
+                        <textarea
+                          readOnly
+                          value={message}
+                          className="w-full h-48 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/50 rounded-xl p-3 text-slate-900 dark:text-white text-sm font-mono focus:outline-none resize-none"
+                        />
+                        <div className="mt-6 flex gap-3">
+                          <button
+                            onClick={() => {
+                              navigator.clipboard.writeText(message);
+                              toast.success('Copied to clipboard!');
+                            }}
+                            className="flex-1 px-4 py-2.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-sm font-bold rounded-xl transition-colors"
+                          >
+                            Copy Message
+                          </button>
+                          <a
+                            href={`https://wa.me/?text=${encodeURIComponent(message)}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={() => setFeedbackModal(null)}
+                            className="flex-1 px-4 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-white text-sm font-bold rounded-xl transition-colors text-center"
+                          >
+                            Send WhatsApp
+                          </a>
+                        </div>
+                      </>
+                    );
+                  })()}
+                </>
+              )}
             </div>
           </div>
         </div>
