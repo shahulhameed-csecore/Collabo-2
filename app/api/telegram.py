@@ -213,8 +213,18 @@ async def process_telegram_message(update: dict):
                     update_val = text_val
                     if db_field == "payment_amount":
                         try:
-                            clean_val = text_val.lower().replace("k", "000").replace("l", "00000")
-                            update_val = float(''.join(c for c in clean_val if c.isdigit() or c == '.'))
+                            # [FIX] Properly handle decimal multipliers like 10.5k -> 10500
+                            clean_str = text_val.lower().replace(",", "")
+                            multiplier = 1
+                            if "k" in clean_str: multiplier = 1000
+                            if "l" in clean_str or "lakh" in clean_str: multiplier = 100000
+                            
+                            import re
+                            match = re.search(r"(\d+(\.\d+)?)", clean_str)
+                            if match:
+                                update_val = float(match.group(1)) * multiplier
+                            else:
+                                raise ValueError("No number found")
                         except Exception:
                             await send_telegram_message(chat_id, "❌ Please enter a valid number for the payment amount.")
                             return
@@ -272,18 +282,25 @@ async def process_telegram_message(update: dict):
             photos = message["photo"]
             if photos:
                 file_id = photos[-1].get("file_id")
+                # [FIX] Always preserve the caption
+                caption = message.get("caption", "")
                 await send_telegram_message(chat_id, "📸 Reading screenshot...")
                 image_bytes = await download_telegram_media(file_id, max_bytes=_MAX_MEDIA_BYTES)
                 if image_bytes:
-                    content_for_gemini = {"image_bytes": image_bytes, "mime_type": "image/jpeg", "caption": message.get("caption", "")}
+                    content_for_gemini = {"image_bytes": image_bytes, "mime_type": "image/jpeg", "caption": caption}
+                elif caption:
+                    content_for_gemini = caption # Fallback to just text
         elif "document" in message:
             document = message["document"]
             file_id = document.get("file_id")
             if file_id:
+                caption = message.get("caption", "")
                 await send_telegram_message(chat_id, "📄 Reading document...")
                 doc_bytes = await download_telegram_media(file_id, max_bytes=_MAX_MEDIA_BYTES)
                 if doc_bytes:
-                    content_for_gemini = {"document_bytes": doc_bytes, "mime_type": document.get("mime_type", ""), "file_name": document.get("file_name", "")}
+                    content_for_gemini = {"document_bytes": doc_bytes, "mime_type": document.get("mime_type", ""), "file_name": document.get("file_name", ""), "caption": caption}
+                elif caption:
+                    content_for_gemini = caption
         else:
             await send_telegram_message(chat_id, "🤖 I can't read this message type yet.")
             return
@@ -294,14 +311,6 @@ async def process_telegram_message(update: dict):
 
         # 6. Stage 2: AI Intent Engine
         from app.services.ai_manager import process_with_ai_manager, IntentType
-
-        async def _thinking_indicator():
-            try:
-                await asyncio.sleep(3)
-            except asyncio.CancelledError:
-                pass
-        
-        indicator_task = asyncio.create_task(_thinking_indicator())
         
         file_bytes = b""
         mime_type = "text/plain"
@@ -343,7 +352,6 @@ async def process_telegram_message(update: dict):
             intent_res = await process_with_ai_manager(file_bytes, mime_type, text_content, context_str)
             
         if not intent_res:
-            indicator_task.cancel()
             await send_telegram_message(chat_id, "I'm having trouble understanding that right now. Please try rephrasing or sending a shorter message.")
             return
         
@@ -358,8 +366,6 @@ async def process_telegram_message(update: dict):
                     "original_msg": str(original_text)
                 }
             }).eq("user_id", user_id).execute()
-            
-        indicator_task.cancel()
 
         def _get_cancel_interactive():
             return {
