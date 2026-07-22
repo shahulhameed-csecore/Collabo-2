@@ -37,9 +37,6 @@ async def bulk_update_status(
     
     new_status = payload.status.value
 
-    if new_status == "content_received":
-        raise HTTPException(status_code=403, detail="Only influencers can mark content as received via proof upload.")
-
     valid_transitions = get_valid_transitions()
     valid_ids = []
     for camp in current_campaigns.data:
@@ -233,9 +230,6 @@ async def update_campaign_status(
     
     current_status = current_campaign.data[0]["status"]
     new_status = status_update.status.value
-
-    if new_status == "content_received" and current_status != "content_received":
-        raise HTTPException(status_code=403, detail="Only influencers can mark content as received via proof upload.")
 
     valid_transitions = get_valid_transitions()
 

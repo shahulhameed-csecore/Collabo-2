@@ -4,7 +4,7 @@ def get_valid_transitions() -> dict[str, list[str]]:
     """Defines the valid state transitions for campaigns."""
     return {
         "draft": ["active", "cancelled"],
-        "active": ["cancelled"], # 'content_received' happens via file upload only
+        "active": ["content_received", "approved", "cancelled"], 
         "content_received": ["needs_revision", "approved", "rejected", "cancelled"],
         "needs_revision": ["active", "content_received", "approved", "cancelled"],
         "approved": ["paid", "cancelled"],

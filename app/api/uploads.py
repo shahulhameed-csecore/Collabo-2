@@ -102,8 +102,8 @@ async def upload_proof(
         raise HTTPException(status_code=404, detail="Invalid token.")
     
     campaign = campaign_resp.data[0]
-    if campaign["status"] not in ["active", "rejected"]:
-        raise HTTPException(status_code=400, detail="Campaign is not active or rejected. Proof cannot be uploaded.")
+    if campaign["status"] not in ["active", "rejected", "needs_revision"]:
+        raise HTTPException(status_code=400, detail="Campaign is not ready for proof upload.")
 
     # 2. Dynamic File Size Validation & OOM Prevention
     import tempfile
