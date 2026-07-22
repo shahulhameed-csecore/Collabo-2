@@ -338,8 +338,9 @@ export function computeDashboardStats(campaigns: Campaign[]): DashboardStats {
 
 // ─── Phase 2: Bulk Actions, Influencers, Billing ──────────────────────────────
 
-export async function bulkUpdateStatus(campaign_ids: string[], status: CampaignStatus): Promise<void> {
-  await api.patch('/campaigns/bulk/status', { campaign_ids, status });
+export async function bulkUpdateStatus(campaign_ids: string[], status: CampaignStatus): Promise<{message: string}> {
+  const res = await api.patch('/campaigns/bulk/status', { campaign_ids, status });
+  return res.data;
 }
 
 export async function bulkDeleteCampaigns(campaign_ids: string[]): Promise<void> {
@@ -348,6 +349,11 @@ export async function bulkDeleteCampaigns(campaign_ids: string[]): Promise<void>
 
 export async function bulkRemindCampaigns(campaignIds: string[]): Promise<void> {
   await api.post('/campaigns/bulk/remind', { campaign_ids: campaignIds });
+}
+
+export async function exportCsvApi(): Promise<Blob> {
+  const res = await api.get('/campaigns/export/csv', { responseType: 'blob' });
+  return res.data;
 }
 
 export async function loadSampleDataApi(): Promise<Campaign[]> {

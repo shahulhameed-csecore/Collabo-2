@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from 'react';
 import type { Campaign, CampaignStatus, FilterState } from '@/lib/types';
-import { updateCampaignStatus, deleteCampaign, getApiErrorMessage, bulkUpdateStatus, bulkDeleteCampaigns, bulkRemindCampaigns } from '@/lib/api';
+import { updateCampaignStatus, deleteCampaign, getApiErrorMessage, bulkUpdateStatus, bulkDeleteCampaigns, bulkRemindCampaigns, exportCsvApi } from '@/lib/api';
 import {
   ChevronUp, ChevronDown, Trash2,
   Calendar, DollarSign, AlertCircle, CheckCircle2,
@@ -100,8 +100,8 @@ export default function CampaignTable({ campaigns, isLoading, onRefresh, onCreat
     if (!selectedIds.length) return;
     setIsBulkActioning(true);
     try {
-      await bulkUpdateStatus(selectedIds, status);
-      toast.success(`Marked ${selectedIds.length} campaigns as ${STATUS_CONFIG[status].label}`);
+      const res = await bulkUpdateStatus(selectedIds, status);
+      toast.success(res.message || `Status update completed.`);
       setSelectedIds([]);
       onRefresh();
     } catch (err) {
@@ -141,32 +141,25 @@ export default function CampaignTable({ campaigns, isLoading, onRefresh, onCreat
     }
   };
 
-  const handleBulkExport = () => {
-    if (!selectedIds.length) return;
-    const toExport = filtered.filter(c => selectedIds.includes(c.id));
-    const headers = ['Influencer Name', 'Handle', 'Platform', 'Deliverables', 'Deadline', 'Payment Amount', 'Status', 'Created At'];
-    const rows = toExport.map(c => [
-      `"${c.influencer_name || ''}"`,
-      `"${c.influencer_handle || ''}"`,
-      `"${c.platform || ''}"`,
-      `"${(c.deliverables || '').replace(/"/g, '""')}"`,
-      formatCSVDate(c.deadline),
-      c.payment_amount || 0,
-      `"${c.status}"`,
-      formatCSVDate(c.created_at)
-    ]);
-
-    const csvContent = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `collabo_selected_${new Date().toISOString().split('T')[0]}.csv`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-    toast.success('Selected campaigns exported successfully!');
+  const handleBulkExport = async () => {
+    setIsBulkActioning(true);
+    try {
+      toast.loading('Preparing CSV export...', { id: 'csv-export' });
+      const blob = await exportCsvApi();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `collabo_campaigns_${new Date().toISOString().split('T')[0]}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      toast.success('CSV Exported successfully!', { id: 'csv-export' });
+    } catch (err) {
+      toast.error(getApiErrorMessage(err, 'Failed to export CSV'), { id: 'csv-export' });
+    } finally {
+      setIsBulkActioning(false);
+    }
   };
 
   const handleStatusChange = async (id: string, status: CampaignStatus) => {
@@ -220,35 +213,22 @@ export default function CampaignTable({ campaigns, isLoading, onRefresh, onCreat
 
   const uniquePlatforms = [...new Set(campaigns.map(c => c.platform).filter(Boolean))] as string[];
 
-  const handleExportCSV = () => {
-    if (filtered.length === 0) {
-      toast.error('No campaigns to export.');
-      return;
+  const handleExportCSV = async () => {
+    try {
+      toast.loading('Preparing CSV export...', { id: 'csv-export-all' });
+      const blob = await exportCsvApi();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `collabo_campaigns_${new Date().toISOString().split('T')[0]}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      toast.success('CSV Exported successfully!', { id: 'csv-export-all' });
+    } catch (err) {
+      toast.error(getApiErrorMessage(err, 'Failed to export CSV'), { id: 'csv-export-all' });
     }
-    
-    const headers = ['Influencer Name', 'Handle', 'Platform', 'Deliverables', 'Deadline', 'Payment Amount', 'Status', 'Created At'];
-    const rows = filtered.map(c => [
-      `"${c.influencer_name || ''}"`,
-      `"${c.influencer_handle || ''}"`,
-      `"${c.platform || ''}"`,
-      `"${(c.deliverables || '').replace(/"/g, '""')}"`,
-      formatCSVDate(c.deadline),
-      c.payment_amount || 0,
-      `"${c.status}"`,
-      formatCSVDate(c.created_at)
-    ]);
-
-    const csvContent = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `collabo_campaigns_${new Date().toISOString().split('T')[0]}.csv`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-    toast.success('CSV Exported successfully!');
   };
 
   return (
