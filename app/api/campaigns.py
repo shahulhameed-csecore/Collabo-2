@@ -365,7 +365,8 @@ async def load_sample_data(
             "deadline": (now + timedelta(days=2)).isoformat(),
             "status": "active",
             "special_notes": "Mamaearth Hair Oil Promotion - Focus on natural ingredients",
-            "short_code": gen_code()
+            "short_code": gen_code(),
+            "destination_url": "https://mamaearth.in"
         },
         {
             "user_id": user.user.id,
@@ -377,7 +378,8 @@ async def load_sample_data(
             "deadline": (now - timedelta(days=1)).isoformat(),
             "status": "active",
             "special_notes": "Boat Earbuds unboxing. Emphasize bass and battery life.",
-            "short_code": gen_code()
+            "short_code": gen_code(),
+            "destination_url": "https://boat-lifestyle.com"
         },
         {
             "user_id": user.user.id,
@@ -390,7 +392,8 @@ async def load_sample_data(
             "status": "content_received",
             "special_notes": "Dot & Key Skincare Routine.",
             "proof_url": "https://instagram.com/p/sample",
-            "short_code": gen_code()
+            "short_code": gen_code(),
+            "destination_url": "https://dotandkey.com"
         },
         {
             "user_id": user.user.id,
@@ -403,7 +406,8 @@ async def load_sample_data(
             "status": "paid",
             "special_notes": "Snackible review - focus on healthy munching.",
             "proof_url": "https://instagram.com/p/sample2",
-            "short_code": gen_code()
+            "short_code": gen_code(),
+            "destination_url": "https://snackible.com"
         }
     ]
     
