@@ -250,7 +250,7 @@ async def process_telegram_message(update: dict):
                         await send_telegram_message(chat_id, f"❌ Failed to update. Please ensure the value is formatted correctly (e.g., Dates as DD/MM/YYYY).")
                 return
             cached_obj = pending_action
-            is_intent_pending = cached_obj and not isinstance(cached_obj, dict)
+            is_intent_pending = isinstance(cached_obj, dict) and "intent" in cached_obj
 
             if not is_intent_pending and len(text_lower) < 20 and text_lower in ["yes", "y", "yep", "no", "wrong", "delete", "cancel", "pause", "activate"]:
                 await send_telegram_message(chat_id, "🤖 <b>Please use the inline buttons (Activate, Edit, Delete) attached to the campaign summary to perform this action safely.</b>")
@@ -341,7 +341,7 @@ async def process_telegram_message(update: dict):
         context_str = json.dumps(recent_campaigns.data) if recent_campaigns.data else ""
 
         intent_res = None
-        if "text" in message and pending_action and not isinstance(pending_action, dict):
+        if "text" in message and isinstance(pending_action, dict) and "intent" in pending_action:
             text_upper = message["text"].strip().upper()
             if text_upper in ["YES", "Y", "DELETE ALL", "ACTIVATE ALL", "PAUSE ALL", "UPDATE ALL"]:
                 from app.services.ai_manager import IntentResponse

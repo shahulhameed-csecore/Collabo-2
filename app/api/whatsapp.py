@@ -294,7 +294,7 @@ async def process_whatsapp_messages(sender_id: str, messages: list):
                 return
             
             cached_obj = pending_action
-            is_intent_pending = cached_obj and not isinstance(cached_obj, dict)
+            is_intent_pending = isinstance(cached_obj, dict) and "intent" in cached_obj
             
             # Exact matches for instant actions
             if not is_intent_pending and len(text_lower) < 20 and text_lower in ["yes", "y", "yep", "no", "wrong", "delete", "cancel", "pause", "activate"]:
@@ -379,7 +379,7 @@ async def process_whatsapp_messages(sender_id: str, messages: list):
         text_content = content_for_gemini
 
         intent_res = None
-        if msg_type == "text" and pending_action and not isinstance(pending_action, dict):
+        if msg_type == "text" and isinstance(pending_action, dict) and "intent" in pending_action:
             text_upper = message.get("text", {}).get("body", "").strip().upper()
             if text_upper in ["YES", "Y", "DELETE ALL", "ACTIVATE ALL", "PAUSE ALL", "UPDATE ALL"]:
                 # Convert the dict back to IntentResponse model
