@@ -114,7 +114,7 @@ async def get_campaigns(
     client=Depends(get_user_supabase_client),
 ):
     try:
-        response = await client.table("campaigns").select("*", count="planned").range(offset, offset + limit - 1).execute()
+        response = await client.table("campaigns").select("*", count="exact").range(offset, offset + limit - 1).execute()
         
         data = response.data if response and hasattr(response, 'data') else []
         count = response.count if response and hasattr(response, 'count') and response.count is not None else 0
@@ -148,6 +148,10 @@ async def create_campaign(
     user: AuthenticatedUser = Depends(get_current_user),
 ):
     data = campaign.model_dump(mode="json", exclude_unset=True)
+    
+    if data.get("status") == "content_received":
+        raise HTTPException(status_code=403, detail="Cannot initialize a campaign in 'content_received' state.")
+        
     data["user_id"] = user.user.id
     
     if data.get("destination_url"):
@@ -199,6 +203,9 @@ async def update_campaign(
     client=Depends(get_user_supabase_client),
 ):
     data = campaign.model_dump(mode="json", exclude_unset=True)
+    
+    if "status" in data:
+        del data["status"]
     
     if "destination_url" in data and data["destination_url"]:
         current = await client.table("campaigns").select("short_code").eq("id", id).execute()
@@ -283,6 +290,31 @@ async def load_sample_data(
     import string
     from datetime import datetime, timezone, timedelta
     
+    from app.api.billing import IS_TESTING_PHASE
+    if not IS_TESTING_PHASE:
+        sub_res = await client.table("subscriptions").select("tier, trial_ends_at").eq("user_id", user.user.id).execute()
+        is_pro = False
+        if sub_res.data:
+            sub = sub_res.data[0]
+            tier = sub.get("tier", "free")
+            trial_str = sub.get("trial_ends_at")
+            
+            parsed_trial = None
+            if isinstance(trial_str, str):
+                try:
+                    parsed_trial = datetime.fromisoformat(trial_str.replace("Z", "+00:00"))
+                except: pass
+            
+            now = datetime.now(timezone.utc)
+            is_trial_active = parsed_trial and parsed_trial > now
+            if tier == "pro" and is_trial_active:
+                is_pro = True
+        
+        if not is_pro:
+            count_res = await client.table("campaigns").select("id", count="exact").eq("user_id", user.user.id).execute()
+            if count_res.count is not None and (count_res.count + 4) > 5:
+                raise HTTPException(status_code=403, detail="Free tier limit reached. Cannot load 4 sample campaigns.")
+
     now = datetime.now(timezone.utc)
     
     def gen_code():
