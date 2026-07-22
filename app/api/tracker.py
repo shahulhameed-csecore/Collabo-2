@@ -62,8 +62,15 @@ async def track_link(request: Request, short_code: str):
         if not destination_url:
             raise HTTPException(status_code=404, detail="Destination URL not found")
             
-        # Call the RPC function to atomically increment clicks
-        # But first, check for bots to avoid inflating analytics
+        # [FIX 1] Normalize and Validate Security FIRST
+        if not destination_url.startswith(("http://", "https://")):
+            destination_url = "https://" + destination_url
+            
+        if not is_safe_url(destination_url):
+            logger.warning("tracker_blocked_unsafe_url", short_code=short_code, url=destination_url)
+            raise HTTPException(status_code=400, detail="Invalid or unsafe destination URL.")
+            
+        # [FIX 2] Check for bots
         user_agent = request.headers.get("User-Agent", "").lower()
         is_bot = False
         bot_keywords = [
@@ -79,30 +86,30 @@ async def track_link(request: Request, short_code: str):
         if not is_bot:
             await supabase_admin.rpc("increment_campaign_clicks", {"p_short_code": short_code}).execute()
 
-        # If this is the very first real click, notify the owner
-        if clicks == 0 and not is_bot:
-            user_id = campaign_data.get("user_id")
-            inf_name = campaign_data.get("influencer_handle") or campaign_data.get("influencer_name") or "Creator"
-            if user_id:
-                from app.services.notifications import create_notification
-                await create_notification(
-                    service_client=supabase_admin,
-                    user_id=user_id,
-                    title="First Click Recorded! 🎉",
-                    message=f"The tracking link for {inf_name} just got its first click.",
-                    type="success",
-                    link_url="/dashboard/analytics"
-                )
-        
-        # Make sure the URL has http/https
-        if not destination_url.startswith(("http://", "https://")):
-            destination_url = "https://" + destination_url
-            
-        # Security: Prevent SSRF & Malicious Open Redirects
-        if not is_safe_url(destination_url):
-            logger.warning("tracker_blocked_unsafe_url", short_code=short_code, url=destination_url)
-            raise HTTPException(status_code=400, detail="Invalid or unsafe destination URL.")
-            
+            # [FIX 3] Use Redis to prevent thundering herd notification spam on viral links
+            if clicks == 0:
+                from app.core.redis import get_redis
+                redis_client = get_redis()
+                lock_acquired = True
+                
+                if redis_client:
+                    # Try to set a lock for 30 days. Only the first concurrent request succeeds.
+                    lock_acquired = await redis_client.set(f"notif_first_click:{short_code}", "1", ex=2592000, nx=True)
+                
+                if lock_acquired:
+                    user_id = campaign_data.get("user_id")
+                    inf_name = campaign_data.get("influencer_handle") or campaign_data.get("influencer_name") or "Creator"
+                    if user_id:
+                        from app.services.notifications import create_notification
+                        await create_notification(
+                            service_client=supabase_admin,
+                            user_id=user_id,
+                            title="First Click Recorded! 🎉",
+                            message=f"The tracking link for {inf_name} just got its first click.",
+                            type="success",
+                            link_url="/dashboard/analytics"
+                        )
+                        
         return RedirectResponse(url=destination_url, status_code=302)
         
     except HTTPException:
