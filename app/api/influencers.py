@@ -13,7 +13,10 @@ async def get_influencers(
     user: AuthenticatedUser = Depends(get_current_user),
 ):
     try:
-        campaigns_response = await client.table("campaigns").select("*").eq("user_id", user.user.id).execute()
+        # [FIX] Only select the columns actually needed for aggregation to massively reduce memory footprint
+        campaigns_response = await client.table("campaigns").select(
+            "id, influencer_handle, influencer_name, platform, status, deadline"
+        ).eq("user_id", user.user.id).execute()
         campaigns = campaigns_response.data if campaigns_response and hasattr(campaigns_response, 'data') else []
     except Exception as e:
         import structlog
@@ -26,10 +29,11 @@ async def get_influencers(
         raw_handle = c.get("influencer_handle")
         name = c.get("influencer_name")
         
+        # [FIX] Enforce case-insensitive grouping
         if raw_handle and str(raw_handle).strip() and str(raw_handle).strip().lower() != "n/a":
-            group_key = str(raw_handle).strip()
+            group_key = str(raw_handle).strip().lower()
         elif name and str(name).strip() and str(name).strip().lower() != "unknown":
-            group_key = f"[name]:{str(name).strip()}"
+            group_key = f"[name]:{str(name).strip().lower()}"
         else:
             group_key = f"[id]:{c.get('id')}"
         
@@ -52,10 +56,11 @@ async def get_influencers(
         if name and str(name).strip() and str(name).strip().lower() != "unknown":
             stats["names_set"].add(str(name).strip())
         
+        # [FIX] Include 'completed' in resolved and successful tracking
         status = c.get("status")
-        if status in ["approved", "paid", "cancelled"]:
+        if status in ["approved", "paid", "completed", "cancelled"]:
             stats["resolved_campaigns"] += 1
-            if status in ["approved", "paid"]:
+            if status in ["approved", "paid", "completed"]:
                 stats["successful_campaigns"] += 1
             
         deadline = c.get("deadline")
