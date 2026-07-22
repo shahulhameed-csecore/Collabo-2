@@ -330,7 +330,7 @@ def _build_overdue_email(inf_name: str, deadline_ist: str) -> tuple[str, str]:
 async def _get_user_email(supabase_admin, user_id: str) -> Optional[str]:
     """Fetch user email from Supabase Auth admin API."""
     try:
-        resp = supabase_admin.auth.admin.get_user_by_id(user_id)
+        resp = await supabase_admin.auth.admin.get_user_by_id(user_id)
         if resp and resp.user and resp.user.email:
             return resp.user.email
         logger.warning("reminders.user_email_not_found", user_id=user_id)
@@ -555,7 +555,12 @@ async def _process_campaign(campaign: dict, now_utc: datetime, supabase_admin, c
         if email_enabled:
             email_address = await _get_user_email(supabase_admin, user_id)
             if email_address:
+                clog.info("reminders.email_attempt", to=email_address)
                 await _send_email(email_address, email_subj, email_html, client)
+            else:
+                clog.warning("reminders.email_skipped", reason="user email address not found in auth")
+        else:
+            clog.info("reminders.email_skipped", reason="email_reminders_enabled is False")
                 
         if wa_enabled and wa_num:
             await _send_whatsapp(wa_num, wa_text, client)
