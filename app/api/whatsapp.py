@@ -466,7 +466,10 @@ async def _process_batched_wrapper(sender_id: str):
         try:
             await redis_client.rename(redis_key, temp_key)
         except Exception:
-            return  # Key doesn't exist anymore
+            pass  # Key doesn't exist anymore
+            
+        # [FIX] Immediately release the lock so new messages arriving right now trigger a new batch
+        await redis_client.delete(f"wa_lock:{sender_id}")
             
         raw_messages = await redis_client.lrange(temp_key, 0, -1)
         await redis_client.delete(temp_key)
