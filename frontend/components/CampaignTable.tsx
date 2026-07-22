@@ -805,6 +805,9 @@ export default function CampaignTable({ campaigns, isLoading, onRefresh, onCreat
               </button>
             </div>
           </div>
+        </div>
+      )}
+
       {/* Feedback Modal */}
       {feedbackModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-fade-in">
