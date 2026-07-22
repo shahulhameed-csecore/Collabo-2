@@ -191,7 +191,9 @@ def is_retryable_error(exception: Exception) -> bool:
     # Always retry on 429/quota to let tenacity's exponential backoff handle temporary spikes
     return True
 
-@retry(wait=wait_exponential(multiplier=1, min=2, max=10), stop=stop_after_attempt(3))
+from tenacity import retry, wait_exponential, stop_after_attempt, retry_if_exception
+
+@retry(wait=wait_exponential(multiplier=1, min=2, max=10), stop=stop_after_attempt(3), retry=retry_if_exception(is_retryable_error))
 async def _call_gemini(client: genai.Client, contents: list, model: str = 'gemini-3.5-flash') -> ExtractionResult:
     """Makes the actual API call with retries and timeout."""
     # Using asyncio.wait_for to enforce 120s timeout per attempt

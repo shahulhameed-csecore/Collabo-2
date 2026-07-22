@@ -122,17 +122,26 @@ You fluently understand and parse Hinglish (Hindi + English) user input.
 Respond STRICTLY in JSON format matching the schema provided. Do not include markdown formatting or outside text.
 """
 
-@retry(wait=wait_exponential(multiplier=1, min=2, max=10), stop=stop_after_attempt(3))
+from tenacity import retry, wait_exponential, stop_after_attempt, retry_if_exception
+
+def is_retryable_error(exception: Exception) -> bool:
+    err_str = str(exception).lower()
+    if "404" in err_str or "not_found" in err_str or "400" in err_str or "invalid_argument" in err_str:
+        return False
+    return True
+
+@retry(wait=wait_exponential(multiplier=1, min=2, max=10), stop=stop_after_attempt(3), retry=retry_if_exception(is_retryable_error))
 async def analyze_message_intent(
     client: genai.Client, 
     contents: list, 
-    context_str: str = ""
+    context_str: str = "",
+    model: str = 'gemini-3.5-flash'
 ) -> IntentResponse:
     """Analyzes a message using Gemini to determine intent and extract data."""
     try:
         response = await asyncio.to_thread(
             client.models.generate_content,
-            model='gemini-3.5-flash',
+            model=model,
             contents=contents,
             config=types.GenerateContentConfig(
                 system_instruction=get_ai_manager_prompt(context_str),
@@ -225,11 +234,23 @@ async def process_with_ai_manager(
     for key_name, api_key in keys_to_try:
         client = genai.Client(api_key=api_key)
         try:
-            return await analyze_message_intent(client, contents, context_str)
+            # Stage 1: Try 3.5 Flash
+            return await analyze_message_intent(client, contents, context_str, model='gemini-3.5-flash')
         except Exception as e:
-            logger.error(f"process_with_ai_manager_failed_{key_name.lower().replace(' ', '_')}", error=str(e))
-            last_error = e
-            continue
+            err_str = str(e).lower()
+            if "400" in err_str or "invalid" in err_str or "not found" in err_str:
+                logger.warning(f"ai_manager_invalid_argument_falling_back_to_2_5_{key_name.lower().replace(' ', '_')}")
+                try:
+                    # Stage 2: Fallback to 2.5 Flash
+                    return await analyze_message_intent(client, contents, context_str, model='gemini-2.5-flash')
+                except Exception as fallback_e:
+                    logger.error(f"ai_manager_fallback_failed_{key_name.lower().replace(' ', '_')}", error=str(fallback_e))
+                    last_error = fallback_e
+                    continue
+            else:
+                logger.error(f"process_with_ai_manager_failed_{key_name.lower().replace(' ', '_')}", error=str(e))
+                last_error = e
+                continue
 
     # Provide AI Fallback if all keys fail
     return IntentResponse(
