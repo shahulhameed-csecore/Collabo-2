@@ -116,8 +116,14 @@ def compress_image(image_bytes: bytes, max_size_kb: int = 500, max_dim: int = 16
                 pass
 
         img = Image.open(io.BytesIO(image_bytes))
-        # Convert to RGB if needed (e.g. RGBA or HEIC)
-        if img.mode != "RGB":
+        
+        # Handle transparent PNGs by pasting over a white background
+        if img.mode in ('RGBA', 'LA') or (img.mode == 'P' and 'transparency' in img.info):
+            alpha = img.convert('RGBA').split()[-1]
+            bg = Image.new("RGB", img.size, (255, 255, 255))
+            bg.paste(img, mask=alpha)
+            img = bg
+        elif img.mode != "RGB":
             img = img.convert("RGB")
         
         # Resize to max dimensions while maintaining aspect ratio

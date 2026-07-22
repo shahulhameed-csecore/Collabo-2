@@ -63,6 +63,14 @@ async def extract_data(
             mime_type=file.content_type or "application/octet-stream"
         )
         
+        # Track usage in the database
+        if extracted_data:
+            client = await get_user_supabase_client(user)
+            try:
+                await client.rpc("increment_ai_extractions", {"p_user_id": user.user.id}).execute()
+            except Exception as e:
+                logger.warning("failed_to_increment_ai_extraction_count", error=str(e))
+        
         return extracted_data
     except HTTPException:
         raise
