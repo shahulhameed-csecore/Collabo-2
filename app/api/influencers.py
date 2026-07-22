@@ -78,7 +78,7 @@ async def get_influencers(
     
     # Merge profiles into stats
     for p in profiles:
-        handle = p.get("handle")
+        handle = p.get("handle", "").lower()
         if handle in influencer_stats:
             if p.get("notes"):
                 influencer_stats[handle]["notes"] = p.get("notes")
@@ -104,7 +104,7 @@ async def get_influencers(
         if "names_set" in stats and stats["names_set"]:
             stats["name"] = " / ".join(sorted(stats["names_set"]))
             
-        success_rate = (stats["successful_campaigns"] / stats["resolved_campaigns"]) * 100 if stats["resolved_campaigns"] > 0 else 0.0
+        success_rate = (stats["successful_campaigns"] / stats["resolved_campaigns"]) * 100 if stats["resolved_campaigns"] > 0 else -1.0
         response_data.append(InfluencerResponse(
             handle=stats["handle"],
             name=stats["name"],
@@ -132,15 +132,16 @@ async def update_influencer_profile(
         
     upsert_data = {
         "user_id": user.user.id,
-        "handle": handle,
+        "handle": handle.lower(),
         **data
     }
     try:
         response = await client.table("influencer_profiles").upsert(upsert_data, on_conflict="user_id,handle").execute()
         result = response.data[0] if response.data else data
-    except Exception:
-        # If table doesn't exist, just return the data as if it succeeded to not break the UI
-        result = data
+    except Exception as e:
+        import structlog
+        structlog.get_logger(__name__).error("influencers_profile_update_failed", error=str(e))
+        raise HTTPException(status_code=500, detail=f"Failed to save profile: {str(e)}")
 
     return InfluencerResponse(
         handle=handle,
