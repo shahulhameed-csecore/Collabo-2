@@ -91,11 +91,15 @@ async def upload_proof(
     request: Request,
     token: str,
     background_tasks: BackgroundTasks,
-    file: UploadFile = File(...),
 ):
+    # 1. Pre-Validate Content-Length Header (Before downloading body)
+    content_length = request.headers.get("content-length")
+    if content_length and int(content_length) > MAX_VIDEO_SIZE:
+        raise HTTPException(status_code=413, detail="File size exceeds the absolute limit (50MB).")
+
     service_client = await get_supabase_admin()
 
-    # 1. Validate Token and Campaign State
+    # 2. Pre-Validate Token and Campaign State (Before downloading body)
     campaign_resp = await service_client.table("campaigns").select("id", "status", "user_id", "influencer_name", "proof_url", "proof_history", "updated_at").eq("magic_link_token", token).execute()
     
     if not campaign_resp.data:
@@ -105,7 +109,17 @@ async def upload_proof(
     if campaign["status"] not in ["active", "rejected", "needs_revision"]:
         raise HTTPException(status_code=400, detail="Campaign is not ready for proof upload.")
 
-    # 2. Dynamic File Size Validation & OOM Prevention
+    # 3. Manually parse the multipart form data now that validation passed
+    try:
+        form = await request.form()
+    except Exception:
+        raise HTTPException(status_code=400, detail="Failed to parse form data.")
+        
+    file = form.get("file")
+    if not file or not isinstance(file, UploadFile):
+        raise HTTPException(status_code=400, detail="No file uploaded.")
+
+    # 4. Dynamic File Size Validation & OOM Prevention
     import tempfile
     
     # Check Magic Bytes and Size dynamically as we stream
@@ -125,8 +139,7 @@ async def upload_proof(
     is_image = file_mime.startswith("image/")
     max_size_allowed = MAX_IMAGE_SIZE if is_image else MAX_VIDEO_SIZE
 
-    # Check file size if content-length is provided, otherwise rely on SpooledTemporaryFile
-    # But since we want to prevent large uploads strictly, we can just check the underlying spool size.
+    # Check file size accurately
     await file.seek(0, 2) # Seek to end
     file_size = file.file.tell()
     await file.seek(0) # Reset to start
