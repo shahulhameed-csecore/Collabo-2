@@ -116,7 +116,7 @@ async def upload_proof(
         raise HTTPException(status_code=400, detail="Failed to parse form data.")
         
     file = form.get("file")
-    if not file or not isinstance(file, UploadFile):
+    if not file or isinstance(file, str) or not hasattr(file, "filename"):
         raise HTTPException(status_code=400, detail="No file uploaded.")
 
     # 4. Dynamic File Size Validation & OOM Prevention
