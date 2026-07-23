@@ -155,11 +155,13 @@ async def upload_proof(
     try:
         bucket_name = "proof-uploads"
         
-        # [FIX] Stream the file directly from FastAPI's SpooledTemporaryFile to Supabase
-        # This completely avoids holding the 50MB file in RAM or creating redundant temp files.
+        # supabase-py's storage3 does not support SpooledTemporaryFile.
+        # Since we strictly enforced the size limit (<50MB), it is safe to read the bytes into memory.
+        file_bytes = await file.read()
+        
         await service_client.storage.from_(bucket_name).upload(
             path=secure_filename,
-            file=file.file, 
+            file=file_bytes, 
             file_options={"content-type": file_mime}
         )
         
