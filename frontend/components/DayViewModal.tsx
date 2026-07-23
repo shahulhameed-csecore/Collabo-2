@@ -1,7 +1,8 @@
 'use client';
 
 import { Campaign } from '@/lib/types';
-import { X, Calendar as CalendarIcon, CheckCircle2, Play, Image as ImageIcon, Video, User } from 'lucide-react';
+import { X, Calendar as CalendarIcon, CheckCircle2, User } from 'lucide-react';
+import { PlatformIcon } from '@/components/PlatformIcon';
 
 interface DayViewModalProps {
   isOpen: boolean;
@@ -20,12 +21,7 @@ const STATUS_COLORS: Record<string, string> = {
   cancelled: 'bg-rose-100 text-rose-800 border-rose-200 dark:bg-rose-900/30 dark:text-rose-400 dark:border-rose-800',
 };
 
-const getPlatformIcon = (platform: string | null | undefined) => {
-  const p = platform?.toLowerCase() || '';
-  if (p.includes('instagram') || p.includes('reel') || p.includes('story')) return <Play className="w-4 h-4" />;
-  if (p.includes('youtube') || p.includes('shorts')) return <Video className="w-4 h-4" />;
-  return <ImageIcon className="w-4 h-4" />;
-};
+
 
 export default function DayViewModal({ isOpen, onClose, dateStr, campaigns, onSelectCampaign }: DayViewModalProps) {
   if (!isOpen) return null;
@@ -94,7 +90,7 @@ export default function DayViewModal({ isOpen, onClose, dateStr, campaigns, onSe
                       </h3>
                       <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3 mt-1">
                         <p className="text-xs text-slate-500 flex items-center gap-1.5">
-                          {getPlatformIcon(campaign.platform)}
+                          <PlatformIcon platform={campaign.platform} className="w-4 h-4" fallbackToImage={true} />
                           {campaign.deliverables || 'TBD deliverables'}
                         </p>
                         {campaign.payment_amount != null && campaign.payment_amount > 0 && (

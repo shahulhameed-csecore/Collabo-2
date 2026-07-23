@@ -4,8 +4,9 @@ import { useState, useEffect, useMemo } from 'react';
 import { Campaign, PaginatedCampaigns } from '@/lib/types';
 import api from '@/lib/api';
 import { toast } from 'sonner';
-import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, AlertCircle, Sparkles, Plus, Flag, Play, Video, Image as ImageIcon } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, AlertCircle, Sparkles, Plus, Flag } from 'lucide-react';
 import Link from 'next/link';
+import { PlatformIcon } from '@/components/PlatformIcon';
 import EditCampaignModal from '@/components/EditCampaignModal';
 import DayViewModal from '@/components/DayViewModal';
 import { useCalendarStats } from '@/hooks/useCalendarStats';
@@ -87,13 +88,7 @@ export default function CalendarPage() {
   
   const { stats, parseLocalDate } = useCalendarStats(campaigns, currentDate);
 
-  const getPlatformIcon = (platform: string | null | undefined) => {
-    const p = platform?.toLowerCase() || '';
-    if (p.includes('instagram') || p.includes('reel') || p.includes('story')) return <Play className="w-3 h-3 flex-shrink-0" />;
-    if (p.includes('youtube') || p.includes('shorts')) return <Video className="w-3 h-3 flex-shrink-0" />;
-    if (p) return <ImageIcon className="w-3 h-3 flex-shrink-0" />;
-    return null;
-  };
+
 
   const STATUS_COLORS: Record<string, string> = {
     draft: 'bg-amber-100 text-amber-800 border-amber-200 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-800',
@@ -260,7 +255,7 @@ export default function CalendarPage() {
                                 className={`hidden sm:flex items-center gap-1.5 text-[10px] font-bold px-2 py-1.5 rounded-lg truncate border shadow-sm ${STATUS_COLORS[event.status] || STATUS_COLORS.draft}`}
                                 title={`${event.influencer_name || event.influencer_handle} - ${event.status}`}
                               >
-                                {getPlatformIcon(event.platform)}
+                                <PlatformIcon platform={event.platform} className="w-3 h-3 flex-shrink-0" fallbackToImage={false} />
                                 <span className="truncate">{event.influencer_name || event.influencer_handle}</span>
                               </div>
                             </div>
