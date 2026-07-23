@@ -33,7 +33,7 @@ export default function DayViewModal({ isOpen, onClose, dateStr, campaigns, onSe
   // Parse YYYY-MM-DD string to local midnight to avoid timezone shifts
   const parseLocalDate = (dStr: string) => {
     const [y, m, d] = dStr.split('-');
-    return new Date(parseInt(y), parseInt(m) - 1, parseInt(d));
+    return new Date(parseInt(y, 10), parseInt(m, 10) - 1, parseInt(d, 10));
   };
 
   // Format date like "October 24, 2024"

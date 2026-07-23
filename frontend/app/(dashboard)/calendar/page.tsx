@@ -23,8 +23,24 @@ export default function CalendarPage() {
   const fetchData = async () => {
     setIsLoading(true);
     try {
-      const campRes = await api.get<PaginatedCampaigns>('/campaigns/?limit=200');
-      setCampaigns(campRes.data.data);
+      let allCampaigns: Campaign[] = [];
+      let currentOffset = 0;
+      const limit = 200;
+      let hasMore = true;
+
+      // Scalability Fix: Paginate through all campaigns so nothing drops off the calendar
+      while (hasMore) {
+        const campRes = await api.get<PaginatedCampaigns>(`/campaigns/?limit=${limit}&offset=${currentOffset}`);
+        const data = campRes.data.data;
+        allCampaigns = [...allCampaigns, ...data];
+        
+        if (data.length < limit) {
+          hasMore = false;
+        } else {
+          currentOffset += limit;
+        }
+      }
+      setCampaigns(allCampaigns);
     } catch (err) {
       toast.error(getApiErrorMessage(err, 'Failed to load campaigns'));
     }
@@ -52,9 +68,21 @@ export default function CalendarPage() {
     return `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
   };
 
+  // Efficiency Fix: Pre-compute events by date for O(1) lookup during grid render
+  const eventsByDate = useMemo(() => {
+    const map: Record<string, Campaign[]> = {};
+    campaigns.forEach(c => {
+      if (c.deadline) {
+        if (!map[c.deadline]) map[c.deadline] = [];
+        map[c.deadline].push(c);
+      }
+    });
+    return map;
+  }, [campaigns]);
+
   const getEventsForDay = (day: number) => {
     const targetDateStr = formatDateStr(currentDate.getFullYear(), currentDate.getMonth() + 1, day);
-    return campaigns.filter(c => c.deadline === targetDateStr);
+    return eventsByDate[targetDateStr] || [];
   };
   
   const { stats, parseLocalDate } = useCalendarStats(campaigns, currentDate);
@@ -76,12 +104,10 @@ export default function CalendarPage() {
     cancelled: 'bg-rose-100 text-rose-800 border-rose-200 dark:bg-rose-900/30 dark:text-rose-400 dark:border-rose-800',
   };
 
-  
   const isCalendarEmpty = !isLoading && campaigns.length === 0;
 
   return (
     <div className="max-w-6xl mx-auto space-y-6 animate-fade-in pb-12">
-      
       {/* Header & Controls */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white dark:bg-slate-900/60 p-6 rounded-2xl border border-slate-200 dark:border-slate-800/60 shadow-sm">
         <div>
@@ -119,7 +145,8 @@ export default function CalendarPage() {
               <div className="p-2 bg-emerald-100 dark:bg-emerald-900/50 rounded-lg">
                 <Flag className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
               </div>
-              <h3 className="font-semibold text-emerald-900 dark:text-emerald-400">Due This Week</h3>
+              {/* Changed text from 'Due This Week' to accurately reflect logic */}
+              <h3 className="font-semibold text-emerald-900 dark:text-emerald-400">Due Next 7 Days</h3>
             </div>
             <p className="text-3xl font-black text-emerald-700 dark:text-emerald-300 ml-12">{stats.thisWeek}</p>
           </div>
@@ -173,7 +200,6 @@ export default function CalendarPage() {
       ) : (
         /* The Calendar Grid */
         <div className="bg-white dark:bg-slate-900/60 rounded-2xl border border-slate-200 dark:border-slate-800/60 shadow-sm overflow-hidden">
-          {/* Calendar Header */}
           <div className="grid grid-cols-7 border-b border-slate-200 dark:border-slate-800/60">
             {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
               <div key={day} className="py-2 sm:py-3 text-center text-[10px] sm:text-xs font-bold text-slate-500 uppercase tracking-wider bg-slate-50 dark:bg-slate-800/50">
@@ -183,7 +209,6 @@ export default function CalendarPage() {
             ))}
           </div>
           
-          {/* Calendar Grid Container */}
           <div className="w-full">
             <div className="grid grid-cols-7 auto-rows-fr">
               {Array.from({ length: firstDayOfMonth }).map((_, i) => (
@@ -206,7 +231,6 @@ export default function CalendarPage() {
                       ${hasEvents ? 'cursor-pointer hover:shadow-inner' : ''}
                     `}
                   >
-                    {/* Today indicator border */}
                     {isToday && <div className="absolute top-0 left-0 w-full h-1 bg-emerald-500" />}
 
                     <div className="flex items-start justify-between mb-1 sm:mb-2">
@@ -229,11 +253,9 @@ export default function CalendarPage() {
                         <>
                           {events.slice(0, 3).map(event => (
                             <div key={event.id}>
-                              {/* Mobile Dot */}
                               <div 
                                 className={`sm:hidden w-1.5 h-1.5 rounded-full bg-current ${STATUS_COLORS[event.status]?.split(' ').filter(c => c.startsWith('text-')).join(' ')}`}
                               />
-                              {/* Desktop Badge */}
                               <div
                                 className={`hidden sm:flex items-center gap-1.5 text-[10px] font-bold px-2 py-1.5 rounded-lg truncate border shadow-sm ${STATUS_COLORS[event.status] || STATUS_COLORS.draft}`}
                                 title={`${event.influencer_name || event.influencer_handle} - ${event.status}`}
@@ -259,7 +281,6 @@ export default function CalendarPage() {
         </div>
       )}
 
-      {/* Campaign Details Modal (When clicked from DayViewModal) */}
       {selectedCampaign && (
         <EditCampaignModal
           campaign={selectedCampaign}
@@ -269,7 +290,6 @@ export default function CalendarPage() {
         />
       )}
 
-      {/* Day Agenda Modal */}
       {selectedDayStr && (
         <DayViewModal
           isOpen={true}
