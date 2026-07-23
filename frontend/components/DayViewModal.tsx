@@ -40,7 +40,10 @@ export default function DayViewModal({ isOpen, onClose, dateStr, campaigns, onSe
   });
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
+    <div 
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200"
+      onClick={onClose}
+    >
       <div 
         className="bg-white dark:bg-slate-900 rounded-2xl shadow-xl w-full max-w-lg border border-slate-200 dark:border-slate-800 overflow-hidden animate-in zoom-in-95 duration-200"
         onClick={e => e.stopPropagation()}

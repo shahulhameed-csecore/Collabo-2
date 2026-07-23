@@ -290,7 +290,7 @@ export default function CalendarPage() {
           isOpen={true}
           onClose={() => setSelectedDayStr(null)}
           dateStr={selectedDayStr}
-          campaigns={campaigns.filter(c => c.deadline === selectedDayStr)}
+          campaigns={eventsByDate[selectedDayStr] || []}
           onSelectCampaign={(c) => setSelectedCampaign(c)}
         />
       )}
