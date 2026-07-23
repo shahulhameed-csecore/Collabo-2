@@ -140,9 +140,9 @@ async def upload_proof(
     max_size_allowed = MAX_IMAGE_SIZE if is_image else MAX_VIDEO_SIZE
 
     # Check file size accurately
-    await file.seek(0, 2) # Seek to end
+    file.file.seek(0, 2) # Seek to end
     file_size = file.file.tell()
-    await file.seek(0) # Reset to start
+    file.file.seek(0) # Reset to start
     
     if file_size > max_size_allowed:
         raise HTTPException(status_code=413, detail=f"File size exceeds the limit ({'5MB' if is_image else '50MB'}).")
