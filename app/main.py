@@ -37,9 +37,15 @@ logging.basicConfig(level=_log_level, format="%(message)s")
 def redact_secrets(logger, log_method, event_dict):
     """Redacts sensitive information from logs."""
     sensitive_keys = {"token", "secret", "password", "key", "authorization", "auth"}
-    for k, v in event_dict.items():
-        if isinstance(v, str) and any(sec in k.lower() for sec in sensitive_keys):
-            event_dict[k] = "***REDACTED***"
+    
+    def _redact(d):
+        for k, v in d.items():
+            if isinstance(v, str) and any(sec in str(k).lower() for sec in sensitive_keys):
+                d[k] = "***REDACTED***"
+            elif isinstance(v, dict):
+                _redact(v)
+    
+    _redact(event_dict)
     return event_dict
 
 # Choose renderer based on environment (Console for dev, JSON for production)
@@ -83,7 +89,7 @@ from slowapi.errors import RateLimitExceeded
 
 from app.api import extract, campaigns, auth, whatsapp, uploads, reports, settings as settings_api, influencers, billing, tracker, telegram
 from app.core.config import settings
-from app.core.limiter import limiter
+from app.core.limiter import limiter, get_client_ip
 
 from contextlib import asynccontextmanager
 import asyncio
@@ -282,7 +288,7 @@ async def structlog_request_middleware(request: Request, call_next):
         request_id=request_id,
         method=request.method,
         path=request.url.path,
-        client_ip=request.client.host if request.client else "unknown"
+        client_ip=get_client_ip(request)
     )
     
     # Do not log healthchecks to avoid spam
