@@ -182,7 +182,7 @@ async def verify_payment(
         now = datetime.now(timezone.utc)
         
         # Get current subscription
-        sub_response = db_client.table("subscriptions").select("*").eq("user_id", user.user.id).execute()
+        sub_response = await db_client.table("subscriptions").select("*").eq("user_id", user.user.id).execute()
         
         service_client = await get_service_client()
         if sub_response.data:
