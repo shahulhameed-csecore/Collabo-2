@@ -153,11 +153,6 @@ export default function BillingPage() {
                           Trial: {daysLeft} days left
                         </span>
                       )}
-                      {isPaidProActive && (
-                        <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400">
-                          {daysLeft} days left
-                        </span>
-                      )}
                       {isTrialExpired && !isPro && (
                         <span className="text-[10px] font-bold text-rose-500">
                           Trial Expired

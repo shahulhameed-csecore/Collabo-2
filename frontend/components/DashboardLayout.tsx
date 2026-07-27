@@ -236,10 +236,10 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
       </div>
 
       {/* Trial Expiry Banner */}
-      {!isCollapsed && (isTrialActive || (isPaidPro && daysLeft > 0)) && (
+      {!isCollapsed && isTrialActive && daysLeft > 0 && (
         <div className="mx-3 mt-3 px-3 py-2 bg-gradient-to-r from-emerald-500/10 to-teal-500/5 border border-emerald-500/20 rounded-lg flex items-center justify-between">
           <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">
-            {isPaidPro ? 'Pro Plan' : 'Free Trial'}
+            Free Trial
           </span>
           <span className="text-[10px] font-semibold text-emerald-500 dark:text-emerald-300">{daysLeft} days left</span>
         </div>
