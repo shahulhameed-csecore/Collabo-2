@@ -26,6 +26,7 @@ interface Subscription {
   tier: string;
   trial_ends_at: string | null;
   created_at?: string | null;
+  is_paid?: boolean;
 }
 
 interface DashboardLayoutProps {
@@ -191,7 +192,8 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const createdAt = subscription?.created_at ? new Date(subscription.created_at) : null;
   
   // A trial is 14 days. If the expiry is more than 15 days from creation, it's a paid sub.
-  const isPaidPro = createdAt && trialEndsAt ? (trialEndsAt.getTime() - createdAt.getTime()) > (15 * 24 * 60 * 60 * 1000) : false;
+  // We now rely on the database's is_paid flag for bulletproof accuracy.
+  const isPaidPro = subscription?.is_paid === true || (createdAt && trialEndsAt ? (trialEndsAt.getTime() - createdAt.getTime()) > (15 * 24 * 60 * 60 * 1000) : false);
   
   const isTrialActive = trialEndsAt ? (trialEndsAt > now && !isPaidPro) : false;
   const rawTier = subscription?.tier?.toLowerCase() || 'free';
