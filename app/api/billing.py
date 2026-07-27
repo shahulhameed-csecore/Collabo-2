@@ -218,6 +218,7 @@ async def verify_payment(
             await service_client.table("subscriptions").update({
                 "tier": "pro",
                 "trial_ends_at": new_expiry.isoformat(),
+                "is_paid": True,
                 "razorpay_customer_id": None, # or update if available
                 "razorpay_subscription_id": None, 
             }).eq("user_id", user.user.id).execute()
