@@ -25,7 +25,7 @@ const OnboardingTour = dynamic(() => import('@/components/OnboardingTour'), { ss
 interface Subscription {
   tier: string;
   trial_ends_at: string | null;
-  created_at: string | null;
+  created_at?: string | null;
 }
 
 interface DashboardLayoutProps {
