@@ -93,7 +93,7 @@ export function HeroSection() {
 
         <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mb-5 animate-fade-in-up stagger-4">
           <Link href="/signup" className="btn-primary text-sm sm:text-base w-full sm:w-auto">
-            Start 30-Day Free Trial
+            Start 14-Day Free Trial
             <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
           </Link>
           <Link
@@ -106,7 +106,7 @@ export function HeroSection() {
 
         <p className="text-xs text-slate-600 flex items-center justify-center gap-1.5 animate-fade-in-up stagger-5">
           <Shield className="w-3.5 h-3.5 text-slate-700" />
-          No credit card required · Cancel anytime · 30-day free trial
+          No credit card required · Cancel anytime · 14-day free trial
         </p>
       </div>
 

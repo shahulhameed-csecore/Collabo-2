@@ -93,7 +93,7 @@ export default function PricingPage() {
             href="/signup"
             className="inline-flex items-center gap-2 bg-emerald-500 hover:bg-emerald-400 text-white px-8 py-4 rounded-xl font-bold shadow-lg shadow-emerald-500/25 transition-all hover:-translate-y-1"
           >
-            <Sparkles className="w-5 h-5" /> Start Your 30-Day Free Trial
+            <Sparkles className="w-5 h-5" /> Start Your 14-Day Free Trial
           </Link>
         </div>
       </main>
