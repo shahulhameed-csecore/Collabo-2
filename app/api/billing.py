@@ -37,6 +37,7 @@ class BillingUsageResponse(BaseModel):
     trial_ends_at: Optional[datetime]
     campaigns_this_month: int
     ai_extractions_used: int
+    is_trial: bool = True
 
 @router.get("/usage", response_model=BillingUsageResponse)
 async def get_billing_usage(
@@ -97,11 +98,23 @@ async def get_billing_usage(
         except:
             trial_ends_at = None
             
+    is_trial = True
+    created_at = sub_data.get("created_at")
+    if created_at and trial_ends_at:
+        try:
+            parsed_created_at = datetime.fromisoformat(str(created_at).replace("Z", "+00:00"))
+            # A trial is 14 days. If the expiry is more than 15 days from creation, it's a paid sub.
+            if (trial_ends_at - parsed_created_at).days > 15:
+                is_trial = False
+        except:
+            pass
+
     return BillingUsageResponse(
         current_plan=current_plan,
         trial_ends_at=trial_ends_at,
         campaigns_this_month=campaigns_this_month,
-        ai_extractions_used=ai_extractions_used
+        ai_extractions_used=ai_extractions_used,
+        is_trial=is_trial
     )
 
 class CreateOrderRequest(BaseModel):
