@@ -406,6 +406,7 @@ export interface BillingUsage {
   trial_ends_at: string | null;
   campaigns_this_month: number;
   ai_extractions_used: number;
+  is_trial: boolean;
 }
 
 export async function getBillingUsage(): Promise<BillingUsage> {

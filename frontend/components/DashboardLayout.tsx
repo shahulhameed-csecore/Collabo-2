@@ -25,6 +25,7 @@ const OnboardingTour = dynamic(() => import('@/components/OnboardingTour'), { ss
 interface Subscription {
   tier: string;
   trial_ends_at: string | null;
+  created_at: string | null;
 }
 
 interface DashboardLayoutProps {
@@ -187,17 +188,22 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   // Evaluate Trial Status
   const now = new Date();
   const trialEndsAt = subscription?.trial_ends_at ? new Date(subscription.trial_ends_at) : null;
-  const isTrialActive = trialEndsAt ? trialEndsAt > now : false;
+  const createdAt = subscription?.created_at ? new Date(subscription.created_at) : null;
+  
+  // A trial is 14 days. If the expiry is more than 15 days from creation, it's a paid sub.
+  const isPaidPro = createdAt && trialEndsAt ? (trialEndsAt.getTime() - createdAt.getTime()) > (15 * 24 * 60 * 60 * 1000) : false;
+  
+  const isTrialActive = trialEndsAt ? (trialEndsAt > now && !isPaidPro) : false;
   const rawTier = subscription?.tier?.toLowerCase() || 'free';
   
   let isPro = IS_TESTING_PHASE || rawTier === 'pro';
   if (rawTier === 'pro' && trialEndsAt && trialEndsAt < now) {
-    // Trial expired, effectively downgrade to free
+    // Trial/Sub expired, effectively downgrade to free
     isPro = false;
   }
   
   const displayTier = isPro ? 'PRO' : 'FREE';
-  const daysLeftInTrial = isTrialActive ? Math.ceil((trialEndsAt!.getTime() - now.getTime()) / (1000 * 3600 * 24)) : 0;
+  const daysLeft = trialEndsAt ? Math.ceil((trialEndsAt.getTime() - now.getTime()) / (1000 * 3600 * 24)) : 0;
 
   const getGreeting = () => {
     const h = new Date().getHours();
@@ -230,10 +236,12 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
       </div>
 
       {/* Trial Expiry Banner */}
-      {!isCollapsed && isTrialActive && (
+      {!isCollapsed && (isTrialActive || (isPaidPro && daysLeft > 0)) && (
         <div className="mx-3 mt-3 px-3 py-2 bg-gradient-to-r from-emerald-500/10 to-teal-500/5 border border-emerald-500/20 rounded-lg flex items-center justify-between">
-          <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">Free Trial</span>
-          <span className="text-[10px] font-semibold text-emerald-500 dark:text-emerald-300">{daysLeftInTrial} days left</span>
+          <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">
+            {isPaidPro ? 'Pro Plan' : 'Free Trial'}
+          </span>
+          <span className="text-[10px] font-semibold text-emerald-500 dark:text-emerald-300">{daysLeft} days left</span>
         </div>
       )}
 

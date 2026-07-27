@@ -32,12 +32,16 @@ export default function BillingPage() {
   const campaignsUsed = usage?.campaigns_this_month || 0;
   const usagePercentage = isPro ? 0 : Math.min(100, Math.round((campaignsUsed / 5) * 100));
 
-  // Trial Logic
+  // Trial / Pro Logic
   const trialEndsAt = usage?.trial_ends_at ? new Date(usage.trial_ends_at) : null;
   const now = new Date();
-  const isTrialActive = trialEndsAt && trialEndsAt > now;
+  
+  const isTrial = usage?.is_trial ?? true;
+  const isTrialActive = isTrial && trialEndsAt && trialEndsAt > now;
+  const isPaidProActive = !isTrial && trialEndsAt && trialEndsAt > now;
+  
   const isTrialExpired = trialEndsAt && trialEndsAt <= now;
-  const daysLeftInTrial = isTrialActive ? Math.ceil((trialEndsAt!.getTime() - now.getTime()) / (1000 * 3600 * 24)) : 0;
+  const daysLeft = trialEndsAt ? Math.ceil((trialEndsAt.getTime() - now.getTime()) / (1000 * 3600 * 24)) : 0;
 
   const handleUpgrade = async () => {
     if (IS_TESTING_PHASE && !process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID) {
@@ -146,7 +150,12 @@ export default function BillingPage() {
                       </span>
                       {isTrialActive && (
                         <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400">
-                          Trial: {daysLeftInTrial} days left
+                          Trial: {daysLeft} days left
+                        </span>
+                      )}
+                      {isPaidProActive && (
+                        <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400">
+                          {daysLeft} days left
                         </span>
                       )}
                       {isTrialExpired && !isPro && (
@@ -158,10 +167,10 @@ export default function BillingPage() {
                   </div>
                   <p className="text-sm text-slate-500 mb-6 leading-relaxed">
                     {isTrialActive 
-                      ? "You are currently on a free trial of the Pro plan. Upgrade to maintain access after your trial expires."
-                      : (isPro 
-                          ? "You are currently on the Pro plan with unlimited campaigns, deep analytics, and CRM."
-                          : "You're currently on the free plan. Upgrade to unlock unlimited campaigns, deep analytics, and CRM.")}
+                      ? 'You are currently on a free trial of the Pro plan. Upgrade to maintain access after your trial expires.'
+                      : (isPaidProActive 
+                          ? 'You are on the Pro plan. Enjoy full access to all features.' 
+                          : 'You are currently on the Free tier. Upgrade to unlock all features.')}
                   </p>
                 </div>
                 {!isPro && (
