@@ -283,13 +283,15 @@ async def process_razorpay_webhook_db(order_id: str, user_id: str, notes: dict):
             
         await service_client.table("subscriptions").update({
             "tier": "pro",
-            "trial_ends_at": new_expiry.isoformat()
+            "trial_ends_at": new_expiry.isoformat(),
+            "is_paid": True
         }).eq("user_id", user_id).execute()
     else:
         await service_client.table("subscriptions").insert({
             "user_id": user_id,
             "tier": "pro",
-            "trial_ends_at": (now + timedelta(days=days_to_add)).isoformat()
+            "trial_ends_at": (now + timedelta(days=days_to_add)).isoformat(),
+            "is_paid": True
         }).execute()
         
     import structlog
