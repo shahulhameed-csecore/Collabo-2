@@ -1,0 +1,151 @@
+import httpx
+import structlog
+from app.core.config import settings
+from tenacity import retry, wait_exponential, stop_after_attempt, retry_if_exception_type
+
+logger = structlog.get_logger(__name__)
+
+# Graph API version — update here when Meta deprecates v20.0
+_GRAPH_API_VERSION = "v20.0"
+
+# Default max bytes for media downloads (16 MB) — can be overridden per call
+_DEFAULT_MAX_MEDIA_BYTES = 16 * 1024 * 1024
+
+
+@retry(
+    wait=wait_exponential(multiplier=1, min=2, max=10),
+    stop=stop_after_attempt(3),
+    retry=retry_if_exception_type((httpx.RequestError, httpx.TimeoutException)),
+    reraise=True
+)
+async def _do_send_whatsapp_message(url: str, headers: dict, payload: dict, client: httpx.AsyncClient | None = None) -> bool:
+    is_local_client = client is None
+    http_client = client or httpx.AsyncClient()
+    try:
+        response = await http_client.post(url, headers=headers, json=payload, timeout=10.0)
+        if response.status_code not in (200, 201):
+            error_msg = "Unknown error"
+            try:
+                err_json = response.json()
+                if "error" in err_json:
+                    error_msg = f"{err_json['error'].get('message', '')} (Code: {err_json['error'].get('code', '')}, Subcode: {err_json['error'].get('error_subcode', '')})"
+            except Exception:
+                error_msg = response.text[:200]
+                
+            logger.error(
+                "WhatsApp API error",
+                status=response.status_code,
+                detail=error_msg,
+            )
+            return False
+        return True
+    finally:
+        if is_local_client:
+            await http_client.aclose()
+
+
+async def send_whatsapp_message(to_number: str, body: str, interactive: dict | None = None, client: httpx.AsyncClient | None = None) -> bool:
+    """
+    Sends a WhatsApp text message using the Official Meta Cloud API.
+    If `interactive` is provided, sends an interactive message instead.
+    """
+    if body:
+        import re
+        # Normalize Gemini markdown to WhatsApp formatting
+        # **bold** -> *bold*
+        body = re.sub(r'\*\*(.*?)\*\*', r'*\1*', body)
+        # [link](url) -> link (url)
+        body = re.sub(r'\[([^\]]+)\]\(([^\)]+)\)', r'\1 (\2)', body)
+
+    if not settings.WHATSAPP_TOKEN or not settings.WHATSAPP_PHONE_NUMBER_ID:
+        logger.error("Meta WhatsApp credentials missing (WHATSAPP_TOKEN or WHATSAPP_PHONE_NUMBER_ID).")
+        return False
+
+    url = f"https://graph.facebook.com/{_GRAPH_API_VERSION}/{settings.WHATSAPP_PHONE_NUMBER_ID}/messages"
+    headers = {
+        "Authorization": f"Bearer {settings.WHATSAPP_TOKEN}",
+        "Content-Type": "application/json",
+    }
+
+    # Meta expects the number without '+' and without 'whatsapp:' prefix
+    clean_to = to_number.replace("whatsapp:", "").lstrip("+")
+
+    payload = {
+        "messaging_product": "whatsapp",
+        "recipient_type": "individual",
+        "to": clean_to,
+    }
+
+    if interactive:
+        payload["type"] = "interactive"
+        payload["interactive"] = interactive
+        if body:
+            # WhatsApp requires the body text to be inside the interactive object for lists/buttons.
+            if "body" not in payload["interactive"]:
+                payload["interactive"]["body"] = {"text": body}
+    else:
+        payload["type"] = "text"
+        payload["text"] = {"preview_url": False, "body": body}
+
+    try:
+        return await _do_send_whatsapp_message(url, headers, payload, client=client)
+    except Exception as e:
+        logger.error("Exception sending WhatsApp message", error=str(e), exc_info=True)
+        return False
+
+
+async def download_whatsapp_media(
+    media_id: str, max_bytes: int = _DEFAULT_MAX_MEDIA_BYTES
+) -> bytes | None:
+    """
+    Downloads media (voice notes, images) from WhatsApp servers.
+    Enforces a byte limit to prevent OOM from malicious/large files.
+
+    Steps:
+      1. Fetch the media download URL via Graph API.
+      2. Stream-download the binary, stopping if max_bytes is exceeded.
+    """
+    if not settings.WHATSAPP_TOKEN:
+        logger.error("WHATSAPP_TOKEN not set — cannot download media.")
+        return None
+
+    metadata_url = f"https://graph.facebook.com/{_GRAPH_API_VERSION}/{media_id}"
+    headers = {"Authorization": f"Bearer {settings.WHATSAPP_TOKEN}"}
+
+    try:
+        async with httpx.AsyncClient() as client:
+            # Step 1: Get the short-lived download URL
+            res = await client.get(metadata_url, headers=headers, timeout=10.0)
+            if res.status_code != 200:
+                logger.error("Failed to fetch media metadata", status=res.status_code, media_id=media_id)
+                return None
+
+            media_url = res.json().get("url")
+            if not media_url:
+                logger.error("Media URL missing in metadata response", media_id=media_id)
+                return None
+
+            # Step 2: Stream-download with size guard
+            chunks: list[bytes] = []
+            total = 0
+            async with client.stream("GET", media_url, headers=headers, timeout=45.0) as stream:
+                if stream.status_code != 200:
+                    logger.error("Failed to download media binary from Meta CDN", status=stream.status_code, media_url=media_url)
+                    return None
+                async for chunk in stream.aiter_bytes(chunk_size=65536):
+                    total += len(chunk)
+                    if total > max_bytes:
+                        logger.warning(
+                            "Media download aborted — exceeded size limit",
+                            media_id=media_id,
+                            max_bytes=max_bytes,
+                            bytes_downloaded=total
+                        )
+                        return None
+                    chunks.append(chunk)
+
+            return b"".join(chunks)
+
+    except Exception as e:
+        logger.error("Exception downloading WhatsApp media", media_id=media_id, error=str(e))
+        return None

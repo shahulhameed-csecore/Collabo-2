@@ -1,0 +1,477 @@
+'use client';
+
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useRouter, usePathname } from 'next/navigation';
+import { createClient } from '@/lib/supabase';
+import type { User } from '@supabase/supabase-js';
+import {
+  LayoutDashboard, BarChart3, Settings,
+  LogOut, Menu, X, ChevronRight, Plus,
+  Sparkles, TrendingUp, Sun, Moon, Calendar, Users, CreditCard,
+  ChevronsLeft, ChevronsRight
+} from 'lucide-react';
+import { useTheme } from 'next-themes';
+import Link from 'next/link';
+import { toast } from 'sonner';
+import { Logo } from '@/components/Logo';
+import { NotificationDropdown } from '@/components/NotificationDropdown';
+import { ProfileDropdown } from '@/components/ProfileDropdown';
+import { IS_TESTING_PHASE } from '@/lib/config';
+import dynamic from 'next/dynamic';
+import { useCampaignModal } from '@/contexts/CampaignModalContext';
+
+const OnboardingTour = dynamic(() => import('@/components/OnboardingTour'), { ssr: false });
+
+interface Subscription {
+  tier: string;
+  trial_ends_at: string | null;
+  created_at?: string | null;
+  is_paid?: boolean;
+}
+
+interface DashboardLayoutProps {
+  children: React.ReactNode;
+}
+
+const navItems = [
+  { href: '/dashboard',           label: 'Campaigns',  icon: LayoutDashboard },
+  { href: '/calendar',            label: 'Calendar',   icon: Calendar },
+  { href: '/influencers',         label: 'Influencers',icon: Users },
+  { href: '/dashboard/analytics', label: 'Analytics',  icon: BarChart3 },
+  { href: '/settings',            label: 'Settings',   icon: Settings },
+  { href: '/billing',             label: 'Billing',    icon: CreditCard },
+];
+
+/* ── NavLink ─────────────────────────────────────────────────────────────── */
+function NavLink({
+  href, label, icon: Icon, disabled, soon, isActive, onClick, id, isCollapsed
+}: {
+  href: string; label: string; icon: React.ElementType;
+  disabled?: boolean; soon?: boolean; isActive: boolean; onClick: () => void; id?: string; isCollapsed?: boolean;
+}) {
+  return (
+    <Link
+      id={id}
+      href={disabled ? '#' : href}
+      onClick={disabled ? undefined : onClick}
+      title={isCollapsed ? label : undefined}
+      className={`
+        group flex items-center gap-3 rounded-xl font-medium
+        transition-all duration-200 select-none relative overflow-hidden
+        ${isCollapsed ? 'justify-center p-3' : 'px-3.5 py-2.5 text-sm'}
+        ${isActive
+          ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 shadow-sm shadow-emerald-500/10'
+          : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800/60 border border-transparent'}
+        ${disabled ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'}
+      `}
+    >
+      {/* Active left indicator */}
+      {isActive && !isCollapsed && (
+        <span className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 bg-emerald-400 rounded-r-full shadow-sm shadow-emerald-400/50" />
+      )}
+      {isActive && isCollapsed && (
+        <span className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-5 bg-emerald-400 rounded-r-full shadow-sm shadow-emerald-400/50" />
+      )}
+      <Icon className={`flex-shrink-0 transition-all ${isCollapsed ? 'w-5 h-5' : 'w-4 h-4'} ${
+        isActive ? 'text-emerald-400' : 'text-slate-500 group-hover:text-slate-700 dark:group-hover:text-slate-300'
+      }`} />
+      {!isCollapsed && <span className="flex-1 leading-none">{label}</span>}
+      {isActive && !isCollapsed && <ChevronRight className="w-3.5 h-3.5 text-emerald-500/70" />}
+      {soon && !isActive && !isCollapsed && (
+        <span className="text-[9px] font-bold bg-slate-100 dark:bg-slate-700/80 text-slate-500 px-1.5 py-0.5 rounded-md border border-slate-200 dark:border-slate-600/30 tracking-wide">
+          SOON
+        </span>
+      )}
+    </Link>
+  );
+}
+
+/* ── Main Layout ─────────────────────────────────────────────────────────── */
+export default function DashboardLayout({ children }: DashboardLayoutProps) {
+  const [user, setUser]                     = useState<User | null>(null);
+  const [subscription, setSubscription]     = useState<Subscription | null>(null);
+  const [customUsername, setCustomUsername] = useState<string | null>(null);
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  const [desktopSidebarOpen, setDesktopSidebarOpen] = useState(true);
+  const [loading, setLoading]               = useState(true);
+  const [mounted, setMounted]               = useState(false);
+  const sidebarRef                          = useRef<HTMLElement>(null);
+  const router                              = useRouter();
+  const pathname                            = usePathname();
+  const supabase                            = useMemo(() => createClient(), []);
+  const { theme, setTheme }                 = useTheme();
+  const { openModal }                       = useCampaignModal();
+
+  /* ── Auth ── */
+  useEffect(() => {
+    setMounted(true);
+    const getUser = async () => {
+      try {
+        const { data: { user }, error } = await supabase.auth.getUser();
+        if (!user || error) {
+          if (error) console.error('Auth error:', error.message);
+          router.replace('/login');
+          return;
+        }
+        setUser(user);
+
+        const { data: subData } = await supabase
+          .from('subscriptions')
+          .select('tier, trial_ends_at')
+          .eq('user_id', user.id)
+          .single();
+        if (subData) setSubscription(subData);
+
+        const { data: settingsData } = await supabase
+          .from('user_settings')
+          .select('username')
+          .eq('user_id', user.id)
+          .single();
+        if (settingsData?.username) setCustomUsername(settingsData.username);
+      } catch (err) {
+        console.error('Error fetching user data:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    getUser();
+
+    const { data: { subscription: authSub } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_OUT') router.replace('/login');
+      if (session) setUser(session.user);
+    });
+    return () => authSub.unsubscribe();
+  }, [router, supabase]);
+
+  /* ── Close sidebar on Escape ── */
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setMobileSidebarOpen(false); };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, []);
+
+  /* ── Sign out ── */
+  const handleSignOut = useCallback(async () => {
+    await supabase.auth.signOut();
+    toast.success('Signed out. See you soon! 👋');
+    router.replace('/login');
+  }, [supabase.auth, router]);
+
+  /* ── Loading screen ── */
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col items-center justify-center space-y-6">
+        <div className="relative flex items-center justify-center">
+          <div className="absolute inset-0 bg-emerald-500/20 rounded-full blur-xl animate-pulse"></div>
+          <div className="relative w-16 h-16 bg-white dark:bg-slate-900 rounded-2xl shadow-xl flex items-center justify-center border border-slate-200 dark:border-slate-800">
+            <svg className="w-8 h-8 text-emerald-500 animate-spin" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" className="opacity-20" />
+              <path d="M12 2C6.47715 2 2 6.47715 2 12" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeDasharray="31.4 31.4" className="opacity-80" />
+            </svg>
+          </div>
+        </div>
+        <div className="flex flex-col items-center space-y-2">
+          <p className="text-slate-600 dark:text-slate-400 text-sm font-medium animate-pulse">Loading your workspace...</p>
+          <div className="w-40 h-1 bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden">
+            <div className="h-full bg-emerald-500 rounded-full animate-shimmer" style={{ width: '50%' }}></div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  /* ── Derived values ── */
+  const userName     = customUsername || user?.email?.split('@')[0] || 'there';
+  const userInitials = customUsername
+    ? customUsername.slice(0, 2).toUpperCase()
+    : (user?.email?.slice(0, 2).toUpperCase() ?? 'IT');
+  
+  // Evaluate Trial Status
+  const now = new Date();
+  const trialEndsAt = subscription?.trial_ends_at ? new Date(subscription.trial_ends_at) : null;
+  const createdAt = subscription?.created_at ? new Date(subscription.created_at) : null;
+  
+  // A trial is 14 days. If the expiry is more than 15 days from creation, it's a paid sub.
+  // We now rely on the database's is_paid flag for bulletproof accuracy.
+  const isPaidPro = subscription?.is_paid === true || (createdAt && trialEndsAt ? (trialEndsAt.getTime() - createdAt.getTime()) > (15 * 24 * 60 * 60 * 1000) : false);
+  
+  const isTrialActive = trialEndsAt ? (trialEndsAt > now && !isPaidPro) : false;
+  const rawTier = subscription?.tier?.toLowerCase() || 'free';
+  
+  let isPro = IS_TESTING_PHASE || rawTier === 'pro';
+  if (rawTier === 'pro' && trialEndsAt && trialEndsAt < now) {
+    // Trial/Sub expired, effectively downgrade to free
+    isPro = false;
+  }
+  
+  const displayTier = isPro ? 'PRO' : 'FREE';
+  const daysLeft = trialEndsAt ? Math.ceil((trialEndsAt.getTime() - now.getTime()) / (1000 * 3600 * 24)) : 0;
+
+  const getGreeting = () => {
+    const h = new Date().getHours();
+    return h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening';
+  };
+
+  /* ── Sidebar content component ── */
+  const SidebarContent = ({ isMobile = false, isCollapsed = false, toggleCollapse }: { isMobile?: boolean, isCollapsed?: boolean, toggleCollapse?: () => void }) => (
+    <div className="flex flex-col h-full overflow-hidden">
+      {/* Logo row */}
+      <div className={`flex items-center gap-3 py-[18px] border-b border-slate-200 dark:border-slate-800/50 flex-shrink-0 transition-all duration-300 ${isCollapsed ? 'px-4 justify-center' : 'px-4'}`}>
+        <Logo variant={isCollapsed ? 'icon' : 'full'} size={24} href="/dashboard" />
+        {!isCollapsed && (
+          <div className="flex items-center gap-1.5 ml-auto">
+            <div className={`flex items-center gap-1 px-2 py-1 rounded-lg border ${isPro ? 'bg-emerald-500/8 border-emerald-500/15' : 'bg-amber-500/8 border-amber-500/15'}`}>
+              <Sparkles className={`w-2.5 h-2.5 ${isPro ? 'text-emerald-400' : 'text-amber-400'}`} />
+              <p className={`text-[9px] font-bold tracking-wide ${isPro ? 'text-emerald-400' : 'text-amber-400'}`}>{displayTier}</p>
+            </div>
+            {!isMobile && toggleCollapse && (
+              <button
+                onClick={toggleCollapse}
+                className="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/60 rounded-lg transition-colors flex-shrink-0"
+                aria-label="Collapse sidebar"
+              >
+                <ChevronsLeft className="w-4 h-4" />
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Trial Expiry Banner */}
+      {!isCollapsed && isTrialActive && (
+        <div className="mx-3 mt-3 px-3 py-2 bg-gradient-to-r from-emerald-500/10 to-teal-500/5 border border-emerald-500/20 rounded-lg flex items-center justify-between">
+          <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">
+            Free Trial
+          </span>
+          <span className="text-[10px] font-semibold text-emerald-500 dark:text-emerald-300">{daysLeft} days left</span>
+        </div>
+      )}
+
+      {/* New Campaign CTA */}
+      <div className={`pt-4 pb-1 flex-shrink-0 transition-all duration-300 ${isCollapsed ? 'px-2' : 'px-3'}`}>
+        <button
+          id={`tour-new-campaign-sidebar-${isMobile ? 'mobile' : 'desktop'}`}
+          onClick={() => { openModal(); if(isMobile) setMobileSidebarOpen(false); }}
+          className={`
+            w-full flex items-center justify-center gap-2
+            bg-gradient-to-r from-emerald-500 to-teal-500
+            hover:from-emerald-400 hover:to-teal-400
+            active:scale-[0.98] text-white font-bold rounded-xl
+            transition-all duration-200 shadow-lg shadow-emerald-500/25
+            hover:shadow-emerald-500/40 hover:shadow-xl glow-emerald-sm
+            ${isCollapsed ? 'py-3 aspect-square' : 'py-2.5 text-sm'}
+          `}
+        >
+          <Plus className="w-5 h-5 flex-shrink-0" />
+          {!isCollapsed && <span className="whitespace-nowrap">New Campaign</span>}
+        </button>
+      </div>
+
+      {/* Nav */}
+      <nav className={`flex-1 py-3 space-y-1 overflow-y-auto ${isCollapsed ? 'px-2' : 'px-3'}`}>
+        {!isCollapsed && (
+          <p className="text-[10px] font-bold text-slate-400 dark:text-slate-600 uppercase tracking-widest px-3 pb-2 pt-1">
+            Navigation
+          </p>
+        )}
+        {navItems.map(({ href, label, icon, disabled, soon }: any) => (
+          <NavLink
+            key={href}
+            href={href}
+            label={label}
+            icon={icon}
+            disabled={disabled}
+            soon={soon}
+            isActive={pathname === href || (href !== '/dashboard' && pathname.startsWith(href))}
+            onClick={() => isMobile && setMobileSidebarOpen(false)}
+            id={`tour-nav-${href.replace(/\//g, '') || 'dashboard'}-${isMobile ? 'mobile' : 'desktop'}`}
+            isCollapsed={isCollapsed}
+          />
+        ))}
+      </nav>
+
+      {/* AI Insight card */}
+      {!isCollapsed && (
+        <div
+          id={`tour-ai-insight-${isMobile ? 'mobile' : 'desktop'}`}
+          className="mx-3 mb-3 p-3.5 bg-gradient-to-br from-emerald-500/6 to-teal-500/4 border border-emerald-500/15 rounded-xl flex-shrink-0"
+        >
+          <div className="flex items-start gap-2.5">
+            <div className="p-1.5 bg-emerald-500/15 rounded-lg flex-shrink-0">
+              <Sparkles className="w-3 h-3 text-emerald-400" />
+            </div>
+            <div>
+              <p className="text-xs font-bold text-emerald-400 mb-0.5">AI Extraction</p>
+              <p className="text-[11px] text-slate-500 leading-relaxed">
+                Upload a DM screenshot to auto-fill campaign details in seconds.
+              </p>
+            </div>
+          </div>
+          <div className="mt-2.5 flex items-center gap-1.5">
+            <TrendingUp className="w-3 h-3 text-emerald-500" />
+            <span className="text-[10px] text-emerald-500 font-semibold">Saves ~20 min per campaign</span>
+          </div>
+        </div>
+      )}
+
+      {/* Collapse Toggle (Bottom) */}
+      {!isMobile && toggleCollapse && isCollapsed && (
+        <div className="px-3 pb-2 flex justify-center">
+          <button
+            onClick={toggleCollapse}
+            className="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/60 rounded-lg transition-colors"
+            aria-label="Expand sidebar"
+          >
+            <ChevronsRight className="w-5 h-5" />
+          </button>
+        </div>
+      )}
+
+      {/* User profile */}
+      <div className={`pb-4 border-t border-slate-200 dark:border-slate-800/50 pt-3 flex-shrink-0 transition-all duration-300 ${isCollapsed ? 'px-2' : 'px-3'}`}>
+        {!isCollapsed ? (
+          <div className="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-white dark:bg-slate-800/40 mb-2 border border-slate-200 dark:border-slate-700/25 hover:border-slate-300 dark:hover:border-slate-600/40 transition-all shadow-sm dark:shadow-none">
+            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center flex-shrink-0 shadow-md shadow-emerald-500/20 ring-2 ring-emerald-500/20">
+              <span className="text-xs font-bold text-white">{userInitials}</span>
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-xs font-semibold text-slate-900 dark:text-white truncate capitalize">{userName}</p>
+              <p className="text-[11px] text-slate-500 truncate">{user?.email}</p>
+            </div>
+          </div>
+        ) : (
+          <div className="flex justify-center mb-2">
+            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center flex-shrink-0 shadow-md shadow-emerald-500/20 ring-2 ring-emerald-500/20">
+              <span className="text-sm font-bold text-white">{userInitials}</span>
+            </div>
+          </div>
+        )}
+        <button
+          id="sign-out-btn"
+          onClick={handleSignOut}
+          title={isCollapsed ? "Sign out" : undefined}
+          className={`w-full flex items-center text-slate-500 dark:text-slate-500 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-500/8 transition-all duration-200 group ${isCollapsed ? 'justify-center p-2 rounded-lg' : 'gap-2.5 px-3 py-2 rounded-xl text-sm'}`}
+        >
+          <LogOut className="w-4 h-4 flex-shrink-0 group-hover:scale-110 transition-transform" />
+          {!isCollapsed && <span className="whitespace-nowrap">Sign out</span>}
+        </button>
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex">
+
+      {/* ── Desktop Sidebar ── */}
+      <aside className={`hidden lg:flex flex-col bg-white dark:bg-slate-900/95 border-r border-slate-200 dark:border-slate-800/50 flex-shrink-0 fixed h-full z-20 backdrop-blur-xl transition-all duration-300 ease-in-out ${desktopSidebarOpen ? 'w-60' : 'w-[72px]'}`}>
+        <SidebarContent isMobile={false} isCollapsed={!desktopSidebarOpen} toggleCollapse={() => setDesktopSidebarOpen(!desktopSidebarOpen)} />
+      </aside>
+
+      {/* ── Mobile Sidebar Overlay ── */}
+      {mobileSidebarOpen && (
+        <div className="lg:hidden fixed inset-0 z-40 animate-fade-in">
+          {/* Backdrop */}
+          <div
+            className="absolute inset-0 bg-slate-900/60 dark:bg-black/70 backdrop-blur-sm"
+            onClick={() => setMobileSidebarOpen(false)}
+          />
+          {/* Drawer */}
+          <aside
+            ref={sidebarRef}
+            className="absolute left-0 top-0 bottom-0 w-72 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800/60 flex flex-col z-50 animate-slide-in-left shadow-2xl shadow-slate-900/10 dark:shadow-slate-900/50"
+          >
+            <button
+              onClick={() => setMobileSidebarOpen(false)}
+              className="absolute right-3 top-3 p-1.5 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-all z-10"
+              aria-label="Close sidebar"
+            >
+              <X className="w-4 h-4" />
+            </button>
+            <SidebarContent isMobile={true} />
+          </aside>
+        </div>
+      )}
+
+      {/* ── Main Content ── */}
+      <div className={`flex-1 flex flex-col min-w-0 transition-all duration-300 ease-in-out ${desktopSidebarOpen ? 'lg:ml-60' : 'lg:ml-[72px]'}`}>
+
+        {/* ── Top Header ── */}
+        <header className="sticky top-0 z-10 h-14 bg-white/90 dark:bg-slate-950/90 backdrop-blur-xl border-b border-slate-200 dark:border-slate-800/40 flex items-center justify-between px-4 lg:px-6 gap-3">
+
+          {/* Mobile menu button */}
+          <button
+            onClick={() => setMobileSidebarOpen(true)}
+            className="lg:hidden p-2 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors flex-shrink-0"
+            aria-label="Open menu"
+          >
+            <Menu className="w-5 h-5" />
+          </button>
+
+          {/* Desktop greeting */}
+          <div className="hidden lg:flex items-center gap-2 min-w-0">
+            <p className="text-sm text-slate-500 dark:text-slate-400 truncate">
+              {mounted ? getGreeting() : 'Welcome'},{' '}
+              <span className="text-slate-900 dark:text-white font-semibold capitalize">{userName}</span>{' '}
+              <span>👋</span>
+            </p>
+          </div>
+
+          {/* Mobile logo (centered) */}
+          <div className="lg:hidden flex items-center">
+            <Logo variant="full" size={20} href="/dashboard" />
+          </div>
+
+          {/* Right side actions */}
+          <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
+
+            {/* New Campaign (header shortcut on desktop) */}
+            <button
+              onClick={openModal}
+              className="hidden sm:flex items-center gap-1.5 bg-emerald-500/10 hover:bg-emerald-500/18 border border-emerald-500/20 text-emerald-500 dark:text-emerald-400 hover:text-emerald-600 dark:hover:text-emerald-300 text-xs font-bold rounded-xl px-3 py-1.5 transition-all"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              New
+            </button>
+
+            {/* Theme Toggle */}
+            <button
+              onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+              className="p-2 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-all"
+              aria-label="Toggle theme"
+            >
+              {mounted && theme === 'dark' ? (
+                <Sun className="w-4 h-4 text-amber-400" />
+              ) : (
+                <Moon className="w-4 h-4 text-slate-500" />
+              )}
+            </button>
+
+            {/* Notifications */}
+            <NotificationDropdown />
+
+            {/* Profile Dropdown */}
+            <ProfileDropdown
+              userName={userName}
+              userEmail={user?.email}
+              userInitials={userInitials}
+              isPro={isPro}
+              tier={displayTier}
+              onSignOut={handleSignOut}
+            />
+          </div>
+        </header>
+
+        {/* ── Page Content ── */}
+        <main className="flex-1 p-4 lg:p-6 overflow-auto">
+          {children}
+        </main>
+      </div>
+
+      <OnboardingTour 
+        setMobileSidebarOpen={setMobileSidebarOpen} 
+        setDesktopSidebarOpen={setDesktopSidebarOpen} 
+        desktopSidebarOpen={desktopSidebarOpen} 
+      />
+    </div>
+  );
+}

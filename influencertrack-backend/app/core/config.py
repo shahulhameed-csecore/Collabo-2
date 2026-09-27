@@ -1,0 +1,57 @@
+from pydantic_settings import BaseSettings, SettingsConfigDict
+from typing import List, Optional
+
+class Settings(BaseSettings):
+    ENVIRONMENT: str = "development"
+    LOG_LEVEL: str = "INFO"
+    SUPABASE_URL: str
+    SUPABASE_ANON_KEY: str
+    GEMINI_API_KEY: Optional[str] = None
+    GEMINI_API_KEY_1: Optional[str] = None
+    GEMINI_API_KEY_2: Optional[str] = None
+    BASE_URL: str = "https://mycollabo.online"
+    ALLOWED_ORIGINS: str = "https://mycollabo.online,http://localhost:3000"
+    SENTRY_DSN: Optional[str] = None
+    
+    # Redis Integration for rate limiting and distributed locks
+    REDIS_URL: Optional[str] = None
+    
+    # WhatsApp (Meta Cloud API) Integration
+    WHATSAPP_TOKEN: Optional[str] = None
+    WHATSAPP_PHONE_NUMBER_ID: Optional[str] = None
+    WHATSAPP_WEBHOOK_VERIFY_TOKEN: Optional[str] = None
+    WHATSAPP_APP_SECRET: Optional[str] = None
+    
+    # Required for webhook to insert data without user JWT
+    SUPABASE_SERVICE_ROLE_KEY: Optional[str] = None
+    SUPABASE_JWT_SECRET: Optional[str] = None
+
+    # Telegram Integration
+    TELEGRAM_BOT_TOKEN: Optional[str] = None
+    TELEGRAM_WEBHOOK_SECRET: Optional[str] = None
+
+    # Razorpay Integration
+    RAZORPAY_KEY_ID: Optional[str] = None
+    RAZORPAY_KEY_SECRET: Optional[str] = None
+    RAZORPAY_WEBHOOK_SECRET: Optional[str] = None
+
+    # Webhook Settings
+    GMAIL_WEBHOOK_URL: Optional[str] = None
+    GMAIL_WEBHOOK_SECRET: Optional[str] = None
+    SCHEDULER_INTERVAL_MINUTES: int = 60  # Default to 1 hour
+    
+    # Dynamic Pricing Settings (in INR)
+    PRO_MONTHLY_INR: int = 300
+    PRO_ANNUAL_INR: int = 3000
+
+    # Internal debug endpoint secret (POST /internal/trigger-reminders)
+    # Set any random string here; leave empty to disable the endpoint.
+    INTERNAL_SECRET: Optional[str] = None
+
+    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
+
+    @property
+    def cors_origins_list(self) -> List[str]:
+        return [origin.strip() for origin in self.ALLOWED_ORIGINS.split(",") if origin.strip()]
+
+settings = Settings()

@@ -1,0 +1,265 @@
+import re
+
+with open("app/api/telegram.py", "r", encoding="utf-8") as f:
+    content = f.read()
+
+# Add import
+if "from app.services.ai_manager import" not in content:
+    content = content.replace(
+        "from app.services.gemini import extract_campaign_data",
+        "from app.services.gemini import extract_campaign_data\nfrom app.services.ai_manager import process_with_ai_manager, IntentType"
+    )
+
+new_func = '''@sentry_sdk.trace(op="webhook", name="Process Telegram Message")
+async def process_telegram_message(update: dict):
+    """
+    Background task to process the incoming Telegram message.
+    Uses Hybrid Router (Stage 1 Rules -> Stage 2 AI Intent Engine).
+    """
+    try:
+        supabase_admin = await get_supabase_admin()
+        if not supabase_admin:
+            logger.error("Supabase Admin missing")
+            return
+
+        update_id = update.get("update_id")
+        
+        is_callback = "callback_query" in update
+        if is_callback:
+            cb = update["callback_query"]
+            message = cb.get("message", {})
+            sender = cb.get("from", {})
+            chat_id = message.get("chat", {}).get("id") or sender.get("id")
+        else:
+            message = update.get("message") or update.get("channel_post")
+            if not message:
+                return
+            chat_id = message.get("chat", {}).get("id")
+            sender = message.get("from", {})
+
+        username = sender.get("username")
+        if not chat_id:
+            return
+
+        logger.info("Started process_telegram_message", chat_id=chat_id, username=username)
+
+        # 1. Deduplicate
+        if update_id:
+            try:
+                existing = await (supabase_admin.table("campaigns")
+                    .select("id")
+                    .ilike("special_notes", f"%[tg_update:{update_id}]%")
+                    .limit(1)
+                    .execute()
+                )
+                if existing.data:
+                    logger.info("Duplicate Telegram message ignored", update_id=update_id)
+                    return
+            except Exception:
+                pass
+
+        # 2. Match User
+        user_id = None
+        if username:
+            usernames_to_check = [username.lower(), f"@{username.lower()}"]
+            try:
+                user_response = await (supabase_admin.table("user_settings")
+                    .select("user_id, telegram_username")
+                    .ilike("telegram_username", f"%{username}%")
+                    .execute()
+                )
+                if user_response.data:
+                    for row in user_response.data:
+                        tg_user = (row.get("telegram_username") or "").strip().lower()
+                        if tg_user in usernames_to_check:
+                            user_id = row["user_id"]
+                            break
+            except Exception as e:
+                logger.error("Failed to query user settings", error=str(e))
+        
+        if not user_id:
+            unlinked_msg = (
+                "👋 <b>Hi! I'm Collabo AI.</b>\\n\\n"
+                "I noticed your Telegram account isn't linked to Collabo yet.\\n\\n"
+                "To start tracking campaigns automatically:\\n"
+                f"1. Go to your dashboard 👉 <b>Settings</b>.\\n"
+                f"2. Save your username <code>{html.escape('@' + username) if username else 'YOUR_USERNAME'}</code>.\\n\\n"
+                "Once linked, you can forward me chats and I'll do the rest! ✨"
+            )
+            await send_telegram_message(chat_id, unlinked_msg)
+            return
+
+        # 3. Handle Callback Queries (Stage 1 Router for Buttons)
+        if is_callback:
+            cb_id = cb.get("id")
+            cb_data = cb.get("data", "")
+            from app.services.telegram import answer_callback_query
+            await answer_callback_query(cb_id)
+
+            if cb_data.startswith("camp_del:"):
+                camp_id = cb_data.split(":")[1]
+                await (supabase_admin.table("campaigns").delete().eq("id", camp_id).eq("user_id", user_id).execute())
+                await send_telegram_message(chat_id, "🗑️ <b>Campaign Deleted</b>")
+                return
+            elif cb_data.startswith("camp_draft:"):
+                await send_telegram_message(chat_id, "📝 <b>Saved as Draft!</b>")
+                return
+            elif cb_data.startswith("camp_act:"):
+                camp_id = cb_data.split(":")[1]
+                await (supabase_admin.table("campaigns").update({"status": "active"}).eq("id", camp_id).eq("user_id", user_id).execute())
+                await send_telegram_message(chat_id, "✅ <b>Campaign Activated!</b>")
+                return
+            return
+
+        # 4. Stage 1: Rules Engine (Text exact matches)
+        if "text" in message:
+            text_val = message["text"].strip()
+            text_lower = text_val.lower()
+            
+            if len(text_lower) < 20 and text_lower in ["yes", "y", "yep", "no", "wrong", "delete", "cancel", "pause", "activate"]:
+                recent_draft_resp = await (supabase_admin.table("campaigns")
+                    .select("*")
+                    .eq("user_id", user_id)
+                    .order("created_at", desc=True)
+                    .limit(1)
+                    .execute()
+                )
+                if recent_draft_resp.data:
+                    draft = recent_draft_resp.data[0]
+                    if text_lower in ["yes", "y", "yep", "activate"]:
+                        await (supabase_admin.table("campaigns").update({"status": "active"}).eq("id", draft["id"]).execute())
+                        await send_telegram_message(chat_id, "✅ <b>Done! The campaign is now Active.</b>")
+                        return
+                    elif text_lower in ["no", "wrong", "pause"]:
+                        await (supabase_admin.table("campaigns").update({"status": "draft"}).eq("id", draft["id"]).execute())
+                        await send_telegram_message(chat_id, "📝 <b>Saved! The campaign is paused as a Draft.</b>")
+                        return
+                    elif text_lower in ["delete", "cancel"]:
+                        await (supabase_admin.table("campaigns").delete().eq("id", draft["id"]).execute())
+                        await send_telegram_message(chat_id, "🗑️ <b>Campaign Deleted.</b>")
+                        return
+
+        # 5. Prepare content for AI
+        content_for_gemini = None
+        if "text" in message:
+            content_for_gemini = message["text"].strip()
+        elif "voice" in message or "audio" in message:
+            media = message.get("voice") or message.get("audio")
+            file_id = media.get("file_id")
+            if file_id:
+                await send_telegram_message(chat_id, "🎧 Listening...")
+                audio_bytes = await download_telegram_media(file_id, max_bytes=_MAX_MEDIA_BYTES)
+                if audio_bytes:
+                    content_for_gemini = {"audio_bytes": audio_bytes, "mime_type": media.get("mime_type", "audio/ogg")}
+        elif "photo" in message:
+            photos = message["photo"]
+            if photos:
+                file_id = photos[-1].get("file_id")
+                await send_telegram_message(chat_id, "📸 Reading screenshot...")
+                image_bytes = await download_telegram_media(file_id, max_bytes=_MAX_MEDIA_BYTES)
+                if image_bytes:
+                    content_for_gemini = {"image_bytes": image_bytes, "mime_type": "image/jpeg", "caption": message.get("caption", "")}
+        elif "document" in message:
+            document = message["document"]
+            file_id = document.get("file_id")
+            if file_id:
+                await send_telegram_message(chat_id, "📄 Reading document...")
+                doc_bytes = await download_telegram_media(file_id, max_bytes=_MAX_MEDIA_BYTES)
+                if doc_bytes:
+                    content_for_gemini = {"document_bytes": doc_bytes, "mime_type": document.get("mime_type", ""), "file_name": document.get("file_name", "")}
+        else:
+            await send_telegram_message(chat_id, "🤖 I can't read this message type yet.")
+            return
+
+        if not content_for_gemini:
+            await send_telegram_message(chat_id, "❌ Failed to parse media. Please try again.")
+            return
+
+        # 6. Stage 2: AI Intent Engine
+        from app.services.ai_manager import process_with_ai_manager, IntentType
+        
+        file_bytes = b""
+        mime_type = "text/plain"
+        text_content = ""
+        
+        if isinstance(content_for_gemini, str):
+            file_bytes = content_for_gemini.encode("utf-8")
+        elif isinstance(content_for_gemini, dict):
+            if "audio_bytes" in content_for_gemini:
+                file_bytes = content_for_gemini["audio_bytes"]
+                mime_type = content_for_gemini["mime_type"]
+            elif "image_bytes" in content_for_gemini:
+                file_bytes = content_for_gemini["image_bytes"]
+                mime_type = content_for_gemini["mime_type"]
+                text_content = content_for_gemini.get("caption", "")
+            elif "document_bytes" in content_for_gemini:
+                file_bytes = content_for_gemini["document_bytes"]
+                mime_type = content_for_gemini["mime_type"]
+                text_content = content_for_gemini.get("file_name", "")
+
+        recent_campaigns = await (supabase_admin.table("campaigns")
+            .select("id, influencer_name, status, payment_amount, deadline, deliverables")
+            .eq("user_id", user_id)
+            .order("created_at", desc=True)
+            .limit(3)
+            .execute()
+        )
+        context_str = json.dumps(recent_campaigns.data) if recent_campaigns.data else ""
+
+        intent_res = await process_with_ai_manager(file_bytes, mime_type, text_content, context_str)
+
+        if intent_res.intent == IntentType.CREATE:
+            for c in intent_res.campaigns:
+                campaign_data = c.model_dump(exclude_none=True)
+                campaign_data["user_id"] = user_id
+                campaign_data["status"] = "draft"
+                if update_id:
+                    campaign_data["special_notes"] = f"{campaign_data.get('special_notes', '')} [tg_update:{update_id}]".strip()
+                
+                res = await supabase_admin.table("campaigns").insert(campaign_data).execute()
+                
+                if res.data:
+                    camp_id = res.data[0]["id"]
+                    if intent_res.missing_fields:
+                        missing_str = "\\n- ".join([f.field_name for f in intent_res.missing_fields])
+                        await send_telegram_message(chat_id, f"📝 <b>Draft Saved</b>\\n\\nI'm missing:\\n- {missing_str}\\n\\nReply to update!")
+                    else:
+                        reply_markup = {
+                            "inline_keyboard": [
+                                [{"text": "✅ Save as Active", "callback_data": f"camp_act:{camp_id}"}],
+                                [{"text": "📝 Save as Draft", "callback_data": f"camp_draft:{camp_id}"},
+                                 {"text": "🗑️ Delete", "callback_data": f"camp_del:{camp_id}"}]
+                            ]
+                        }
+                        await send_telegram_message(chat_id, "🎉 <b>Campaign Created!</b>", reply_markup=reply_markup)
+
+        elif intent_res.intent == IntentType.UPDATE:
+            if recent_campaigns.data:
+                target_id = recent_campaigns.data[0]["id"]
+                updates = intent_res.campaigns[0].model_dump(exclude_none=True) if intent_res.campaigns else {}
+                if updates:
+                    await supabase_admin.table("campaigns").update(updates).eq("id", target_id).execute()
+                    await send_telegram_message(chat_id, "✅ <b>Updated successfully.</b>")
+            else:
+                await send_telegram_message(chat_id, "❌ No recent campaigns to update.")
+                
+        elif intent_res.intent == IntentType.QUERY:
+            await send_telegram_message(chat_id, f"📊 <b>Summary</b>\\n\\n{intent_res.recommendation_text or 'Here is your data.'}")
+            
+        elif intent_res.intent == IntentType.RECOMMENDATION:
+            await send_telegram_message(chat_id, f"💡 <b>Suggestion</b>\\n\\n{intent_res.recommendation_text}")
+            
+        else:
+            await send_telegram_message(chat_id, intent_res.recommendation_text or "Sorry, I didn't catch that.")
+
+    except Exception as e:
+        logger.error("Telegram processing error", error=str(e), exc_info=True)
+        await send_telegram_message(chat_id, "🤖 <b>Oops!</b> My servers hit a snag.")
+'''
+
+# Use regex to replace the function
+pattern = r'@sentry_sdk\.trace\(op="webhook", name="Process Telegram Message"\).*?async def telegram_webhook'
+new_content = re.sub(pattern, new_func + '\n@router.post("/telegram")', content, flags=re.DOTALL)
+
+with open("app/api/telegram.py", "w", encoding="utf-8") as f:
+    f.write(new_content)

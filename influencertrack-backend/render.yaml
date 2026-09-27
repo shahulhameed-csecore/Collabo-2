@@ -1,0 +1,59 @@
+services:
+  - type: web
+    name: influencertrack-backend
+    env: python
+    buildCommand: pip install --upgrade pip && pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port 10000
+    healthCheckPath: /health
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.10.0
+      - key: ENVIRONMENT
+        value: production
+
+      # Base URL for email and WhatsApp reminders
+      - key: BASE_URL
+        value: "https://mycollabo.online"
+
+      # CORS — update if your domain changes
+      - key: ALLOWED_ORIGINS
+        value: "https://mycollabo.online,http://localhost:3000"
+
+      # Supabase (set in Render dashboard — do NOT commit real values)
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_ANON_KEY
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+
+      # Gemini AI
+      - key: GEMINI_API_KEY
+        sync: false
+
+      # WhatsApp / Meta Cloud API
+      - key: WHATSAPP_TOKEN
+        sync: false
+      - key: WHATSAPP_PHONE_NUMBER_ID
+        sync: false
+      - key: WHATSAPP_WEBHOOK_VERIFY_TOKEN
+        sync: false
+      - key: WHATSAPP_APP_SECRET
+        sync: false
+
+      # Email reminders
+      - key: RESEND_API_KEY
+        sync: false
+
+      # Error monitoring (optional but strongly recommended)
+      - key: SENTRY_DSN
+        sync: false
+
+      # Scheduler (default 60 minutes is fine for production)
+      - key: SCHEDULER_INTERVAL_MINUTES
+        value: "60"
+
+      # Manual reminder debug trigger (POST /internal/trigger-reminders)
+      # Generate with: openssl rand -hex 16
+      - key: INTERNAL_SECRET
+        sync: false
