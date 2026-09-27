@@ -8,14 +8,15 @@ $SOURCE = "$PSScriptRoot\influencertrack-frontend"
 $TARGET = "$PSScriptRoot\influencertrack-backend\frontend"
 $REPO   = "$PSScriptRoot\influencertrack-backend"
 
-$SYNC_DIRS  = @("app", "components", "lib", "public")
+$SYNC_DIRS  = @("app", "components", "contexts", "hooks", "lib", "public")
 $SYNC_FILES = @(
     "next.config.ts",
     "tsconfig.json",
     "package.json",
     "package-lock.json",
     "postcss.config.mjs",
-    "eslint.config.mjs"
+    "eslint.config.mjs",
+    "proxy.ts"
 )
 
 Write-Host ""
@@ -52,8 +53,8 @@ Write-Host "  [2/3] Staging changes..." -ForegroundColor Yellow
 
 Push-Location $REPO
 
-git add frontend/app frontend/components frontend/public 2>&1 | Out-Null
-git add frontend/next.config.ts frontend/tsconfig.json frontend/package.json frontend/package-lock.json frontend/postcss.config.mjs frontend/eslint.config.mjs 2>&1 | Out-Null
+git add frontend/app frontend/components frontend/contexts frontend/hooks frontend/public 2>&1 | Out-Null
+git add frontend/next.config.ts frontend/tsconfig.json frontend/package.json frontend/package-lock.json frontend/postcss.config.mjs frontend/eslint.config.mjs frontend/proxy.ts 2>&1 | Out-Null
 git add -f frontend/lib 2>&1 | Out-Null
 
 $staged = git diff --cached --name-only
