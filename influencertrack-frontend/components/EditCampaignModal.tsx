@@ -234,15 +234,6 @@ export default function EditCampaignModal({ campaign, isOpen, onClose, onSuccess
               />
             </Field>
 
-            <Field label="Destination URL (for Tracking Link)" icon={Rocket}>
-              <input
-                type="url"
-                value={form.destination_url}
-                onChange={e => fieldChange('destination_url', e.target.value)}
-                placeholder="https://mybrand.com/summer-sale"
-                className={inputCls()}
-              />
-            </Field>
           </form>
         </div>
 
