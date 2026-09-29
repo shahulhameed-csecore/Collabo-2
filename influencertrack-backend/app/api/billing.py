@@ -98,16 +98,9 @@ async def get_billing_usage(
         except:
             trial_ends_at = None
             
-    is_trial = True
-    created_at = sub_data.get("created_at")
-    if created_at and trial_ends_at:
-        try:
-            parsed_created_at = datetime.fromisoformat(str(created_at).replace("Z", "+00:00"))
-            # A trial is 14 days. If the expiry is more than 15 days from creation, it's a paid sub.
-            if (trial_ends_at - parsed_created_at).days > 15:
-                is_trial = False
-        except:
-            pass
+    is_paid = sub_data.get("is_paid", False)
+    status = sub_data.get("status", "active")
+    is_trial = not is_paid
 
     return BillingUsageResponse(
         current_plan=current_plan,
@@ -217,6 +210,7 @@ async def verify_payment(
             # Update DB (Using service client to bypass RLS)
             await service_client.table("subscriptions").update({
                 "tier": "pro",
+                "status": "active",
                 "trial_ends_at": new_expiry.isoformat(),
                 "is_paid": True,
                 "razorpay_customer_id": None, # or update if available
@@ -283,6 +277,7 @@ async def process_razorpay_webhook_db(order_id: str, user_id: str, notes: dict):
             
         await service_client.table("subscriptions").update({
             "tier": "pro",
+            "status": "active",
             "trial_ends_at": new_expiry.isoformat(),
             "is_paid": True
         }).eq("user_id", user_id).execute()
@@ -290,6 +285,7 @@ async def process_razorpay_webhook_db(order_id: str, user_id: str, notes: dict):
         await service_client.table("subscriptions").insert({
             "user_id": user_id,
             "tier": "pro",
+            "status": "active",
             "trial_ends_at": (now + timedelta(days=days_to_add)).isoformat(),
             "is_paid": True
         }).execute()

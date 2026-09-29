@@ -27,6 +27,7 @@ interface Subscription {
   trial_ends_at: string | null;
   created_at?: string | null;
   is_paid?: boolean;
+  status?: string | null;
 }
 
 interface DashboardLayoutProps {
@@ -117,7 +118,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
 
         const { data: subData } = await supabase
           .from('subscriptions')
-          .select('tier, trial_ends_at')
+          .select('tier, trial_ends_at, is_paid, status')
           .eq('user_id', user.id)
           .single();
         if (subData) setSubscription(subData);
@@ -189,19 +190,32 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   // Evaluate Trial Status
   const now = new Date();
   const trialEndsAt = subscription?.trial_ends_at ? new Date(subscription.trial_ends_at) : null;
-  const createdAt = subscription?.created_at ? new Date(subscription.created_at) : null;
   
-  // A trial is 14 days. If the expiry is more than 15 days from creation, it's a paid sub.
-  // We now rely on the database's is_paid flag for bulletproof accuracy.
-  const isPaidPro = subscription?.is_paid === true || (createdAt && trialEndsAt ? (trialEndsAt.getTime() - createdAt.getTime()) > (15 * 24 * 60 * 60 * 1000) : false);
-  
-  const isTrialActive = trialEndsAt ? (trialEndsAt > now && !isPaidPro) : false;
   const rawTier = subscription?.tier?.toLowerCase() || 'free';
-  
-  let isPro = IS_TESTING_PHASE || rawTier === 'pro';
-  if (rawTier === 'pro' && trialEndsAt && trialEndsAt < now) {
-    // Trial/Sub expired, effectively downgrade to free
+  const rawStatus = subscription?.status?.toLowerCase() || 'active';
+  const isPaid = subscription?.is_paid === true;
+
+  // Evaluate state strictly based on tier, status, and is_paid hierarchy
+  let isPro = false;
+  let isTrialActive = false;
+
+  if (rawTier === 'pro' && (rawStatus === 'active' || isPaid) && (!trialEndsAt || trialEndsAt > now)) {
+    isPro = true;
+    isTrialActive = false; // Paid PRO, completely hide trial box
+  } else if ((rawTier === 'free' || !isPaid) && trialEndsAt && trialEndsAt > now) {
+    // Treat as free trial if not paid but still has trial time left
     isPro = false;
+    isTrialActive = true;
+  } else {
+    // Expired or no active subscription
+    isPro = false;
+    isTrialActive = false;
+  }
+
+  // Overrides for Testing phase
+  if (IS_TESTING_PHASE) {
+    isPro = true;
+    isTrialActive = false;
   }
   
   const displayTier = isPro ? 'PRO' : 'FREE';
