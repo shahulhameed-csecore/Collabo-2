@@ -36,7 +36,6 @@ interface DashboardLayoutProps {
 
 const navItems = [
   { href: '/dashboard',           label: 'Campaigns',  icon: LayoutDashboard },
-  { href: '/calendar',            label: 'Calendar',   icon: Calendar },
   { href: '/influencers',         label: 'Influencers',icon: Users },
   { href: '/dashboard/analytics', label: 'Analytics',  icon: BarChart3 },
   { href: '/settings',            label: 'Settings',   icon: Settings },
