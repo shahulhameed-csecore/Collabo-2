@@ -118,7 +118,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
 
         const { data: subData } = await supabase
           .from('subscriptions')
-          .select('tier, trial_ends_at, is_paid, status')
+          .select('tier, trial_ends_at, is_paid')
           .eq('user_id', user.id)
           .single();
         if (subData) setSubscription(subData);
@@ -192,14 +192,13 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const trialEndsAt = subscription?.trial_ends_at ? new Date(subscription.trial_ends_at) : null;
   
   const rawTier = subscription?.tier?.toLowerCase() || 'free';
-  const rawStatus = subscription?.status?.toLowerCase() || 'active';
   const isPaid = subscription?.is_paid === true;
 
-  // Evaluate state strictly based on tier, status, and is_paid hierarchy
+  // Evaluate state strictly based on tier and is_paid hierarchy
   let isPro = false;
   let isTrialActive = false;
 
-  if (rawTier === 'pro' && (rawStatus === 'active' || isPaid) && (!trialEndsAt || trialEndsAt > now)) {
+  if (rawTier === 'pro' && isPaid && (!trialEndsAt || trialEndsAt > now)) {
     isPro = true;
     isTrialActive = false; // Paid PRO, completely hide trial box
   } else if ((rawTier === 'free' || !isPaid) && trialEndsAt && trialEndsAt > now) {
