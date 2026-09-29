@@ -87,7 +87,7 @@ from fastapi.middleware.gzip import GZipMiddleware
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 
-from app.api import extract, campaigns, auth, whatsapp, uploads, reports, settings as settings_api, influencers, billing, tracker
+from app.api import extract, campaigns, auth, whatsapp, uploads, reports, settings as settings_api, influencers, billing
 from app.core.config import settings
 from app.core.limiter import limiter, get_client_ip
 
@@ -371,7 +371,6 @@ app.include_router(uploads.router)
 app.include_router(reports.router)
 app.include_router(influencers.router)
 app.include_router(billing.router)
-app.include_router(tracker.router)
 
 # ─── Public routes ─────────────────────────────────────────────────────────────
 
