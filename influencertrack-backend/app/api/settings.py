@@ -256,4 +256,40 @@ async def unlink_whatsapp_endpoint(
         "verification_status": "not_connected"
     }).eq("user_id", user_id).execute()
     
-    return {"message": "WhatsApp unlinked successfully"}
+@router.post("/telegram/generate-code")
+async def generate_tg_pairing_code(
+    current_user: AuthenticatedUser = Depends(get_current_user),
+    client=Depends(get_user_supabase_client),
+):
+    import random
+    import string
+    from app.core.redis import get_redis
+    
+    redis_client = get_redis()
+    if not redis_client:
+        raise HTTPException(status_code=500, detail="Redis connection required to generate pairing codes.")
+
+    user_id = current_user.user.id
+    
+    # Generate a random 4-digit code: LINK-1234
+    digits = "".join(random.choices(string.digits, k=4))
+    code = f"LINK-{digits}"
+    
+    # Store in Redis with 10 minute (600 seconds) expiration
+    redis_key = f"tg_pairing_code:{code}"
+    await redis_client.set(redis_key, user_id, ex=600)
+    
+    return {"code": code}
+
+@router.post("/telegram/unlink")
+async def unlink_telegram_endpoint(
+    current_user: AuthenticatedUser = Depends(get_current_user),
+    client=Depends(get_user_supabase_client),
+):
+    user_id = current_user.user.id
+    await client.table("user_settings").update({
+        "telegram_username": None,
+        "telegram_chat_id": None
+    }).eq("user_id", user_id).execute()
+    
+    return {"message": "Telegram unlinked successfully"}

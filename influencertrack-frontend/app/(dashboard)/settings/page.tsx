@@ -7,7 +7,7 @@ import {
 } from 'lucide-react';
 import Image from 'next/image';
 import { toast } from 'sonner';
-import { saveWhatsAppNumber, getWhatsAppNumber, verifyWhatsAppConnection, getApiErrorMessage, getBillingUsage, BillingUsage, createRazorpayOrder, verifyRazorpayPayment, generateWhatsAppCode, unlinkWhatsApp } from '@/lib/api';
+import { saveWhatsAppNumber, getWhatsAppNumber, verifyWhatsAppConnection, getApiErrorMessage, getBillingUsage, BillingUsage, createRazorpayOrder, verifyRazorpayPayment, generateWhatsAppCode, unlinkWhatsApp, generateTelegramCode, unlinkTelegram } from '@/lib/api';
 import { IS_TESTING_PHASE } from '@/lib/config';
 import { createClient } from '@/lib/supabase';
 
@@ -28,6 +28,7 @@ export default function SettingsPage() {
   const [isVerifyingWA, setIsVerifyingWA] = useState(false);
   const [lastVerifiedAt, setLastVerifiedAt] = useState<string | null>(null);
   const [pairingCode, setPairingCode] = useState<string | null>(null);
+  const [tgPairingCode, setTgPairingCode] = useState<string | null>(null);
   // Updated fallback Bot Number as requested
   const botNumber = process.env.NEXT_PUBLIC_BOT_NUMBER || "+91 6374771074";
   const telegramBotUsername = process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME || "@collabo_bot";
@@ -112,16 +113,24 @@ export default function SettingsPage() {
     }
   };
 
+  const handleGenerateTGCode = async () => {
+    setIsSavingTG(true);
+    try {
+      const response = await generateTelegramCode();
+      setTgPairingCode(response.code);
+    } catch (error) {
+      toast.error(getApiErrorMessage(error, 'Failed to generate code. Please try again.'));
+    } finally {
+      setIsSavingTG(false);
+    }
+  };
+
   const handleUnlinkTG = async () => {
     setIsSavingTG(true);
     try {
-      await saveWhatsAppNumber({
-        whatsapp_number: whatsappNumber,
-        telegram_username: "", 
-        email_reminders_enabled: emailEnabled,
-        whatsapp_reminders_enabled: waEnabled
-      });
+      await unlinkTelegram();
       setTelegramUsername('');
+      setTgPairingCode(null);
       toast.success('Telegram account unlinked successfully!');
     } catch (error) {
       toast.error(getApiErrorMessage(error, 'Failed to unlink Telegram account.'));
@@ -556,60 +565,77 @@ export default function SettingsPage() {
             <div className="xl:w-2/3">
               <div className="bg-white/50 dark:bg-slate-950/50 backdrop-blur-md border border-slate-200 dark:border-slate-800/80 rounded-[2rem] overflow-hidden shadow-sm relative group">
                 <div className="p-6 sm:p-10 relative z-10 space-y-8">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {/* Step 1 */}
-                    <div className="bg-slate-50/50 dark:bg-slate-900/40 rounded-3xl p-5 border border-slate-200/80 dark:border-slate-800/50 flex flex-col justify-center h-full shadow-sm">
-                      <div className="flex items-center gap-3 mb-4">
-                        <div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-500/20 text-blue-600 dark:text-blue-400 flex items-center justify-center font-bold text-sm shadow-inner border border-blue-200 dark:border-blue-500/30">1</div>
-                        <p className="font-bold text-slate-900 dark:text-white text-sm">Find our Bot</p>
+                  {telegramUsername ? (
+                    <div className="p-5 bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-800/60 rounded-3xl shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-5 transition-all">
+                      <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 rounded-full flex items-center justify-center shrink-0 shadow-inner bg-blue-100 dark:bg-blue-500/20 text-blue-600 dark:text-blue-400">
+                          <ShieldCheck className="w-6 h-6" />
+                        </div>
+                        <div>
+                          <h3 className="font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                            Connection Status
+                            <span className="text-[10px] uppercase font-black tracking-wider px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-400">
+                              Connected
+                            </span>
+                          </h3>
+                          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 font-medium">
+                            {telegramUsername}
+                          </p>
+                        </div>
                       </div>
-                      <div className="px-5 py-3.5 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm text-center">
-                        <code className="text-sm font-mono font-bold text-slate-900 dark:text-blue-400">{telegramBotUsername}</code>
+                      
+                      <div className="w-full md:w-auto flex gap-3">
+                        <button
+                          onClick={handleUnlinkTG}
+                          disabled={isSavingTG || isLoading}
+                          className="flex-1 md:flex-none flex items-center justify-center gap-2 bg-rose-100 hover:bg-rose-200 text-rose-600 dark:bg-rose-900/30 dark:hover:bg-rose-900/50 active:scale-95 font-bold rounded-2xl px-6 py-3 text-sm transition-all"
+                        >
+                          Unlink Telegram
+                        </button>
                       </div>
                     </div>
+                  ) : (
+                    <div className="space-y-6">
+                      <p className="text-slate-600 dark:text-slate-400 font-medium">
+                        Connect your Telegram to forward briefs, voice notes, and screenshots to Collabo AI.
+                        Click below to generate a secure 10-minute pairing code.
+                      </p>
 
-                    {/* Step 2 */}
-                    <div className="bg-blue-50/50 dark:bg-blue-900/10 rounded-3xl p-5 border border-blue-100 dark:border-blue-800/30 flex flex-col justify-center h-full shadow-sm">
-                      <div className="flex items-center gap-3 mb-4">
-                        <div className="w-8 h-8 rounded-full bg-blue-500 text-white flex items-center justify-center font-bold text-sm shadow-md shadow-blue-500/40">2</div>
-                        <p className="font-bold text-blue-900 dark:text-blue-400 text-sm">Link Username</p>
-                      </div>
-                      <div className="relative group/input">
-                        <Send className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-blue-500/60 group-focus-within/input:text-blue-500 transition-colors" />
-                        <input
-                          type="text"
-                          value={telegramUsername}
-                          onChange={(e) => setTelegramUsername(e.target.value)}
-                          placeholder="e.g. @yourusername"
-                          disabled={isLoading}
-                          className="w-full bg-white dark:bg-slate-950 border border-blue-200 dark:border-blue-800/60 text-slate-900 dark:text-white placeholder-slate-400 rounded-2xl pl-11 pr-4 py-3.5 text-sm font-medium focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all shadow-sm"
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="pt-6 border-t border-slate-200/60 dark:border-slate-800/60 flex justify-end gap-4">
-                    {telegramUsername && (
-                      <button
-                        onClick={handleUnlinkTG}
-                        disabled={isSavingTG || isLoading}
-                        className="inline-flex items-center gap-2 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-500/10 active:scale-95 font-bold rounded-2xl px-6 py-3.5 text-sm transition-all"
-                      >
-                        Unlink
-                      </button>
-                    )}
-                    <button
-                      onClick={handleSaveTG}
-                      disabled={isSavingTG || isLoading}
-                      className="inline-flex items-center gap-2 bg-blue-500 hover:bg-blue-600 text-white active:scale-95 font-bold rounded-2xl px-8 py-3.5 text-sm transition-all shadow-lg shadow-blue-500/25 hover:shadow-xl disabled:opacity-70"
-                    >
-                      {isSavingTG ? (
-                        <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      {!tgPairingCode ? (
+                        <button
+                          onClick={handleGenerateTGCode}
+                          disabled={isSavingTG || isLoading}
+                          className="px-6 py-3.5 bg-blue-500 hover:bg-blue-600 text-white rounded-2xl font-bold transition-all shadow-lg shadow-blue-500/25 disabled:opacity-50"
+                        >
+                          {isSavingTG ? 'Generating...' : 'Generate Telegram Link'}
+                        </button>
                       ) : (
-                        'Save Telegram'
+                        <div className="space-y-6">
+                          <div className="p-6 bg-slate-50 dark:bg-slate-900/50 rounded-3xl border border-slate-200 dark:border-slate-800 text-center sm:text-left shadow-sm">
+                            <p className="text-sm font-bold text-slate-500 dark:text-slate-400 mb-2 uppercase tracking-wider">Your Pairing Link:</p>
+                            <p className="text-3xl font-mono font-black tracking-wider text-slate-900 dark:text-white break-all">
+                              {tgPairingCode}
+                            </p>
+                            <p className="text-sm text-slate-500 font-medium mt-3">
+                              This code expires in 10 minutes. Click the button below to verify your account in Telegram.
+                            </p>
+                          </div>
+
+                          <div className="flex flex-col sm:flex-row gap-4 items-center">
+                            <a 
+                              href={`https://t.me/${telegramBotUsername.replace('@', '')}?start=${tgPairingCode}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="w-full sm:w-auto px-8 py-4 bg-[#0088cc] hover:bg-[#007ab8] text-white rounded-2xl font-bold flex items-center justify-center gap-2 transition-all shadow-lg shadow-[#0088cc]/30 hover:-translate-y-0.5"
+                            >
+                              <Send className="w-5 h-5" />
+                              Open in Telegram
+                            </a>
+                          </div>
+                        </div>
                       )}
-                    </button>
-                  </div>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>

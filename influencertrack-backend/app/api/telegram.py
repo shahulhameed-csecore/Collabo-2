@@ -79,6 +79,46 @@ async def process_telegram_message(update: dict):
                 if "duplicate key value" in str(e).lower() or "unique constraint" in str(e).lower():
                     logger.info("Duplicate Telegram message ignored", update_id=update_id)
                     return
+        # --- PAIRING CODE INTERCEPTION ---
+        import re
+        if not is_callback and message and "text" in message:
+            text_val = message["text"].strip()
+            # Deep link start payload: "/start LINK-1234"
+            if text_val.upper().startswith("/START LINK-") and re.match(r"^/START LINK-\d{4}$", text_val.upper()):
+                pairing_code = text_val.upper().replace("/START ", "")
+                from app.core.redis import get_redis
+                redis_client = get_redis()
+                if redis_client:
+                    redis_key = f"tg_pairing_code:{pairing_code}"
+                    paired_user_id = await redis_client.get(redis_key)
+                    if paired_user_id:
+                        paired_user_id = paired_user_id.decode('utf-8') if isinstance(paired_user_id, bytes) else paired_user_id
+                        tg_user = f"@{username}" if username else str(chat_id)
+                        
+                        update_payload = {
+                            "telegram_username": tg_user,
+                            "telegram_chat_id": str(chat_id)
+                        }
+                        # Include telegram_status if it exists as per instructions
+                        update_payload["telegram_status"] = "CONNECTED"
+                        
+                        try:
+                            await supabase_admin.table("user_settings").update(update_payload).eq("user_id", paired_user_id).execute()
+                        except Exception as e:
+                            if "Could not find the 'telegram_status' column" in str(e):
+                                # Fallback if telegram_status column doesn't exist
+                                del update_payload["telegram_status"]
+                                await supabase_admin.table("user_settings").update(update_payload).eq("user_id", paired_user_id).execute()
+
+                        await redis_client.delete(redis_key)
+                        
+                        await send_telegram_message(chat_id, "✅ <b>Success!</b>\n\nYour Telegram account has been securely linked to Collabo. You can now forward me briefs, screenshots, and voice notes.")
+                        return
+                    else:
+                        await send_telegram_message(chat_id, "❌ This pairing link is invalid or has expired (they last 10 minutes).\n\nPlease generate a new one from your Collabo dashboard.")
+                        return
+        # --- END PAIRING CODE INTERCEPTION ---
+        
         # 2. Match User
         user_id = None
         if username:
