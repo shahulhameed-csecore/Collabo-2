@@ -257,3 +257,94 @@ async def process_with_ai_manager(
         intent=IntentType.UNKNOWN,
         recommendation_text="Oops, I couldn't quite understand that. Could you send the campaign details again, or upload a clear screenshot?"
     )
+
+async def check_user_eligibility(supabase_admin, sender_id: str, platform: str) -> tuple[bool, str | None]:
+    """
+    Checks if a user has an active Pro subscription or an active trial.
+    Returns (is_eligible, user_id).
+    """
+    # 1. Normalize the sender ID
+    if platform == "wa":
+        clean_sender = "".join(filter(str.isdigit, sender_id))
+        possible_ids = [clean_sender, f"+{clean_sender}"]
+        if clean_sender.startswith("91") and len(clean_sender) > 10:
+            base = clean_sender[2:]
+            possible_ids.extend([base, f"0{base}", f"+91{base}"])
+        elif clean_sender.startswith("1") and len(clean_sender) > 10:
+            base = clean_sender[1:]
+            possible_ids.extend([base, f"+1{base}"])
+        if len(clean_sender) == 10:
+            possible_ids.extend([f"91{clean_sender}", f"+91{clean_sender}"])
+        possible_ids = list(set(possible_ids))
+        column_name = "whatsapp_number"
+    else:  # Telegram or other platforms
+        possible_ids = [str(sender_id)]
+        column_name = "telegram_id"
+
+    # 2. Query user_settings to get the user_id
+    try:
+        user_response = await (supabase_admin.table("user_settings")
+            .select("user_id")
+            .in_(column_name, possible_ids)
+            .execute()
+        )
+    except Exception as e:
+        logger.error("Failed to query user settings for eligibility", error=str(e))
+        return False, None
+
+    if not user_response.data:
+        return False, None
+        
+    user_id = user_response.data[0]["user_id"]
+    
+    # 3. Query subscriptions for the user_id
+    try:
+        sub_response = await (supabase_admin.table("subscriptions")
+            .select("tier, plan, status, trial_ends_at")
+            .eq("user_id", user_id)
+            .execute()
+        )
+    except Exception as e:
+        logger.error("Failed to query subscriptions", error=str(e))
+        return False, user_id
+        
+    if not sub_response.data:
+        return False, user_id
+        
+    sub = sub_response.data[0]
+    tier = str(sub.get("tier") or sub.get("plan") or "").lower()
+    status = str(sub.get("status") or "").lower()
+    
+    # Eligibility Rule 1: Active Pro Subscription
+    if tier == "pro" and status == "active":
+        return True, user_id
+        
+    # Eligibility Rule 2: Active Trial
+    trial_ends_at_str = sub.get("trial_ends_at")
+    if trial_ends_at_str:
+        try:
+            if trial_ends_at_str.endswith("Z"):
+                trial_ends_at_str = trial_ends_at_str[:-1] + "+00:00"
+            trial_ends = datetime.fromisoformat(trial_ends_at_str)
+            if trial_ends.tzinfo is None:
+                trial_ends = trial_ends.replace(tzinfo=timezone.utc)
+                
+            if trial_ends > datetime.now(timezone.utc):
+                return True, user_id
+        except Exception as e:
+            logger.error("Error parsing trial_ends_at", error=str(e))
+            
+    return False, user_id
+
+
+async def increment_ai_extractions(supabase_admin, user_id: str):
+    """
+    Safely increments the AI extraction count for the user.
+    """
+    try:
+        sub_resp = await supabase_admin.table("subscriptions").select("ai_extractions_count").eq("user_id", user_id).execute()
+        if sub_resp.data:
+            current_count = sub_resp.data[0].get("ai_extractions_count") or 0
+            await supabase_admin.table("subscriptions").update({"ai_extractions_count": current_count + 1}).eq("user_id", user_id).execute()
+    except Exception as e:
+        logger.error("Failed to increment ai_extractions_count", error=str(e))

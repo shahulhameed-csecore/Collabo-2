@@ -388,6 +388,19 @@ async def process_whatsapp_messages(sender_id: str, messages: list):
                 await supabase_admin.table("user_settings").update({"pending_action": None}).eq("user_id", user_id).execute()
 
         if not intent_res:
+            # --- INJECT ELIGIBILITY CHECK HERE ---
+            from app.services.ai_manager import check_user_eligibility, increment_ai_extractions, IntentType
+            
+            is_eligible, found_user_id = await check_user_eligibility(supabase_admin, sender_id, "wa")
+            
+            if not is_eligible:
+                await send_whatsapp_message(
+                    sender_id, 
+                    "Hi! AI campaign extraction is a Pro feature (or your trial has expired). Please upgrade or link your number at mycollabo.online/dashboard to continue."
+                )
+                return  # Exit gracefully without hitting Gemini or crashing
+            # -------------------------------------
+
             intent_res = await process_with_ai_manager(
                 file_bytes=file_bytes, 
                 mime_type=mime_type, 
@@ -395,6 +408,11 @@ async def process_whatsapp_messages(sender_id: str, messages: list):
                 context_str=context_str,
                 media_items=media_items
             )
+            
+            # --- INCREMENT COUNTER ON SUCCESS ---
+            if intent_res and intent_res.intent not in [IntentType.UNKNOWN, IntentType.GREETING]:
+                await increment_ai_extractions(supabase_admin, found_user_id)
+            # ------------------------------------
             
         if not intent_res:
             await send_whatsapp_message(sender_id, "I'm having trouble understanding that right now. Please try rephrasing or sending a shorter message.")
