@@ -126,6 +126,39 @@ async def process_whatsapp_messages(sender_id: str, messages: list):
             possible_numbers.extend([f"91{clean_sender}", f"+91{clean_sender}"])
         possible_numbers = list(set(possible_numbers))
 
+        # --- PAIRING CODE INTERCEPTION ---
+        import re
+        first_msg = messages[0]
+        if first_msg.get("type") == "text":
+            text_val = first_msg.get("text", {}).get("body", "").strip()
+            text_upper = text_val.upper()
+            if re.match(r"^LINK-\d{4}$", text_upper):
+                from app.core.redis import get_redis
+                redis_client = get_redis()
+                if redis_client:
+                    redis_key = f"wa_pairing_code:{text_upper}"
+                    paired_user_id = await redis_client.get(redis_key)
+                    if paired_user_id:
+                        paired_user_id = paired_user_id.decode('utf-8') if isinstance(paired_user_id, bytes) else paired_user_id
+                        normalized_number = f"+{clean_sender}"
+                        import datetime
+                        
+                        await supabase_admin.table("user_settings").update({
+                            "whatsapp_number": normalized_number,
+                            "whatsapp_verified": True,
+                            "whatsapp_verified_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+                            "verification_status": "connected"
+                        }).eq("user_id", paired_user_id).execute()
+                        
+                        await redis_client.delete(redis_key)
+                        
+                        await send_whatsapp_message(sender_id, "✅ *Success!*\n\nYour WhatsApp number has been securely linked to Collabo. You can now forward me briefs, screenshots, and voice notes.")
+                        return
+                    else:
+                        await send_whatsapp_message(sender_id, "❌ This pairing code is invalid or has expired (they last 10 minutes).\n\nPlease generate a new one from your Collabo dashboard.")
+                        return
+        # --- END PAIRING CODE INTERCEPTION ---
+
         user_response = await (supabase_admin.table("user_settings")
             .select("user_id, pending_action")
             .in_("whatsapp_number", possible_numbers)

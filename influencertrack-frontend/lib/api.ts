@@ -267,6 +267,16 @@ export async function getWhatsAppNumber(): Promise<UserSettings> {
   return res.data;
 }
 
+export async function generateWhatsAppCode(): Promise<{ code: string }> {
+  const res = await api.post('/settings/whatsapp/generate-code');
+  return res.data;
+}
+
+export async function unlinkWhatsApp(): Promise<{ message: string }> {
+  const res = await api.post('/settings/whatsapp/unlink');
+  return res.data;
+}
+
 // ─── Reporting API Calls ────────────────────────────────────────────────────────
 
 export async function downloadReport(month: string, format: 'pdf' | 'excel'): Promise<void> {

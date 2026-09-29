@@ -7,7 +7,7 @@ import {
 } from 'lucide-react';
 import Image from 'next/image';
 import { toast } from 'sonner';
-import { saveWhatsAppNumber, getWhatsAppNumber, verifyWhatsAppConnection, getApiErrorMessage, getBillingUsage, BillingUsage, createRazorpayOrder, verifyRazorpayPayment } from '@/lib/api';
+import { saveWhatsAppNumber, getWhatsAppNumber, verifyWhatsAppConnection, getApiErrorMessage, getBillingUsage, BillingUsage, createRazorpayOrder, verifyRazorpayPayment, generateWhatsAppCode, unlinkWhatsApp } from '@/lib/api';
 import { IS_TESTING_PHASE } from '@/lib/config';
 import { createClient } from '@/lib/supabase';
 
@@ -27,7 +27,7 @@ export default function SettingsPage() {
   const [waVerificationStatus, setWaVerificationStatus] = useState<'none' | 'pending' | 'connected' | 'failed'>('none');
   const [isVerifyingWA, setIsVerifyingWA] = useState(false);
   const [lastVerifiedAt, setLastVerifiedAt] = useState<string | null>(null);
-
+  const [pairingCode, setPairingCode] = useState<string | null>(null);
   // Updated fallback Bot Number as requested
   const botNumber = process.env.NEXT_PUBLIC_BOT_NUMBER || "+91 6374771074";
   const telegramBotUsername = process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME || "@collabo_bot";
@@ -130,16 +130,26 @@ export default function SettingsPage() {
     }
   };
 
+  const handleGenerateCode = async () => {
+    setIsSavingWA(true);
+    try {
+      const response = await generateWhatsAppCode();
+      setPairingCode(response.code);
+    } catch (error) {
+      toast.error(getApiErrorMessage(error, 'Failed to generate code. Please try again.'));
+    } finally {
+      setIsSavingWA(false);
+    }
+  };
+
   const handleUnlinkWA = async () => {
     setIsSavingWA(true);
     try {
-      await saveWhatsAppNumber({
-        whatsapp_number: "", 
-        telegram_username: telegramUsername,
-        email_reminders_enabled: emailEnabled,
-        whatsapp_reminders_enabled: waEnabled
-      });
+      await unlinkWhatsApp();
       setWhatsappNumber('');
+      setWaVerificationStatus('none');
+      setLastVerifiedAt(null);
+      setPairingCode(null);
       toast.success('WhatsApp account unlinked successfully!');
     } catch (error) {
       toast.error(getApiErrorMessage(error, 'Failed to unlink WhatsApp account.'));
@@ -342,161 +352,78 @@ export default function SettingsPage() {
                     Connection Setup
                   </h3>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {/* Step 1: QR Code Card */}
-                    <div className="bg-white dark:bg-slate-900/80 rounded-3xl p-6 border border-slate-200 dark:border-slate-800/80 flex flex-col items-center text-center gap-5 shadow-sm relative overflow-hidden">
-                      <div className="absolute top-0 w-full h-1 bg-gradient-to-r from-emerald-400 to-teal-500" />
-                      <div className="w-10 h-10 rounded-full bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center font-black text-sm border border-emerald-100 dark:border-emerald-500/20 shadow-sm shrink-0">1</div>
-                      <div>
-                        <p className="font-extrabold text-slate-900 dark:text-white mb-1.5 text-base">Scan to Chat</p>
-                        <p className="text-xs text-slate-500 font-medium px-4">Scan this QR code with your phone to open our bot instantly.</p>
-                      </div>
-                      
-                      <div className="p-3 bg-white rounded-2xl shadow-md border border-slate-100 dark:border-slate-800 transition-transform duration-500 hover:scale-105 hover:shadow-xl hover:shadow-emerald-500/10 group-hover:rotate-1">
-                        <Image src="/whatsapp-qr.png" alt="WhatsApp QR Code" width={144} height={144} className="w-36 h-36 object-contain" />
-                      </div>
-                      
-                      <a href={`https://wa.me/${botNumber.replace(/[^0-9]/g, '')}`} target="_blank" rel="noopener noreferrer" className="text-xs font-bold text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 dark:hover:text-emerald-300 flex items-center gap-1 mt-1 bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-500/10 dark:hover:bg-emerald-500/20 px-5 py-2.5 rounded-xl transition-colors">
-                        <Smartphone className="w-3.5 h-3.5" /> Or click to open app
-                      </a>
-                    </div>
-
-                    {/* Step 2 & 3 Container */}
-                    <div className="flex flex-col gap-6">
-                      
-                      {/* Alt Step 1: Save Number */}
-                      <div className="bg-slate-50/50 dark:bg-slate-900/40 rounded-3xl p-5 border border-slate-200/80 dark:border-slate-800/50 flex flex-col justify-center flex-1 shadow-sm relative overflow-hidden">
-                        <div className="absolute inset-0 bg-gradient-to-br from-transparent to-slate-100/50 dark:to-slate-800/20" />
-                        <div className="relative z-10">
-                          <div className="flex items-center gap-3 mb-4">
-                            <div className="w-7 h-7 rounded-full bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400 flex items-center justify-center font-black text-[10px] tracking-wider uppercase shadow-inner">or</div>
-                            <p className="font-bold text-slate-900 dark:text-white text-sm">Save Number Manually</p>
-                          </div>
-                          
-                          <div className="flex items-center gap-0 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-shadow">
-                            <div className="px-5 py-3.5 bg-slate-50 dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 flex-1">
-                              <code className="text-sm font-mono font-bold text-slate-900 dark:text-emerald-400">{botNumber}</code>
-                            </div>
-                            <button onClick={handleCopy} className="px-5 py-3.5 text-slate-500 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-500/10 transition-colors flex items-center gap-2 group/btn active:bg-emerald-100 dark:active:bg-emerald-500/20">
-                              {copied ? <Check className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4 group-hover/btn:scale-110 transition-transform" />}
-                              <span className={`text-xs font-bold uppercase tracking-wider hidden sm:inline ${copied ? 'text-emerald-500' : ''}`}>{copied ? 'Copied' : 'Copy'}</span>
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Step 2: Link Number */}
-                      <div className="bg-gradient-to-br from-emerald-50 to-white dark:from-emerald-950/30 dark:to-slate-900/50 rounded-3xl p-5 border border-emerald-100 dark:border-emerald-800/40 flex flex-col justify-center flex-1 shadow-sm">
-                        <div className="flex items-center gap-3 mb-4">
-                          <div className="w-8 h-8 rounded-full bg-emerald-500 text-white flex items-center justify-center font-black text-sm shadow-md shadow-emerald-500/40">2</div>
-                          <p className="font-bold text-emerald-900 dark:text-emerald-400 text-sm">Link Your Number</p>
-                        </div>
-                        
-                        <div className="relative group/input">
-                          <Phone className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-emerald-500/60 group-focus-within/input:text-emerald-500 transition-colors" />
-                          <input
-                            type="tel"
-                            value={whatsappNumber}
-                            onChange={(e) => setWhatsappNumber(e.target.value)}
-                            placeholder="e.g. 9876543210"
-                            disabled={isLoading}
-                            className="w-full bg-white dark:bg-slate-950 border border-emerald-200 dark:border-emerald-800/60 text-slate-900 dark:text-white placeholder-slate-400 rounded-2xl pl-11 pr-4 py-3.5 text-sm font-medium focus:outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 transition-all shadow-sm"
-                          />
-                        </div>
-                        <p className="text-[11px] text-emerald-600/80 dark:text-emerald-500/70 mt-2.5 font-medium flex items-center gap-1.5 ml-1">
-                          <Info className="w-3 h-3" /> We auto-format Indian numbers (no +91 needed)
-                        </p>
-                      </div>
-
-                    </div>
-                  </div>
-
-                  {/* ── CONNECTION STATUS UI ── */}
-                  {whatsappNumber && (
+                  {whatsappNumber ? (
                     <div className="mt-8 p-5 bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-800/60 rounded-3xl shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-5 transition-all">
                       <div className="flex items-center gap-4">
-                        <div className={`w-12 h-12 rounded-full flex items-center justify-center shrink-0 shadow-inner ${
-                          waVerificationStatus === 'connected' ? 'bg-emerald-100 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400' :
-                          waVerificationStatus === 'pending' ? 'bg-amber-100 dark:bg-amber-500/20 text-amber-600 dark:text-amber-400' :
-                          waVerificationStatus === 'failed' ? 'bg-rose-100 dark:bg-rose-500/20 text-rose-600 dark:text-rose-400' :
-                          'bg-slate-100 dark:bg-slate-800 text-slate-500'
-                        }`}>
-                          {waVerificationStatus === 'connected' ? <ShieldCheck className="w-6 h-6" /> :
-                           waVerificationStatus === 'pending' ? <div className="w-5 h-5 border-2 border-amber-500/30 border-t-amber-500 rounded-full animate-spin" /> :
-                           waVerificationStatus === 'failed' ? <AlertCircle className="w-6 h-6" /> :
-                           <Phone className="w-6 h-6" />}
+                        <div className="w-12 h-12 rounded-full flex items-center justify-center shrink-0 shadow-inner bg-emerald-100 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400">
+                          <ShieldCheck className="w-6 h-6" />
                         </div>
                         <div>
                           <h3 className="font-bold text-slate-900 dark:text-white flex items-center gap-2">
                             Connection Status
-                            <span className={`text-[10px] uppercase font-black tracking-wider px-2 py-0.5 rounded-full ${
-                              waVerificationStatus === 'connected' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400' :
-                              waVerificationStatus === 'pending' ? 'bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-400' :
-                              waVerificationStatus === 'failed' ? 'bg-rose-100 text-rose-700 dark:bg-rose-500/20 dark:text-rose-400' :
-                              'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400'
-                            }`}>
-                              {waVerificationStatus === 'none' ? 'Not Verified' : waVerificationStatus}
+                            <span className="text-[10px] uppercase font-black tracking-wider px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400">
+                              Connected
                             </span>
                           </h3>
                           <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 font-medium">
-                            {whatsappNumber}
-                            {lastVerifiedAt && <span className="ml-2 pl-2 border-l border-slate-300 dark:border-slate-700">Last verified: {lastVerifiedAt}</span>}
+                            {whatsappNumber.substring(0, whatsappNumber.length - 4) + '****'}
                           </p>
                         </div>
                       </div>
                       
                       <div className="w-full md:w-auto flex gap-3">
-                        {waVerificationStatus === 'connected' ? (
-                          <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400 font-medium text-sm">
-                            <ShieldCheck className="w-5 h-5" />
-                            Your WhatsApp integration is working properly.
-                          </div>
-                        ) : (
-                          <>
-                            {waVerificationStatus === 'failed' && (
-                              <button
-                                onClick={handleVerifyWA}
-                                disabled={isVerifyingWA}
-                                className="flex-1 md:flex-none flex items-center justify-center gap-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 active:scale-95 font-bold rounded-2xl px-6 py-3 text-sm transition-all"
-                              >
-                                Retry
-                              </button>
-                            )}
-                            <button
-                              onClick={handleVerifyWA}
-                              disabled={isVerifyingWA}
-                              className="flex-1 md:flex-none flex items-center justify-center gap-2 bg-emerald-500 hover:bg-emerald-400 text-white active:scale-95 font-bold rounded-2xl px-6 py-3 text-sm transition-all shadow-lg shadow-emerald-500/25 disabled:opacity-60 disabled:cursor-not-allowed"
-                            >
-                              {isVerifyingWA ? 'Sending...' : 'Verify via WhatsApp'}
-                            </button>
-                          </>
-                        )}
+                        <button
+                          onClick={handleUnlinkWA}
+                          disabled={isSavingWA || isLoading}
+                          className="flex-1 md:flex-none flex items-center justify-center gap-2 bg-rose-100 hover:bg-rose-200 text-rose-600 dark:bg-rose-900/30 dark:hover:bg-rose-900/50 active:scale-95 font-bold rounded-2xl px-6 py-3 text-sm transition-all"
+                        >
+                          Unlink Number
+                        </button>
                       </div>
+                    </div>
+                  ) : (
+                    <div className="space-y-6">
+                      <p className="text-slate-600 dark:text-slate-400 font-medium">
+                        Connect your WhatsApp to forward briefs, voice notes, and screenshots to Collabo AI.
+                        Click below to generate a secure 10-minute pairing code.
+                      </p>
+
+                      {!pairingCode ? (
+                        <button
+                          onClick={handleGenerateCode}
+                          disabled={isSavingWA || isLoading}
+                          className="px-6 py-3.5 bg-emerald-500 hover:bg-emerald-400 text-white rounded-2xl font-bold transition-all shadow-lg shadow-emerald-500/25 disabled:opacity-50"
+                        >
+                          {isSavingWA ? 'Generating...' : 'Generate Pairing Code'}
+                        </button>
+                      ) : (
+                        <div className="space-y-6">
+                          <div className="p-6 bg-slate-50 dark:bg-slate-900/50 rounded-3xl border border-slate-200 dark:border-slate-800 text-center sm:text-left shadow-sm">
+                            <p className="text-sm font-bold text-slate-500 dark:text-slate-400 mb-2 uppercase tracking-wider">Your Pairing Code:</p>
+                            <p className="text-4xl font-mono font-black tracking-widest text-slate-900 dark:text-white">
+                              {pairingCode}
+                            </p>
+                            <p className="text-sm text-slate-500 font-medium mt-3">
+                              This code expires in 10 minutes. Send it to our bot to verify your number.
+                            </p>
+                          </div>
+
+                          <div className="flex flex-col sm:flex-row gap-4 items-center">
+                            <a 
+                              href={`https://wa.me/${botNumber.replace(/[^0-9]/g, '')}?text=${pairingCode}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="w-full sm:w-auto px-8 py-4 bg-[#25D366] hover:bg-[#128C7E] text-white rounded-2xl font-bold flex items-center justify-center gap-2 transition-all shadow-lg shadow-[#25D366]/30 hover:-translate-y-0.5"
+                            >
+                              <Smartphone className="w-5 h-5" />
+                              Open in WhatsApp
+                            </a>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   )}
 
-                  <div className="pt-6 border-t border-slate-200/60 dark:border-slate-800/60 flex justify-end gap-4 mt-6">
-                    {whatsappNumber && (
-                      <button
-                        onClick={handleUnlinkWA}
-                        disabled={isSavingWA || isLoading}
-                        className="inline-flex items-center gap-2 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-500/10 active:scale-95 font-bold rounded-2xl px-6 py-3.5 text-sm transition-all"
-                      >
-                        Unlink
-                      </button>
-                    )}
-                    <button
-                      onClick={handleSaveWA}
-                      disabled={isSavingWA || isLoading}
-                      className="inline-flex items-center gap-2 bg-slate-900 hover:bg-slate-800 dark:bg-emerald-500 dark:hover:bg-emerald-400 text-white active:scale-95 font-bold rounded-2xl px-8 py-3.5 text-sm transition-all shadow-lg shadow-slate-900/20 dark:shadow-emerald-500/25 hover:shadow-xl disabled:opacity-70 disabled:pointer-events-none"
-                    >
-                      {isSavingWA ? (
-                        <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                      ) : (
-                        <>Save Connection <Sparkles className="w-4 h-4" /></>
-                      )}
-                    </button>
-                  </div>
                 </div>
               </div>
             </div>

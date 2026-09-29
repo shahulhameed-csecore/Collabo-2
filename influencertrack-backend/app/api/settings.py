@@ -217,3 +217,43 @@ async def verify_whatsapp_connection(
     }).eq("user_id", user_id).execute()
         
     return {"message": "Verification message sent successfully!", "status": "connected"}
+
+@router.post("/whatsapp/generate-code")
+async def generate_pairing_code(
+    current_user: AuthenticatedUser = Depends(get_current_user),
+    client=Depends(get_user_supabase_client),
+):
+    import random
+    import string
+    from app.core.redis import get_redis
+    
+    redis_client = get_redis()
+    if not redis_client:
+        raise HTTPException(status_code=500, detail="Redis connection required to generate pairing codes.")
+
+    user_id = current_user.user.id
+    
+    # Generate a random 4-digit code: LINK-1234
+    digits = "".join(random.choices(string.digits, k=4))
+    code = f"LINK-{digits}"
+    
+    # Store in Redis with 10 minute (600 seconds) expiration
+    redis_key = f"wa_pairing_code:{code}"
+    await redis_client.set(redis_key, user_id, ex=600)
+    
+    return {"code": code}
+
+@router.post("/whatsapp/unlink")
+async def unlink_whatsapp_endpoint(
+    current_user: AuthenticatedUser = Depends(get_current_user),
+    client=Depends(get_user_supabase_client),
+):
+    user_id = current_user.user.id
+    await client.table("user_settings").update({
+        "whatsapp_number": None,
+        "whatsapp_verified": False,
+        "whatsapp_verified_at": None,
+        "verification_status": "not_connected"
+    }).eq("user_id", user_id).execute()
+    
+    return {"message": "WhatsApp unlinked successfully"}
