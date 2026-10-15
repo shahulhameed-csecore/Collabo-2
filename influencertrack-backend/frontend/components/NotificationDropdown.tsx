@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { createClient } from '@/lib/supabase';
-import { Bell, CheckCircle2, AlertCircle, Info, XCircle, ExternalLink, Sparkles } from 'lucide-react';
+import { Bell, CheckCircle2, AlertCircle, Info, XCircle, ExternalLink } from 'lucide-react';
 import type { Notification } from '@/lib/types';
 import Link from 'next/link';
 
@@ -11,7 +11,7 @@ export function NotificationDropdown() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const dropdownRef = useRef<HTMLDivElement>(null);
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
 
   // Load and subscribe to notifications
   useEffect(() => {
@@ -138,9 +138,11 @@ export function NotificationDropdown() {
     <div className="relative" ref={dropdownRef}>
       {/* Bell Button */}
       <button
+        id="notification-bell-btn"
         onClick={() => setIsOpen(!isOpen)}
         className="relative p-2 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-all focus:outline-none"
         aria-label="Notifications"
+        aria-expanded={isOpen}
       >
         <Bell className="w-5 h-5" />
         {unreadCount > 0 && (

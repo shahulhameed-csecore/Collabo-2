@@ -86,9 +86,7 @@ export default function CalendarPage() {
     return eventsByDate[targetDateStr] || [];
   };
   
-  const { stats, parseLocalDate } = useCalendarStats(campaigns, currentDate);
-
-
+  const { stats } = useCalendarStats(campaigns, currentDate);
 
   const STATUS_COLORS: Record<string, string> = {
     draft: 'bg-amber-100 text-amber-800 border-amber-200 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-800',
@@ -140,7 +138,6 @@ export default function CalendarPage() {
               <div className="p-2 bg-emerald-100 dark:bg-emerald-900/50 rounded-lg">
                 <Flag className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
               </div>
-              {/* Changed text from 'Due This Week' to accurately reflect logic */}
               <h3 className="font-semibold text-emerald-900 dark:text-emerald-400">Due Next 7 Days</h3>
             </div>
             <p className="text-3xl font-black text-emerald-700 dark:text-emerald-300 ml-12">{stats.thisWeek}</p>

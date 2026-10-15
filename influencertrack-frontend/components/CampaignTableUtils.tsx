@@ -71,7 +71,7 @@ export function SkeletonRow() {
   return (
     <tr className="border-b border-slate-100 dark:border-slate-800/40 animate-pulse">
       <td className="px-4 py-4 w-10"><div className="skeleton w-4 h-4 rounded" /></td>
-      {[75, 55, 65, 50, 55, 40].map((w, i) => (
+      {[75, 55, 65, 50, 55, 40, 45].map((w, i) => (
         <td key={i} className="px-4 py-4">
           <div className="skeleton h-4 rounded-lg" style={{ width: `${w}%` }} />
         </td>

@@ -27,6 +27,7 @@ interface Subscription {
   trial_ends_at: string | null;
   created_at?: string | null;
   is_paid?: boolean;
+  status?: string | null;
 }
 
 interface DashboardLayoutProps {
@@ -34,12 +35,12 @@ interface DashboardLayoutProps {
 }
 
 const navItems = [
-  { href: '/dashboard',           label: 'Campaigns',  icon: LayoutDashboard },
-  { href: '/calendar',            label: 'Calendar',   icon: Calendar },
-  { href: '/influencers',         label: 'Influencers',icon: Users },
-  { href: '/dashboard/analytics', label: 'Analytics',  icon: BarChart3 },
-  { href: '/settings',            label: 'Settings',   icon: Settings },
-  { href: '/billing',             label: 'Billing',    icon: CreditCard },
+  { href: '/dashboard',           label: 'Campaigns',   icon: LayoutDashboard },
+  { href: '/calendar',            label: 'Calendar',    icon: Calendar, id: 'tour-nav-calendar' },
+  { href: '/influencers',         label: 'Influencers', icon: Users },
+  { href: '/dashboard/analytics', label: 'Analytics',   icon: BarChart3 },
+  { href: '/settings',            label: 'Settings',    icon: Settings },
+  { href: '/billing',             label: 'Billing',     icon: CreditCard },
 ];
 
 /* ── NavLink ─────────────────────────────────────────────────────────────── */
@@ -117,7 +118,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
 
         const { data: subData } = await supabase
           .from('subscriptions')
-          .select('tier, trial_ends_at')
+          .select('tier, trial_ends_at, is_paid')
           .eq('user_id', user.id)
           .single();
         if (subData) setSubscription(subData);
@@ -189,19 +190,31 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   // Evaluate Trial Status
   const now = new Date();
   const trialEndsAt = subscription?.trial_ends_at ? new Date(subscription.trial_ends_at) : null;
-  const createdAt = subscription?.created_at ? new Date(subscription.created_at) : null;
   
-  // A trial is 14 days. If the expiry is more than 15 days from creation, it's a paid sub.
-  // We now rely on the database's is_paid flag for bulletproof accuracy.
-  const isPaidPro = subscription?.is_paid === true || (createdAt && trialEndsAt ? (trialEndsAt.getTime() - createdAt.getTime()) > (15 * 24 * 60 * 60 * 1000) : false);
-  
-  const isTrialActive = trialEndsAt ? (trialEndsAt > now && !isPaidPro) : false;
   const rawTier = subscription?.tier?.toLowerCase() || 'free';
-  
-  let isPro = IS_TESTING_PHASE || rawTier === 'pro';
-  if (rawTier === 'pro' && trialEndsAt && trialEndsAt < now) {
-    // Trial/Sub expired, effectively downgrade to free
+  const isPaid = subscription?.is_paid === true;
+
+  // Evaluate state strictly based on tier and is_paid hierarchy
+  let isPro = false;
+  let isTrialActive = false;
+
+  if (rawTier === 'pro' && isPaid && (!trialEndsAt || trialEndsAt > now)) {
+    isPro = true;
+    isTrialActive = false; // Paid PRO, completely hide trial box
+  } else if ((rawTier === 'free' || !isPaid) && trialEndsAt && trialEndsAt > now) {
+    // Treat as free trial if not paid but still has trial time left
     isPro = false;
+    isTrialActive = true;
+  } else {
+    // Expired or no active subscription
+    isPro = false;
+    isTrialActive = false;
+  }
+
+  // Overrides for Testing phase
+  if (IS_TESTING_PHASE) {
+    isPro = true;
+    isTrialActive = false;
   }
   
   const displayTier = isPro ? 'PRO' : 'FREE';
@@ -274,7 +287,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
             Navigation
           </p>
         )}
-        {navItems.map(({ href, label, icon, disabled, soon }: any) => (
+        {navItems.map(({ href, label, icon, disabled, soon, id }: any) => (
           <NavLink
             key={href}
             href={href}
@@ -284,7 +297,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
             soon={soon}
             isActive={pathname === href || (href !== '/dashboard' && pathname.startsWith(href))}
             onClick={() => isMobile && setMobileSidebarOpen(false)}
-            id={`tour-nav-${href.replace(/\//g, '') || 'dashboard'}-${isMobile ? 'mobile' : 'desktop'}`}
+            id={id ? `${id}-${isMobile ? 'mobile' : 'desktop'}` : `tour-nav-${href.replace(/\//g, '') || 'dashboard'}-${isMobile ? 'mobile' : 'desktop'}`}
             isCollapsed={isCollapsed}
           />
         ))}
@@ -433,6 +446,9 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
               New
             </button>
 
+            {/* Notifications */}
+            <NotificationDropdown />
+
             {/* Theme Toggle */}
             <button
               onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
@@ -445,9 +461,6 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                 <Moon className="w-4 h-4 text-slate-500" />
               )}
             </button>
-
-            {/* Notifications */}
-            <NotificationDropdown />
 
             {/* Profile Dropdown */}
             <ProfileDropdown

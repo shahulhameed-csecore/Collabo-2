@@ -14,6 +14,15 @@ const nextConfig: NextConfig = {
     // Re-enabled type checking for production builds
     ignoreBuildErrors: false,
   },
+  async rewrites() {
+    const apiUrl = (process.env.NEXT_PUBLIC_API_URL ?? "https://collabo-2.onrender.com").replace(/\/$/, "");
+    return [
+      {
+        source: '/t/:short_code',
+        destination: `${apiUrl}/t/:short_code`,
+      },
+    ];
+  },
   async headers() {
     return [
       {

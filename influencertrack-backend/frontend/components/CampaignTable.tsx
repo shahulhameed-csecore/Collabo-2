@@ -573,8 +573,8 @@ export default function CampaignTable({ campaigns, isLoading, onRefresh, onCreat
                               <button
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  const baseUrl = process.env.NEXT_PUBLIC_API_URL?.replace('/api/v1', '') || 'https://collabo-2.onrender.com';
-                                  navigator.clipboard.writeText(`${baseUrl}/t/${c.short_code}`);
+                                  const origin = typeof window !== 'undefined' ? window.location.origin : '';
+                                  navigator.clipboard.writeText(`${origin}/t/${c.short_code}`);
                                   toast.success('Tracking link copied!');
                                 }}
                                 aria-label="Copy tracking link"
@@ -588,6 +588,7 @@ export default function CampaignTable({ campaigns, isLoading, onRefresh, onCreat
                             <span className="text-slate-600 text-xs">—</span>
                           )}
                         </td>
+
 
                         {/* Actions */}
                         <td className="px-4 py-3.5">
@@ -626,6 +627,7 @@ export default function CampaignTable({ campaigns, isLoading, onRefresh, onCreat
                                 {c.proof_history && c.proof_history.length > 0 && (
                                   <div className="relative group/history">
                                     <button
+                                      type="button"
                                       title="View Proof History"
                                       className="p-1.5 text-slate-500 hover:text-blue-400 hover:bg-blue-500/10 rounded-lg transition-all opacity-100 sm:opacity-0 sm:group-hover:opacity-100"
                                     >
@@ -648,6 +650,7 @@ export default function CampaignTable({ campaigns, isLoading, onRefresh, onCreat
                                     </div>
                                   </div>
                                 )}
+
                                 {c.proof_url && (
                                   <a
                                     href={c.proof_url}
@@ -690,6 +693,49 @@ export default function CampaignTable({ campaigns, isLoading, onRefresh, onCreat
                               >
                                 <DollarSign className="w-3.5 h-3.5" />
                               </button>
+                            )}
+
+                            {c.status !== 'content_received' && c.proof_url && (
+                              <div className="flex items-center gap-1">
+                                {c.proof_history && c.proof_history.length > 0 && (
+                                  <div className="relative group/history">
+                                    <button
+                                      type="button"
+                                      title="View Proof History"
+                                      className="p-1.5 text-slate-500 hover:text-blue-400 hover:bg-blue-500/10 rounded-lg transition-all opacity-100 sm:opacity-0 sm:group-hover:opacity-100"
+                                    >
+                                      <Clock className="w-3.5 h-3.5" />
+                                    </button>
+                                    <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 hidden group-hover/history:block w-48 bg-slate-900 border border-slate-700/50 rounded-xl shadow-xl p-2 z-50 animate-fade-in">
+                                      <p className="text-xs font-bold text-slate-300 mb-1.5 px-1 border-b border-slate-700/50 pb-1">Previous Submissions</p>
+                                      {c.proof_history.map((h, i) => (
+                                        <a
+                                          key={i}
+                                          href={h.url}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                          className="flex items-center justify-between px-2 py-1.5 text-xs text-slate-400 hover:bg-slate-800 hover:text-white rounded-lg transition-colors"
+                                        >
+                                          <span>Version {i + 1}</span>
+                                          <span className="text-[10px] text-slate-500">{new Date(h.uploaded_at).toLocaleDateString('en-IN')}</span>
+                                        </a>
+                                      ))}
+                                    </div>
+                                  </div>
+                                )}
+                                <a
+                                  href={c.proof_url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  title="View Proof of Posting"
+                                  className="p-1.5 text-slate-500 hover:text-purple-400 hover:bg-purple-500/10 rounded-lg transition-all opacity-100 sm:opacity-0 sm:group-hover:opacity-100 relative"
+                                >
+                                  <Globe className="w-3.5 h-3.5" />
+                                  {c.proof_history && c.proof_history.length > 0 && (
+                                    <span className="absolute -top-1 -right-1 w-2 h-2 bg-purple-500 rounded-full border border-white dark:border-slate-900"></span>
+                                  )}
+                                </a>
+                              </div>
                             )}
 
                             {/* Status select */}
@@ -740,6 +786,7 @@ export default function CampaignTable({ campaigns, isLoading, onRefresh, onCreat
           </table>
         </div>
       )}
+
 
       {/* Link Analytics Modal */}
       {trackingModalCampaign && (

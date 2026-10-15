@@ -14,6 +14,7 @@ import { useTheme } from 'next-themes';
 import Link from 'next/link';
 import { toast } from 'sonner';
 import { Logo } from '@/components/Logo';
+import { NotificationDropdown } from '@/components/NotificationDropdown';
 import { ProfileDropdown } from '@/components/ProfileDropdown';
 import { IS_TESTING_PHASE } from '@/lib/config';
 import dynamic from 'next/dynamic';
@@ -34,11 +35,12 @@ interface DashboardLayoutProps {
 }
 
 const navItems = [
-  { href: '/dashboard',           label: 'Campaigns',  icon: LayoutDashboard },
-  { href: '/influencers',         label: 'Influencers',icon: Users },
-  { href: '/dashboard/analytics', label: 'Analytics',  icon: BarChart3 },
-  { href: '/settings',            label: 'Settings',   icon: Settings },
-  { href: '/billing',             label: 'Billing',    icon: CreditCard },
+  { href: '/dashboard',           label: 'Campaigns',   icon: LayoutDashboard },
+  { href: '/calendar',            label: 'Calendar',    icon: Calendar, id: 'tour-nav-calendar' },
+  { href: '/influencers',         label: 'Influencers', icon: Users },
+  { href: '/dashboard/analytics', label: 'Analytics',   icon: BarChart3 },
+  { href: '/settings',            label: 'Settings',    icon: Settings },
+  { href: '/billing',             label: 'Billing',     icon: CreditCard },
 ];
 
 /* ── NavLink ─────────────────────────────────────────────────────────────── */
@@ -285,7 +287,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
             Navigation
           </p>
         )}
-        {navItems.map(({ href, label, icon, disabled, soon }: any) => (
+        {navItems.map(({ href, label, icon, disabled, soon, id }: any) => (
           <NavLink
             key={href}
             href={href}
@@ -295,7 +297,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
             soon={soon}
             isActive={pathname === href || (href !== '/dashboard' && pathname.startsWith(href))}
             onClick={() => isMobile && setMobileSidebarOpen(false)}
-            id={`tour-nav-${href.replace(/\//g, '') || 'dashboard'}-${isMobile ? 'mobile' : 'desktop'}`}
+            id={id ? `${id}-${isMobile ? 'mobile' : 'desktop'}` : `tour-nav-${href.replace(/\//g, '') || 'dashboard'}-${isMobile ? 'mobile' : 'desktop'}`}
             isCollapsed={isCollapsed}
           />
         ))}
@@ -443,6 +445,9 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
               <Plus className="w-3.5 h-3.5" />
               New
             </button>
+
+            {/* Notifications */}
+            <NotificationDropdown />
 
             {/* Theme Toggle */}
             <button
