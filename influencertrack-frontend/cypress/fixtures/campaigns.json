@@ -1,0 +1,96 @@
+{
+  "data": [
+    {
+      "id": "c-active-001",
+      "user_id": "test-user-id-001",
+      "influencer_name": "Riya Sharma",
+      "influencer_handle": "@riya_creates",
+      "platform": "Instagram",
+      "deliverables": "1 Reel (30s) + 2 Stories",
+      "deadline": "2026-10-20",
+      "payment_amount": 15000,
+      "special_notes": "Include discount code RIYA10 in bio",
+      "status": "active",
+      "proof_url": null,
+      "proof_history": null,
+      "magic_link_token": "riya-magic-token-123",
+      "destination_url": "https://mybrand.com/sale",
+      "short_code": "riya123",
+      "clicks": 42,
+      "created_at": "2026-10-14T08:00:00Z",
+      "updated_at": "2026-10-15T08:00:00Z"
+    },
+    {
+      "id": "c-review-002",
+      "user_id": "test-user-id-001",
+      "influencer_name": "Aarav Patel",
+      "influencer_handle": "@aarav_vlogs",
+      "platform": "YouTube",
+      "deliverables": "1 Integrated Video (60s segment)",
+      "deadline": "2026-10-18",
+      "payment_amount": 25000,
+      "special_notes": "Focus on product unboxing",
+      "status": "content_received",
+      "proof_url": "https://youtube.com/watch?v=sample-proof-latest",
+      "proof_history": [
+        {
+          "url": "https://youtube.com/watch?v=sample-proof-v1",
+          "uploaded_at": "2026-10-10T10:00:00Z"
+        },
+        {
+          "url": "https://youtube.com/watch?v=sample-proof-v2",
+          "uploaded_at": "2026-10-12T14:30:00Z"
+        }
+      ],
+      "magic_link_token": "aarav-magic-token-456",
+      "destination_url": "https://mybrand.com/summer",
+      "short_code": "aarav456",
+      "clicks": 18,
+      "created_at": "2026-10-08T10:00:00Z",
+      "updated_at": "2026-10-13T09:00:00Z"
+    },
+    {
+      "id": "c-draft-003",
+      "user_id": "test-user-id-001",
+      "influencer_name": "Neha Gupta",
+      "influencer_handle": "@neha_style",
+      "platform": "Instagram",
+      "deliverables": "2 Carousel posts",
+      "deadline": "2026-10-25",
+      "payment_amount": 10000,
+      "special_notes": "Needs human review on deliverables",
+      "status": "draft",
+      "proof_url": null,
+      "proof_history": null,
+      "magic_link_token": "neha-magic-token-789",
+      "destination_url": "https://mybrand.com/fashion",
+      "short_code": "neha789",
+      "clicks": 0,
+      "created_at": "2026-10-15T07:00:00Z",
+      "updated_at": "2026-10-15T07:00:00Z"
+    },
+    {
+      "id": "c-paid-004",
+      "user_id": "test-user-id-001",
+      "influencer_name": "Karan Verma",
+      "influencer_handle": "@karan_tech",
+      "platform": "Twitter/X",
+      "deliverables": "1 Long-form Thread + pinned post",
+      "deadline": "2026-10-05",
+      "payment_amount": 20000,
+      "special_notes": "Completed and approved",
+      "status": "paid",
+      "proof_url": "https://twitter.com/karan_tech/status/987654321",
+      "proof_history": null,
+      "magic_link_token": "karan-magic-token-012",
+      "destination_url": "https://mybrand.com/tech",
+      "short_code": "karan012",
+      "clicks": 95,
+      "created_at": "2026-10-01T09:00:00Z",
+      "updated_at": "2026-10-06T11:00:00Z"
+    }
+  ],
+  "count": 4,
+  "limit": 50,
+  "offset": 0
+}

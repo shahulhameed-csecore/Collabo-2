@@ -1,0 +1,38 @@
+[
+  {
+    "handle": "@riya_creates",
+    "name": "Riya Sharma",
+    "platform": "Instagram",
+    "notes": "Top tier aesthetic, excellent audience response on reel.",
+    "total_campaigns": 3,
+    "success_rate": 100,
+    "last_collaboration": "2026-10-15T08:00:00Z"
+  },
+  {
+    "handle": "@aarav_vlogs",
+    "name": "Aarav Patel",
+    "platform": "YouTube",
+    "notes": "Consistent delivery, thorough video integration.",
+    "total_campaigns": 2,
+    "success_rate": 80,
+    "last_collaboration": "2026-10-12T14:30:00Z"
+  },
+  {
+    "handle": "@neha_style",
+    "name": "Neha Gupta",
+    "platform": "Instagram",
+    "notes": "Pending contract negotiation.",
+    "total_campaigns": 1,
+    "success_rate": 50,
+    "last_collaboration": "2026-10-15T07:00:00Z"
+  },
+  {
+    "handle": "@karan_tech",
+    "name": "Karan Verma",
+    "platform": "Twitter/X",
+    "notes": "High CTR on tech gadgets.",
+    "total_campaigns": 4,
+    "success_rate": 100,
+    "last_collaboration": "2026-10-06T11:00:00Z"
+  }
+]

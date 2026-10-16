@@ -1,0 +1,10 @@
+{
+  "whatsapp_number": "+91 9876543210",
+  "email_reminders_enabled": true,
+  "whatsapp_reminders_enabled": true,
+  "username": "Test Brand",
+  "telegram_username": "@testbrand_bot",
+  "whatsapp_verified": true,
+  "whatsapp_verified_at": "2026-10-10T12:00:00Z",
+  "verification_status": "connected"
+}

@@ -422,9 +422,10 @@ async def process_whatsapp_messages(sender_id: str, messages: list):
 
         if not intent_res:
             # --- INJECT ELIGIBILITY CHECK HERE ---
-            from app.services.ai_manager import check_user_eligibility, increment_ai_extractions, IntentType
+            from app.services.supabase import is_user_pro_or_paid
+            from app.services.ai_manager import increment_ai_extractions, IntentType
             
-            is_eligible, found_user_id = await check_user_eligibility(supabase_admin, sender_id, "wa")
+            is_eligible, _ = await is_user_pro_or_paid(supabase_admin, user_id)
             
             if not is_eligible:
                 await send_whatsapp_message(
@@ -444,7 +445,7 @@ async def process_whatsapp_messages(sender_id: str, messages: list):
             
             # --- INCREMENT COUNTER ON SUCCESS ---
             if intent_res and intent_res.intent not in [IntentType.UNKNOWN, IntentType.GREETING]:
-                await increment_ai_extractions(supabase_admin, found_user_id)
+                await increment_ai_extractions(supabase_admin, user_id)
             # ------------------------------------
             
         if not intent_res:

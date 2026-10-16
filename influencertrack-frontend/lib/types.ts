@@ -149,3 +149,14 @@ export interface Notification {
   is_read: boolean;
   created_at: string;
 }
+
+// ─── Billing Usage ────────────────────────────────────────────────────────────
+export interface BillingUsage {
+  current_plan: string;
+  trial_ends_at: string | null;
+  campaigns_this_month: number;
+  ai_extractions_used: number;
+  is_trial: boolean;
+  is_paid: boolean;
+}
+

@@ -38,6 +38,7 @@ class BillingUsageResponse(BaseModel):
     campaigns_this_month: int
     ai_extractions_used: int
     is_trial: bool = True
+    is_paid: bool = False
 
 @router.get("/usage", response_model=BillingUsageResponse)
 async def get_billing_usage(
@@ -45,36 +46,23 @@ async def get_billing_usage(
     client=Depends(get_user_supabase_client),
     user: AuthenticatedUser = Depends(get_current_user),
 ):
-    # Get subscription details
-    try:
-        sub_response = await client.table("subscriptions").select("*").eq("user_id", user.user.id).execute()
-        sub_data = sub_response.data[0] if sub_response and hasattr(sub_response, 'data') and len(sub_response.data) > 0 else {}
-    except Exception as e:
-        import structlog
-        structlog.get_logger(__name__).error("billing_subscription_fetch_failed", error=str(e))
-        sub_data = {}
+    from app.services.supabase import is_user_pro_or_paid
+    is_pro, sub_data = await is_user_pro_or_paid(client, user.user.id)
     
+    current_plan = "pro" if is_pro else "free"
+    is_paid = bool(sub_data.get("is_paid", False))
+    is_trial = not is_paid
     
-    # Evaluate Trial Status
-    raw_tier = sub_data.get("tier", "free")
     trial_ends_at = sub_data.get("trial_ends_at")
-    
-    # Parse trial string to datetime for evaluation
     parsed_trial_ends_at = None
-    if isinstance(trial_ends_at, str):
-        try:
-            parsed_trial_ends_at = datetime.fromisoformat(trial_ends_at.replace("Z", "+00:00"))
-        except:
-            pass
-            
-    now = datetime.now(timezone.utc)
-    
-    # If they are marked as 'pro' but their trial has expired, and they haven't explicitly paid (we assume paid users won't have an expired trial date limiting their access without being updated to active paid status via webhook), downgrade to free.
-    # In a real system, you'd check a 'subscription_status' field from Stripe. Here, we rely on trial_ends_at.
-    if raw_tier == "pro" and parsed_trial_ends_at and parsed_trial_ends_at < now:
-        current_plan = "free"
-    else:
-        current_plan = "pro" if IS_TESTING_PHASE else raw_tier
+    if trial_ends_at:
+        if isinstance(trial_ends_at, str):
+            try:
+                parsed_trial_ends_at = datetime.fromisoformat(trial_ends_at.replace("Z", "+00:00"))
+            except Exception:
+                parsed_trial_ends_at = None
+        elif isinstance(trial_ends_at, datetime):
+            parsed_trial_ends_at = trial_ends_at
 
     ai_extractions_used = sub_data.get("ai_extractions_count", 0)
     
@@ -90,24 +78,16 @@ async def get_billing_usage(
         import structlog
         structlog.get_logger(__name__).error("billing_campaigns_fetch_failed", error=str(e))
         campaigns_this_month = 0
-    
-    # Parse trial string to datetime
-    if isinstance(trial_ends_at, str):
-        try:
-            trial_ends_at = datetime.fromisoformat(trial_ends_at.replace("Z", "+00:00"))
-        except:
-            trial_ends_at = None
-            
-    is_paid = sub_data.get("is_paid", False)
-    is_trial = not is_paid
 
     return BillingUsageResponse(
         current_plan=current_plan,
-        trial_ends_at=trial_ends_at,
+        trial_ends_at=parsed_trial_ends_at,
         campaigns_this_month=campaigns_this_month,
         ai_extractions_used=ai_extractions_used,
-        is_trial=is_trial
+        is_trial=is_trial,
+        is_paid=is_paid,
     )
+
 
 class CreateOrderRequest(BaseModel):
     is_annual: bool = False

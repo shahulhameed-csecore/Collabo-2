@@ -1,0 +1,32 @@
+[
+  {
+    "id": "notif-001",
+    "user_id": "test-user-id-001",
+    "title": "New Proof Uploaded",
+    "message": "@aarav_vlogs submitted proof of posting for review.",
+    "type": "info",
+    "link_url": "/dashboard",
+    "is_read": false,
+    "created_at": "2026-10-15T09:30:00Z"
+  },
+  {
+    "id": "notif-002",
+    "user_id": "test-user-id-001",
+    "title": "Deadline Alert (48h)",
+    "message": "@riya_creates campaign deliverable is due in 48 hours.",
+    "type": "warning",
+    "link_url": "/dashboard",
+    "is_read": false,
+    "created_at": "2026-10-14T14:15:00Z"
+  },
+  {
+    "id": "notif-003",
+    "user_id": "test-user-id-001",
+    "title": "Campaign Approved",
+    "message": "Payment sent for @karan_tech. Deal completed successfully.",
+    "type": "success",
+    "link_url": "/dashboard",
+    "is_read": true,
+    "created_at": "2026-10-10T11:00:00Z"
+  }
+]

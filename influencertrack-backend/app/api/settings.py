@@ -2,7 +2,8 @@ import logging
 import re
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
-from app.api.dependencies import get_current_user, get_user_supabase_client, AuthenticatedUser
+from app.api.dependencies import get_current_user, get_user_supabase_client, AuthenticatedUser, get_service_client
+from app.services.supabase import is_user_pro_or_paid
 
 logger = logging.getLogger(__name__)
 
@@ -52,6 +53,16 @@ async def save_settings(
             raise HTTPException(
                 status_code=400,
                 detail="Invalid phone number. Please provide a valid number with country code (8–15 digits).",
+            )
+
+    # If linking or updating a WhatsApp number, verify active Pro or trial status
+    if clean_number is not None:
+        service_client = await get_service_client()
+        is_pro, _ = await is_user_pro_or_paid(service_client, user_id)
+        if not is_pro:
+            raise HTTPException(
+                status_code=403,
+                detail="WhatsApp integration is a Pro feature (or your trial has expired). Please upgrade to continue.",
             )
 
     try:
@@ -185,6 +196,14 @@ async def verify_whatsapp_connection(
     import datetime
     user_id = current_user.user.id
     
+    service_client = await get_service_client()
+    is_pro, _ = await is_user_pro_or_paid(service_client, user_id)
+    if not is_pro:
+        raise HTTPException(
+            status_code=403,
+            detail="WhatsApp integration is a Pro feature (or your trial has expired). Please upgrade to continue.",
+        )
+    
     # 1. Fetch user settings
     response = await client.table("user_settings").select("whatsapp_number").eq("user_id", user_id).execute()
     if not response.data or not response.data[0].get("whatsapp_number"):
@@ -232,6 +251,14 @@ async def generate_pairing_code(
         raise HTTPException(status_code=500, detail="Redis connection required to generate pairing codes.")
 
     user_id = current_user.user.id
+    
+    service_client = await get_service_client()
+    is_pro, _ = await is_user_pro_or_paid(service_client, user_id)
+    if not is_pro:
+        raise HTTPException(
+            status_code=403,
+            detail="WhatsApp integration is a Pro feature (or your trial has expired). Please upgrade to continue.",
+        )
     
     # Generate a random 4-digit code: LINK-1234
     digits = "".join(random.choices(string.digits, k=4))

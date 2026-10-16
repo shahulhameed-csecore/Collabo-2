@@ -427,6 +427,7 @@ export interface BillingUsage {
   campaigns_this_month: number;
   ai_extractions_used: number;
   is_trial: boolean;
+  is_paid: boolean;
 }
 
 export async function getBillingUsage(): Promise<BillingUsage> {

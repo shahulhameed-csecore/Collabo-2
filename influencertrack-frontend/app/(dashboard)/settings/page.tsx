@@ -76,6 +76,10 @@ export default function SettingsPage() {
   }, []);
 
   const handleSaveWA = async () => {
+    if (whatsappNumber && !isPro) {
+      toast.error('WhatsApp integration is a Pro feature. Please upgrade your subscription.');
+      return;
+    }
     setIsSavingWA(true);
     try {
       const response = await saveWhatsAppNumber({
@@ -140,6 +144,10 @@ export default function SettingsPage() {
   };
 
   const handleGenerateCode = async () => {
+    if (!isPro) {
+      toast.error('WhatsApp integration is a Pro feature. Please upgrade your subscription.');
+      return;
+    }
     setIsSavingWA(true);
     try {
       const response = await generateWhatsAppCode();
@@ -168,6 +176,10 @@ export default function SettingsPage() {
   };
 
   const handleVerifyWA = async () => {
+    if (!isPro) {
+      toast.error('WhatsApp integration is a Pro feature. Please upgrade your subscription.');
+      return;
+    }
     setIsVerifyingWA(true);
     setWaVerificationStatus('pending');
     try {
@@ -202,7 +214,7 @@ export default function SettingsPage() {
     }
   };
 
-  const isPro = IS_TESTING_PHASE || usage?.current_plan === 'pro';
+  const isPro = IS_TESTING_PHASE || usage?.current_plan === 'pro' || Boolean(usage?.is_paid);
 
   const handleUpgrade = async () => {
     if (IS_TESTING_PHASE && !process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID) {

@@ -1,5 +1,8 @@
 
 
+from app.services.supabase import is_user_pro_or_paid
+
+
 def get_valid_transitions() -> dict[str, list[str]]:
     """Defines the valid state transitions for campaigns."""
     return {

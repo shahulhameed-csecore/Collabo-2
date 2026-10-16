@@ -30,11 +30,16 @@ async def check_expired_trials_job() -> dict:
         return {"error": str(exc)}
 
     try:
-        # Find all pro subscriptions with an expired trial
-        # Supabase Python client filter for less than timestamp
+        # Find pro subscriptions where trial_ends_at is in the past
+        # CRITICAL SAFETY: Never downgrade paid accounts (is_paid = True) or lifetime/manual Pro (trial_ends_at is None)!
         now_str = now_utc.isoformat()
         import asyncio
-        resp = await (supabase.table("subscriptions").select("id, user_id, tier, trial_ends_at").eq("tier", "pro").lt("trial_ends_at", now_str).execute())
+        resp = await (supabase.table("subscriptions")
+            .select("id, user_id, tier, trial_ends_at, is_paid")
+            .eq("tier", "pro")
+            .lt("trial_ends_at", now_str)
+            .execute()
+        )
         
         expired_subs = resp.data or []
         
@@ -46,15 +51,18 @@ async def check_expired_trials_job() -> dict:
         for sub in expired_subs:
             user_id = sub.get("user_id")
             sub_id = sub.get("id")
+            is_paid = bool(sub.get("is_paid", False))
+            trial_ends_at = sub.get("trial_ends_at")
+            
+            # CRITICAL: Never downgrade paid users or users with lifetime/unlimited pro
+            if is_paid or not trial_ends_at:
+                log.info("billing_cron.skipping_paid_or_lifetime_user", user_id=user_id, sub_id=sub_id, is_paid=is_paid)
+                continue
+                
             try:
                 # Downgrade to free
                 await (supabase.table("subscriptions").update({"tier": "free"}).eq("id", sub_id).execute())
-                
-                # Optional: You could insert a notification for the user here
-                # from app.services.notifications import create_notification
-                # await create_notification(...)
-                
-                log.info("billing_cron.user_downgraded", user_id=user_id, sub_id=sub_id, trial_ended_at=sub.get("trial_ends_at"))
+                log.info("billing_cron.user_downgraded", user_id=user_id, sub_id=sub_id, trial_ended_at=trial_ends_at)
                 downgraded_count += 1
             except Exception as e:
                 log.error("billing_cron.downgrade_failed", user_id=user_id, error=str(e))

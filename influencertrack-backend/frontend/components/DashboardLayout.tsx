@@ -187,23 +187,26 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
     ? customUsername.slice(0, 2).toUpperCase()
     : (user?.email?.slice(0, 2).toUpperCase() ?? 'IT');
   
-  // Evaluate Trial Status
+  // Evaluate Trial & Pro Status strictly based on tier, is_paid and trial expiration
   const now = new Date();
   const trialEndsAt = subscription?.trial_ends_at ? new Date(subscription.trial_ends_at) : null;
   
   const rawTier = subscription?.tier?.toLowerCase() || 'free';
   const isPaid = subscription?.is_paid === true;
+  const hasValidTime = !trialEndsAt || trialEndsAt > now;
 
-  // Evaluate state strictly based on tier and is_paid hierarchy
   let isPro = false;
   let isTrialActive = false;
 
-  if (rawTier === 'pro' && isPaid && (!trialEndsAt || trialEndsAt > now)) {
+  if (isPaid && (hasValidTime || rawTier === 'pro')) {
     isPro = true;
     isTrialActive = false; // Paid PRO, completely hide trial box
-  } else if ((rawTier === 'free' || !isPaid) && trialEndsAt && trialEndsAt > now) {
-    // Treat as free trial if not paid but still has trial time left
-    isPro = false;
+  } else if (rawTier === 'pro' && (isPaid || hasValidTime)) {
+    isPro = true;
+    isTrialActive = !isPaid && Boolean(trialEndsAt && trialEndsAt > now);
+  } else if (trialEndsAt && trialEndsAt > now) {
+    // Treat as free trial if still has trial time left
+    isPro = true;
     isTrialActive = true;
   } else {
     // Expired or no active subscription

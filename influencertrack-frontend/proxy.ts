@@ -28,13 +28,23 @@ export async function proxy(request: NextRequest) {
     }
   );
 
-  // IMPORTANT: Must call getUser() (server-verified) NOT getSession() (client-only, spoofable)
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  // Check for test session cookie in non-production E2E testing
+  let user = null;
+  const testSessionCookie = request.cookies.get('collabo-test-session');
+  if (process.env.NODE_ENV !== 'production' && testSessionCookie) {
+    try {
+      user = JSON.parse(decodeURIComponent(testSessionCookie.value));
+    } catch {
+      user = { id: 'test-user-id-001', email: 'test@mycollabo.online' };
+    }
+  } else {
+    // IMPORTANT: Must call getUser() (server-verified) NOT getSession() (client-only, spoofable)
+    const { data } = await supabase.auth.getUser();
+    user = data?.user;
+  }
 
   // Protected routes
-  const protectedRoutes = ['/dashboard', '/settings', '/calendar', '/influencers', '/admin'];
+  const protectedRoutes = ['/dashboard', '/settings', '/calendar', '/influencers', '/billing', '/admin'];
   const isProtected = protectedRoutes.some(route => request.nextUrl.pathname.startsWith(route));
 
   // Unauthenticated user trying to access protected routes → redirect to login
