@@ -25,18 +25,21 @@
   box-sizing: border-box;
 }
 
+html, body {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
 html {
   scroll-behavior: smooth;
   -webkit-text-size-adjust: 100%;
 }
 
 body {
-  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  font-family: var(--font-sans, 'Inter', system-ui, -apple-system, sans-serif);
   font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
   font-variation-settings: 'opsz' 32;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  text-rendering: optimizeLegibility;
 }
 
 /* ── Custom Scrollbar ────────────────────────────────────────────────────── */
@@ -227,6 +230,29 @@ input[type="number"] { -moz-appearance: textfield; }
 .animate-glow-pulse   { animation: glow-pulse  2.5s ease-in-out infinite; }
 .animate-border-glow  { animation: border-glow 2.5s ease-in-out infinite; }
 .animate-blob         { animation: blob        7s   infinite; }
+
+@keyframes heroTabProgress {
+  0% { width: 0%; }
+  100% { width: 100%; }
+}
+
+@keyframes beamStrokeFlow {
+  from { stroke-dashoffset: 40; }
+  to   { stroke-dashoffset: 0; }
+}
+
+.animate-tab-progress {
+  animation: heroTabProgress 4.5s linear forwards;
+}
+
+.animate-beam-left {
+  animation: beamStrokeFlow 1.8s linear infinite;
+}
+
+.animate-beam-right {
+  animation: beamStrokeFlow 1.8s linear infinite;
+  animation-delay: 0.9s;
+}
 
 /* Stagger helpers */
 .stagger-1  { animation-delay: 50ms; }
@@ -571,6 +597,8 @@ input[type="number"] { -moz-appearance: textfield; }
 }
 
 @theme {
+  --font-sans: var(--font-geist-sans), "Inter", -apple-system, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, SFMono-Regular, monospace;
   --animate-marquee: marquee 25s linear infinite;
   --animate-marquee2: marquee2 25s linear infinite;
   --keyframes-marquee: {
@@ -582,3 +610,52 @@ input[type="number"] { -moz-appearance: textfield; }
     100% { transform: translateX(0%); }
   };
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   ARCHITECTURAL DESIGN SYSTEM ("THE TACTILE COMMAND ENGINE")
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.arch-card {
+  background-color: #0A0E17;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.08);
+}
+
+.arch-card-interactive {
+  background-color: #0A0E17;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.08);
+  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.arch-card-interactive:hover {
+  background-color: #101624;
+  border-color: rgba(255, 255, 255, 0.14);
+}
+
+.arch-grid-pattern {
+  background-image: linear-gradient(to right, rgba(255, 255, 255, 0.04) 1px, transparent 1px),
+                    linear-gradient(to bottom, rgba(255, 255, 255, 0.04) 1px, transparent 1px);
+  background-size: 32px 32px;
+}
+
+.text-gradient-metallic {
+  background: linear-gradient(180deg, #FFFFFF 0%, rgba(255, 255, 255, 0.92) 55%, #94A3B8 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.text-gradient-subtle {
+  background: linear-gradient(180deg, #FFFFFF 0%, #CBD5E1 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.bg-dot-grid {
+  background-image: radial-gradient(rgba(255, 255, 255, 0.07) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+
