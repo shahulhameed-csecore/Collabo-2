@@ -28,13 +28,16 @@ ALLOWED_MIME_TYPES = {
 MAX_IMAGE_SIZE = 5 * 1024 * 1024 # 5MB
 MAX_VIDEO_SIZE = 50 * 1024 * 1024 # 50MB
 
+import html
+
 def get_proof_received_email_html(inf_name: str) -> str:
+    safe_inf_name = html.escape(str(inf_name or "Creator"))
     return f"""<!DOCTYPE html>
 <html lang="en">
 <body style="font-family:system-ui,-apple-system,sans-serif;background:#0f172a;margin:0;padding:40px 16px;">
   <div style="max-width:600px;margin:0 auto;background:#1e293b;border-radius:16px;padding:32px;color:#e2e8f0;border:1px solid #334155;">
     <h1 style="color:#34d399;margin-top:0;">🎉 Proof Received!</h1>
-    <p>The influencer <strong style="color:#fbbf24;">{inf_name}</strong> just uploaded their proof of posting.</p>
+    <p>The influencer <strong style="color:#fbbf24;">{safe_inf_name}</strong> just uploaded their proof of posting.</p>
     <p>Please log in to review and approve the content.</p>
     <a href="{settings.BASE_URL}/dashboard" style="display:inline-block;background:#10b981;color:#ffffff;text-decoration:none;font-weight:bold;padding:12px 24px;border-radius:8px;margin-top:16px;">View Dashboard →</a>
   </div>

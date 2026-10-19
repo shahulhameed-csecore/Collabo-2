@@ -97,19 +97,27 @@ async def bulk_remind(
     payload: BulkDelete,
     background_tasks: BackgroundTasks,
     client=Depends(get_user_supabase_client),
+    user: AuthenticatedUser = Depends(get_current_user),
 ):
     if not payload.campaign_ids:
         raise HTTPException(status_code=400, detail="No campaigns specified")
+
+    # Strictly verify ownership under the caller's tenant
+    owned_res = await client.table("campaigns").select("id").in_("id", payload.campaign_ids).eq("user_id", user.user.id).execute()
+    valid_ids = [c["id"] for c in (owned_res.data or [])]
+
+    if not valid_ids:
+        raise HTTPException(status_code=404, detail="No matching campaigns found under your account.")
 
     from app.services.reminders import process_manual_reminders
     import httpx
     
     async def run_reminders():
         async with httpx.AsyncClient() as hc:
-            await process_manual_reminders(payload.campaign_ids, hc)
+            await process_manual_reminders(valid_ids, hc)
             
     background_tasks.add_task(run_reminders)
-    return {"message": f"Reminders queued for {len(payload.campaign_ids)} campaigns"}
+    return {"message": f"Reminders queued for {len(valid_ids)} campaigns"}
 
 from fastapi.responses import StreamingResponse
 import io

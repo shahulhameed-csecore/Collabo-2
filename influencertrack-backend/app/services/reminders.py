@@ -181,9 +181,13 @@ async def _send_whatsapp(to_number: str, body: str, client: httpx.AsyncClient) -
 # Email HTML templates
 # ---------------------------------------------------------------------------
 
+import html
+
 def _build_reminder_email(inf_name: str, deadline_ist: str) -> tuple[str, str]:
     """48-hour reminder email — returns (subject, html)."""
-    subject = f"⏰ Action Required: Campaign for {inf_name} is due soon"
+    safe_inf_name = html.escape(str(inf_name or "Creator"))
+    safe_deadline = html.escape(str(deadline_ist or ""))
+    subject = f"⏰ Action Required: Campaign for {safe_inf_name} is due soon"
     html = f"""<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -211,14 +215,14 @@ def _build_reminder_email(inf_name: str, deadline_ist: str) -> tuple[str, str]:
             <td style="padding:36px 40px;">
               <p style="margin:0 0 16px;color:#94a3b8;font-size:15px;line-height:1.6;">Hi there,</p>
               <p style="margin:0 0 24px;color:#e2e8f0;font-size:15px;line-height:1.6;">
-                Your campaign with <strong style="color:#34d399;">{inf_name}</strong>
+                Your campaign with <strong style="color:#34d399;">{safe_inf_name}</strong>
                 is due in less than <strong style="color:#fbbf24;">48 hours</strong>.
               </p>
               <div style="background:#0f172a;border:1px solid #334155;border-radius:12px;
                           padding:20px 24px;margin:0 0 24px;text-align:center;">
                 <p style="margin:0 0 4px;color:#64748b;font-size:12px;
                           text-transform:uppercase;letter-spacing:1px;">Deadline</p>
-                <p style="margin:0;color:#f8fafc;font-size:22px;font-weight:700;">{deadline_ist}</p>
+                <p style="margin:0;color:#f8fafc;font-size:22px;font-weight:700;">{safe_deadline}</p>
               </div>
               <p style="margin:0 0 32px;color:#94a3b8;font-size:14px;line-height:1.6;">
                 Please follow up with the creator to make sure all deliverables are on track
@@ -254,7 +258,9 @@ def _build_reminder_email(inf_name: str, deadline_ist: str) -> tuple[str, str]:
 
 def _build_overdue_email(inf_name: str, deadline_ist: str) -> tuple[str, str]:
     """Overdue alert email — returns (subject, html)."""
-    subject = f"🚨 Overdue Alert: Campaign for {inf_name} has passed its deadline"
+    safe_inf_name = html.escape(str(inf_name or "Creator"))
+    safe_deadline = html.escape(str(deadline_ist or ""))
+    subject = f"🚨 Overdue Alert: Campaign for {safe_inf_name} has passed its deadline"
     html = f"""<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -282,14 +288,14 @@ def _build_overdue_email(inf_name: str, deadline_ist: str) -> tuple[str, str]:
             <td style="padding:36px 40px;">
               <p style="margin:0 0 16px;color:#94a3b8;font-size:15px;line-height:1.6;">Hi there,</p>
               <p style="margin:0 0 24px;color:#e2e8f0;font-size:15px;line-height:1.6;">
-                Your campaign with <strong style="color:#f87171;">{inf_name}</strong>
+                Your campaign with <strong style="color:#f87171;">{safe_inf_name}</strong>
                 has <strong>missed its deadline</strong> and requires your attention.
               </p>
               <div style="background:#0f172a;border:1px solid #7f1d1d;border-radius:12px;
                           padding:20px 24px;margin:0 0 24px;text-align:center;">
                 <p style="margin:0 0 4px;color:#64748b;font-size:12px;
                           text-transform:uppercase;letter-spacing:1px;">Was due on</p>
-                <p style="margin:0;color:#fca5a5;font-size:22px;font-weight:700;">{deadline_ist}</p>
+                <p style="margin:0;color:#fca5a5;font-size:22px;font-weight:700;">{safe_deadline}</p>
               </div>
               <p style="margin:0 0 32px;color:#94a3b8;font-size:14px;line-height:1.6;">
                 Please contact the creator and update the campaign status in your dashboard

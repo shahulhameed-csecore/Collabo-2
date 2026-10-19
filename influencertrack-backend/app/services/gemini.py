@@ -175,15 +175,21 @@ def parse_pdf(file_bytes: bytes) -> tuple[str, list[bytes]]:
         logger.error("pdf_parsing_failed", error=str(e))
         return "", []
 
+MAX_TEXT_EXTRACT_CHARS = 30_000
+
 def parse_docx(file_bytes: bytes) -> str:
-    """Extracts text from a Word document."""
+    """Extracts text from a Word document capped to MAX_TEXT_EXTRACT_CHARS."""
     try:
         doc = docx.Document(io.BytesIO(file_bytes))
         full_text = []
+        char_count = 0
         for para in doc.paragraphs:
             if para.text.strip():
                 full_text.append(para.text)
-        return "\n".join(full_text)
+                char_count += len(para.text)
+                if char_count >= MAX_TEXT_EXTRACT_CHARS:
+                    break
+        return "\n".join(full_text)[:MAX_TEXT_EXTRACT_CHARS]
     except Exception as e:
         logger.error("docx_parsing_failed", error=str(e))
         return ""
@@ -283,16 +289,17 @@ async def extract_campaign_data(file_bytes: bytes, filename: str, mime_type: str
                 )
             has_images = True
         elif mime_type.startswith("text/") or filename.endswith(".txt"):
-            text_fallback = file_bytes.decode('utf-8', errors='ignore')
+            text_fallback = file_bytes.decode('utf-8', errors='ignore')[:MAX_TEXT_EXTRACT_CHARS]
             contents.append(text_fallback)
         else:
             # Try parsing as generic text if unknown
-            text_fallback = file_bytes.decode('utf-8', errors='ignore')
+            text_fallback = file_bytes.decode('utf-8', errors='ignore')[:MAX_TEXT_EXTRACT_CHARS]
             contents.append(text_fallback)
             
         if text_content:
-            contents.append(text_content)
-            text_fallback += "\n" + text_content
+            truncated_text = text_content[:MAX_TEXT_EXTRACT_CHARS]
+            contents.append(truncated_text)
+            text_fallback = (text_fallback + "\n" + truncated_text)[:MAX_TEXT_EXTRACT_CHARS]
             
         # Ensure contents is never empty to prevent 400 ClientError from Gemini
         if not contents:

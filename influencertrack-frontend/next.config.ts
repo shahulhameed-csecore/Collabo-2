@@ -24,10 +24,26 @@ const nextConfig: NextConfig = {
     ];
   },
   async headers() {
+    const apiUrl = (process.env.NEXT_PUBLIC_API_URL ?? "https://collabo-2.onrender.com").replace(/\/$/, "");
+    const cspDirectives = [
+      "default-src 'self'",
+      "script-src 'self' 'unsafe-eval' 'unsafe-inline' https://checkout.razorpay.com",
+      "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+      "font-src 'self' https://fonts.gstatic.com data:",
+      "img-src 'self' data: blob: https://*.supabase.co https://api.mycollabo.online https://collabo-2.onrender.com",
+      `connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.mycollabo.online ${apiUrl} http://127.0.0.1:8000 https://api.razorpay.com https://lumberjack.razorpay.com`,
+      "frame-src 'self' https://api.razorpay.com",
+      "frame-ancestors 'none'",
+    ].join('; ');
+
     return [
       {
         source: '/(.*)',
         headers: [
+          {
+            key: 'Content-Security-Policy',
+            value: cspDirectives,
+          },
           {
             key: 'X-Frame-Options',
             value: 'DENY',

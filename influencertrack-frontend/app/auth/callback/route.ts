@@ -2,10 +2,18 @@ import { NextResponse } from 'next/server';
 import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 
+function getSafeRedirectUrl(nextParam: string | null, defaultPath = '/dashboard'): string {
+  if (!nextParam) return defaultPath;
+  if (nextParam.startsWith('/') && !nextParam.startsWith('//') && !nextParam.startsWith('/\\')) {
+    return nextParam;
+  }
+  return defaultPath;
+}
+
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get('code');
-  const next = searchParams.get('next') ?? '/dashboard';
+  const safeNext = getSafeRedirectUrl(searchParams.get('next'), '/dashboard');
 
   if (code) {
     const cookieStore = await cookies();
@@ -29,11 +37,11 @@ export async function GET(request: Request) {
     
     const { error } = await supabase.auth.exchangeCodeForSession(code);
     if (!error) {
-      // Successful authentication, redirect to the dashboard
-      return NextResponse.redirect(`${origin}${next}`);
+      // Successful authentication, redirect to the safe validated URL
+      return NextResponse.redirect(new URL(safeNext, origin));
     }
   }
 
   // If there's an error or no code, redirect to login page with an error state
-  return NextResponse.redirect(`${origin}/login?error=oauth`);
+  return NextResponse.redirect(new URL('/login?error=oauth', origin));
 }

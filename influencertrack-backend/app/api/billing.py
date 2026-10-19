@@ -1,13 +1,16 @@
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, Request, HTTPException, BackgroundTasks
 from pydantic import BaseModel
 from typing import Optional
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
+from starlette.concurrency import run_in_threadpool
+import razorpay
+import structlog
+
 from app.api.dependencies import get_current_user, get_user_supabase_client, AuthenticatedUser, get_service_client
 from app.core.config import settings
-import razorpay
-from fastapi import APIRouter, Depends, Request, HTTPException, BackgroundTasks
-from datetime import timedelta
-from starlette.concurrency import run_in_threadpool
+from app.core.limiter import limiter
+
+logger = structlog.get_logger(__name__)
 
 # Toggle this to False when integrating real payments (Stripe/Razorpay)
 # When True, all users get a 'pro' plan by default.
@@ -113,7 +116,9 @@ class VerifyPaymentRequest(BaseModel):
     razorpay_signature: str
 
 @router.post("/create-razorpay-order")
+@limiter.limit("10/minute")
 async def create_razorpay_order(
+    request: Request,
     req: CreateOrderRequest,
     user: AuthenticatedUser = Depends(get_current_user),
 ):
@@ -141,12 +146,13 @@ async def create_razorpay_order(
         order = await run_in_threadpool(client.order.create, data=data)
         return {"order_id": order["id"], "amount": amount, "currency": "INR"}
     except Exception as e:
-        import structlog
-        structlog.get_logger(__name__).error("razorpay_order_creation_failed", error=str(e))
+        logger.error("razorpay_order_creation_failed", error=str(e))
         raise HTTPException(status_code=500, detail="Failed to create order")
 
 @router.post("/verify-payment")
+@limiter.limit("10/minute")
 async def verify_payment(
+    request: Request,
     req: VerifyPaymentRequest,
     db_client=Depends(get_user_supabase_client),
     user: AuthenticatedUser = Depends(get_current_user),
@@ -157,7 +163,7 @@ async def verify_payment(
     client = razorpay.Client(auth=(settings.RAZORPAY_KEY_ID, settings.RAZORPAY_KEY_SECRET))
     
     try:
-        # Verify Signature
+        # 1. Verify Payment Signature
         await run_in_threadpool(
             client.utility.verify_payment_signature,
             {
@@ -167,63 +173,93 @@ async def verify_payment(
             }
         )
         
-        # Payment is valid. We need to fetch the order details to verify ownership and plan type.
+        # 2. Fetch order details to verify ownership and plan type
         order = await run_in_threadpool(client.order.fetch, req.razorpay_order_id)
         
-        # SECURITY PATCH: Verify the order was explicitly created for the authenticated user.
-        # This prevents an attacker from using a valid order from Account A to upgrade Account B.
+        # Verify the order was explicitly created for the authenticated user
         if order.get("notes", {}).get("user_id") != user.user.id:
             raise HTTPException(status_code=403, detail="Forbidden")
             
         is_annual = order.get("notes", {}).get("type") == "annual_pro"
-        
-        # Extend subscription
         days_to_add = 365 if is_annual else 30
         now = datetime.now(timezone.utc)
         
-        # Get current subscription
-        sub_response = await db_client.table("subscriptions").select("*").eq("user_id", user.user.id).execute()
-        
         service_client = await get_service_client()
-        if sub_response.data:
-            current_sub = sub_response.data[0]
-            current_trial = current_sub.get("trial_ends_at")
-            if current_trial:
-                try:
-                    parsed_trial = datetime.fromisoformat(current_trial.replace("Z", "+00:00"))
-                    # If still valid, extend from valid date, otherwise from now
-                    if parsed_trial > now:
-                        new_expiry = parsed_trial + timedelta(days=days_to_add)
-                    else:
-                        new_expiry = now + timedelta(days=days_to_add)
-                except:
-                    new_expiry = now + timedelta(days=days_to_add)
-            else:
-                new_expiry = now + timedelta(days=days_to_add)
-                
-            # Update DB (Using service client to bypass RLS)
-            await service_client.table("subscriptions").update({
-                "tier": "pro",
-                "trial_ends_at": new_expiry.isoformat(),
-                "is_paid": True,
-                "razorpay_customer_id": None, # or update if available
-                "razorpay_subscription_id": None, 
-            }).eq("user_id", user.user.id).execute()
-        else:
-            # If no subscription exists for some reason, create one
-            await service_client.table("subscriptions").insert({
+        tx_inserted = False
+
+        # 3. SEC-02 Idempotency & Replay Prevention
+        try:
+            await service_client.table("processed_transactions").insert({
+                "order_id": req.razorpay_order_id,
+                "payment_id": req.razorpay_payment_id,
                 "user_id": user.user.id,
-                "tier": "pro",
-                "trial_ends_at": (now + timedelta(days=days_to_add)).isoformat()
+                "event_type": "payment.verified"
             }).execute()
+            tx_inserted = True
+        except Exception as db_err:
+            err_str = str(db_err).lower()
+            if any(k in err_str for k in ["duplicate key", "unique constraint", "23505"]):
+                # Webhook or concurrent call race condition: check if credited for this user
+                existing_tx = await service_client.table("processed_transactions").select("user_id").or_(
+                    f"order_id.eq.{req.razorpay_order_id},payment_id.eq.{req.razorpay_payment_id}"
+                ).execute()
+                if existing_tx.data and existing_tx.data[0].get("user_id") == user.user.id:
+                    logger.info("payment_already_credited_graceful", order_id=req.razorpay_order_id, user_id=user.user.id)
+                    return {"status": "already_credited", "message": "Payment verified and already credited."}
+                raise HTTPException(status_code=400, detail="This payment has already been credited or belongs to another user.")
+            raise db_err
+
+        # 4. Extend subscription with rollback safety
+        try:
+            sub_response = await db_client.table("subscriptions").select("*").eq("user_id", user.user.id).execute()
             
-        return {"status": "success", "message": "Payment verified and tier updated to Pro."}
+            if sub_response.data:
+                current_sub = sub_response.data[0]
+                current_trial = current_sub.get("trial_ends_at")
+                if current_trial:
+                    try:
+                        parsed_trial = datetime.fromisoformat(current_trial.replace("Z", "+00:00"))
+                        if parsed_trial > now:
+                            new_expiry = parsed_trial + timedelta(days=days_to_add)
+                        else:
+                            new_expiry = now + timedelta(days=days_to_add)
+                    except Exception:
+                        new_expiry = now + timedelta(days=days_to_add)
+                else:
+                    new_expiry = now + timedelta(days=days_to_add)
+                    
+                await service_client.table("subscriptions").update({
+                    "tier": "pro",
+                    "trial_ends_at": new_expiry.isoformat(),
+                    "is_paid": True,
+                    "razorpay_customer_id": None,
+                    "razorpay_subscription_id": None, 
+                }).eq("user_id", user.user.id).execute()
+            else:
+                await service_client.table("subscriptions").insert({
+                    "user_id": user.user.id,
+                    "tier": "pro",
+                    "trial_ends_at": (now + timedelta(days=days_to_add)).isoformat(),
+                    "is_paid": True,
+                }).execute()
+                
+            return {"status": "success", "message": "Payment verified and tier updated to Pro."}
+
+        except Exception as sub_err:
+            # Rollback transaction record so user is not locked out of retrying
+            if tx_inserted:
+                try:
+                    await service_client.table("processed_transactions").delete().eq("order_id", req.razorpay_order_id).execute()
+                except Exception as rollback_err:
+                    logger.error("failed_to_rollback_processed_tx", error=str(rollback_err))
+            raise sub_err
 
     except razorpay.errors.SignatureVerificationError:
         raise HTTPException(status_code=400, detail="Invalid payment signature")
+    except HTTPException:
+        raise
     except Exception as e:
-        import structlog
-        structlog.get_logger(__name__).error("razorpay_verification_failed", error=str(e))
+        logger.error("razorpay_verification_failed", error=str(e))
         raise HTTPException(status_code=500, detail="Failed to verify payment")
 
 

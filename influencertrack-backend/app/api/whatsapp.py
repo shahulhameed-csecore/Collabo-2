@@ -132,7 +132,7 @@ async def process_whatsapp_messages(sender_id: str, messages: list):
         if first_msg.get("type") == "text":
             text_val = first_msg.get("text", {}).get("body", "").strip()
             text_upper = text_val.upper()
-            if re.match(r"^LINK-\d{4}$", text_upper):
+            if re.match(r"^LINK-([A-Z0-9]{6}|\d{4})$", text_upper):
                 from app.core.redis import get_redis
                 redis_client = get_redis()
                 if redis_client:

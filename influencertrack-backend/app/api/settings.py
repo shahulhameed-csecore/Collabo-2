@@ -1,7 +1,7 @@
 import logging
 import re
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from app.api.dependencies import get_current_user, get_user_supabase_client, AuthenticatedUser, get_service_client
 from app.services.supabase import is_user_pro_or_paid
 
@@ -20,8 +20,8 @@ class SettingsInput(BaseModel):
     whatsapp_number: Optional[str] = None
     email_reminders_enabled: bool = True
     whatsapp_reminders_enabled: bool = True
-    username: Optional[str] = None
-    telegram_username: Optional[str] = None
+    username: Optional[str] = Field(None, min_length=3, max_length=30, pattern=r"^[a-zA-Z0-9_.-]+$")
+    telegram_username: Optional[str] = Field(None, max_length=50)
 
 
 @router.post("/whatsapp")
@@ -260,9 +260,11 @@ async def generate_pairing_code(
             detail="WhatsApp integration is a Pro feature (or your trial has expired). Please upgrade to continue.",
         )
     
-    # Generate a random 4-digit code: LINK-1234
-    digits = "".join(random.choices(string.digits, k=4))
-    code = f"LINK-{digits}"
+    # Generate a cryptographically secure 6-character alphanumeric code: LINK-XXXXXX
+    import secrets
+    alphabet = string.ascii_uppercase + string.digits
+    code_body = "".join(secrets.choice(alphabet) for _ in range(6))
+    code = f"LINK-{code_body}"
     
     # Store in Redis with 10 minute (600 seconds) expiration
     redis_key = f"wa_pairing_code:{code}"
@@ -299,9 +301,11 @@ async def generate_tg_pairing_code(
 
     user_id = current_user.user.id
     
-    # Generate a random 4-digit code: LINK-1234
-    digits = "".join(random.choices(string.digits, k=4))
-    code = f"LINK-{digits}"
+    # Generate a cryptographically secure 6-character alphanumeric code: LINK-XXXXXX
+    import secrets
+    alphabet = string.ascii_uppercase + string.digits
+    code_body = "".join(secrets.choice(alphabet) for _ in range(6))
+    code = f"LINK-{code_body}"
     
     # Store in Redis with 10 minute (600 seconds) expiration
     redis_key = f"tg_pairing_code:{code}"
