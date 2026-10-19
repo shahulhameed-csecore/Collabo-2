@@ -20,7 +20,7 @@ export function PremiumPricing() {
 
   const proFeatures = [
     "Unlimited active influencer campaigns",
-    "Unlimited Gemini AI WhatsApp extraction (voice, DMs, PDFs)",
+    "Unlimited AI WhatsApp extractions (voice, DMs, PDFs)",
     "Autonomous 48h WhatsApp & Email deadline chasers",
     "Real-time affiliate shortlink click & CPC attribution",
     "1-Click PDF & Excel monthly accounting exports",

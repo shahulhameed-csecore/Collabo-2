@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { usePathname, useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase';
+import { isDevAuthBypassEnabled } from '@/lib/dev-auth';
 import { 
   Sparkles, ArrowRight, Check, Plus, MessageSquare, LayoutDashboard, 
   Rocket, BarChart2, Calendar, Users, PartyPopper 
@@ -125,6 +126,10 @@ export default function OnboardingTour({ setMobileSidebarOpen, setDesktopSidebar
   const { openModal } = useCampaignModal();
 
   useEffect(() => {
+    if (isDevAuthBypassEnabled()) {
+      setUserId('dev-user');
+      return;
+    }
     const supabase = createClient();
     supabase.auth.getUser().then(({ data }) => {
       if (data.user) {

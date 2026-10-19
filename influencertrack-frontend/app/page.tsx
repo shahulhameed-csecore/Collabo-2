@@ -157,7 +157,7 @@ export default function LandingPage() {
               </p>
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#0A0E17] border border-white/[0.06] text-xs font-sans text-slate-400 font-normal">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                <span>All systems operational • Gemini 3.5 Engine Active</span>
+                <span>All systems operational</span>
               </div>
             </div>
 

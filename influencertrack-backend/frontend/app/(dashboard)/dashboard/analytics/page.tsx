@@ -360,8 +360,8 @@ export default function AnalyticsPage() {
             <BarChart3 className="w-6 h-6 text-emerald-400" />
             Campaign Analytics
           </h1>
-          <p className="text-xs text-slate-400 font-mono mt-1">
-            Track creator ROI, click velocity, and spend attribution across all channels.
+          <p className="text-xs text-slate-400 font-sans mt-1 font-normal">
+            Campaign spend, link clicks, and ROI.
           </p>
         </div>
 

@@ -206,8 +206,8 @@ export default function InfluencersPage() {
                 {influencers.length} Roster
               </span>
             </div>
-            <p className="text-xs text-slate-400 mt-1">
-              Command directory, performance reliability & private creator dossiers.
+            <p className="text-xs text-slate-400 font-sans mt-1 font-normal">
+              Your creator directory, history, and notes.
             </p>
           </div>
 

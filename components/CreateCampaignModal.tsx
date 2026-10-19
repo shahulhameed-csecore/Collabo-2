@@ -11,6 +11,8 @@ import {
   Rocket, File as FileIcon,
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { Field, inputCls, AiThinkingAnimation } from '@/components/CampaignFormUtils';
+import Image from 'next/image';
 
 type Step = 'upload' | 'review' | 'submitting';
 
@@ -28,6 +30,7 @@ const EMPTY_FORM: CampaignFormState = {
   deadline: '',
   payment_amount: '0',
   special_notes: '',
+  destination_url: '',
   status: 'draft',
 };
 
@@ -36,64 +39,6 @@ const STEPS = [
   { id: 'upload', label: 'Upload', desc: 'Screenshot or manual' },
   { id: 'review', label: 'Review', desc: 'Confirm details' },
 ] as const;
-
-// ── Form Field ────────────────────────────────────────────────────────────────
-function Field({
-  label, icon: Icon, required, highlight, children,
-}: {
-  label: string;
-  icon: React.ElementType;
-  required?: boolean;
-  highlight?: boolean;
-  children: React.ReactNode;
-}) {
-  return (
-    <div>
-      <label className={`flex items-center gap-1.5 text-xs font-bold mb-2 tracking-wide ${highlight ? 'text-amber-400' : 'text-slate-400'}`}>
-        <Icon className="w-3.5 h-3.5" />
-        {label}
-        {required && <span className="text-rose-400 font-bold">*</span>}
-        {highlight && <span className="text-amber-400/60 font-normal ml-1">- please fill</span>}
-      </label>
-      {children}
-    </div>
-  );
-}
-
-const inputCls = (highlight = false) =>
-  `w-full bg-slate-800/50 border text-white placeholder-slate-600 rounded-xl px-3.5 py-2.5 text-sm
-   focus:outline-none focus:ring-1 transition-all resize-none
-   ${highlight
-     ? 'border-amber-500/40 focus:border-amber-500/60 focus:ring-amber-500/15'
-     : 'border-slate-700/50 focus:border-emerald-500/50 focus:ring-emerald-500/15'}`;
-
-// ── AI Thinking dots animation ────────────────────────────────────────────────
-function AiThinkingAnimation() {
-  return (
-    <div className="flex flex-col items-center justify-center py-16 gap-6 animate-fade-in">
-      <div className="relative">
-        <div className="absolute inset-0 rounded-full border-2 border-emerald-500/20 animate-ping" style={{ animationDuration: '1.5s' }} />
-        <div className="absolute inset-0 rounded-full border border-emerald-400/30 animate-spin" style={{ animationDuration: '3s' }} />
-        <div className="relative p-5 bg-gradient-to-br from-emerald-500/15 to-teal-500/10 rounded-full border border-emerald-500/25">
-          <Sparkles className="w-8 h-8 text-emerald-400 animate-pulse" />
-        </div>
-      </div>
-      <div className="text-center">
-        <p className="text-white font-bold text-base mb-1">AI is analyzing your file</p>
-        <p className="text-slate-500 text-sm">Extracting influencer details, deliverables, deadline & payment...</p>
-      </div>
-      <div className="flex items-center gap-1.5">
-        {[0, 1, 2, 3].map(i => (
-          <div
-            key={i}
-            className="w-1.5 h-1.5 rounded-full bg-emerald-500"
-            style={{ animation: `pulse 1.2s ease-in-out ${i * 0.2}s infinite` }}
-          />
-        ))}
-      </div>
-    </div>
-  );
-}
 
 // ── Main Component ────────────────────────────────────────────────────────────
 export default function CreateCampaignModal({ isOpen, onClose, onSuccess }: CreateCampaignModalProps) {
@@ -185,6 +130,7 @@ export default function CreateCampaignModal({ isOpen, onClose, onSuccess }: Crea
         deadline:          (data.deadline && /^\d{4}-\d{2}-\d{2}$/.test(data.deadline)) ? data.deadline : '',
         payment_amount:    String(data.payment_amount ?? 0),
         special_notes:     data.special_notes     ?? '',
+        destination_url:   '',
         status:            'draft',
       });
       setStep('review');
@@ -199,7 +145,7 @@ export default function CreateCampaignModal({ isOpen, onClose, onSuccess }: Crea
       setExtractedData({
         influencer_name: null, influencer_handle: null, platform: null,
         deliverables: null, deadline: null, payment_amount: 0,
-        special_notes: msg, status: 'draft', requires_human_review: true,
+        special_notes: msg, destination_url: '', status: 'draft', requires_human_review: true,
       });
       setStep('review');
     } finally {
@@ -240,6 +186,7 @@ export default function CreateCampaignModal({ isOpen, onClose, onSuccess }: Crea
         deadline:          form.deadline          || null,
         payment_amount:    parseFloat(form.payment_amount) || 0,
         special_notes:     form.special_notes     || null,
+        destination_url:   form.destination_url   || null,
         status:            markActive ? 'active' : form.status,
       });
       toast.success('🎉 Campaign created successfully!');
@@ -376,10 +323,13 @@ export default function CreateCampaignModal({ isOpen, onClose, onSuccess }: Crea
                             <p className="text-slate-400 text-sm mt-1">{(file.size / 1024 / 1024).toFixed(2)} MB</p>
                           </div>
                         ) : (
-                          <img
+                          <Image
                             src={filePreview!}
                             alt="Uploaded preview"
+                            width={800}
+                            height={600}
                             className="w-full max-h-60 object-contain rounded-xl p-3"
+                            unoptimized
                           />
                         )}
                         <div className="absolute inset-0 bg-black/50 rounded-xl flex flex-col items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
@@ -579,6 +529,16 @@ export default function CreateCampaignModal({ isOpen, onClose, onSuccess }: Crea
                   value={form.special_notes}
                   onChange={e => fieldChange('special_notes', e.target.value)}
                   placeholder="Moodboard link, brand colours, dos & don'ts..."
+                  className={inputCls()}
+                />
+              </Field>
+
+              <Field label="Destination URL (for Tracking Link)" icon={Rocket}>
+                <input
+                  type="url"
+                  value={form.destination_url}
+                  onChange={e => fieldChange('destination_url', e.target.value)}
+                  placeholder="https://mybrand.com/summer-sale"
                   className={inputCls()}
                 />
               </Field>

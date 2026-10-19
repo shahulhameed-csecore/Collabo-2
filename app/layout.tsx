@@ -3,6 +3,8 @@ import { Geist, Geist_Mono } from "next/font/google";
 import { Toaster } from "sonner";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { GoogleOAuthProvider } from "@react-oauth/google";
+import { CampaignModalProvider } from "@/contexts/CampaignModalContext";
+import Script from 'next/script';
 import "./globals.css";
 
 const geistSans = Geist({
@@ -16,18 +18,22 @@ const geistMono = Geist_Mono({
 });
 
 export const viewport: Viewport = {
-  width: "device-width",
+  width: 'device-width',
   initialScale: 1,
-  maximumScale: 1,
-  userScalable: false,
+  maximumScale: 5,
+  userScalable: true,
+  themeColor: [
+    { media: '(prefers-color-scheme: light)', color: '#f8fafc' },
+    { media: '(prefers-color-scheme: dark)', color: '#020617' },
+  ],
 };
 
 export const metadata: Metadata = {
   // metadataBase is REQUIRED on Vercel: it converts relative paths like
-  // '/logo-full.png' into absolute URLs ('https://collabo-2.vercel.app/logo-full.png')
+  // '/logo-full.png' into absolute URLs ('https://mycollabo.online/logo-full.png')
   // for Open Graph and Twitter card previews. Without it, social scrapers
   // get a relative URL and show no image.
-  metadataBase: new URL('https://collabo-2.vercel.app'),
+  metadataBase: new URL(process.env.NEXT_PUBLIC_BASE_URL || 'https://mycollabo.online'),
 
   title: {
     template: 'Collabo — %s',
@@ -39,7 +45,7 @@ export const metadata: Metadata = {
     'influencer marketing', 'campaign management', 'D2C brands',
     'India', 'micro-influencer', 'WhatsApp bot', 'AI extraction',
   ],
-  authors: [{ name: 'Collabo', url: 'https://collabo-2.vercel.app' }],
+  authors: [{ name: 'Collabo', url: process.env.NEXT_PUBLIC_BASE_URL || 'https://mycollabo.online' }],
 
   icons: {
     icon: [{ url: '/logo-icon.png', type: 'image/png' }],
@@ -51,7 +57,7 @@ export const metadata: Metadata = {
     title: 'Collabo — AI-powered Influencer Campaign Management',
     description:
       'Forward WhatsApp negotiations to our AI bot. Instantly extract campaign data and track deadlines in your dashboard.',
-    url: 'https://collabo-2.vercel.app',
+    url: process.env.NEXT_PUBLIC_BASE_URL || 'https://mycollabo.online',
     siteName: 'Collabo',
     type: 'website',
     locale: 'en_IN',
@@ -75,7 +81,7 @@ export const metadata: Metadata = {
 
   verification: {
     other: {
-      'facebook-domain-verification': '8xf7nmugvhpww8kfivu8gpnzur6fpx',
+      'facebook-domain-verification': 'tegazrw12gvnjbmeyoi1qedcny9gs2',
     },
   },
 };
@@ -90,20 +96,26 @@ export default function RootLayout({
       <body className="min-h-full flex flex-col bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-50 transition-colors duration-200">
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
           <GoogleOAuthProvider clientId={process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || ''}>
-            {children}
+            <CampaignModalProvider>
+              {children}
+            </CampaignModalProvider>
           </GoogleOAuthProvider>
           <Toaster
             position="bottom-right"
             toastOptions={{
-              className: 'dark:bg-slate-800 dark:border-slate-700 dark:text-slate-100',
               style: {
-                background: 'var(--toast-bg, #1e293b)',
-                border: '1px solid var(--toast-border, #334155)',
-                color: 'var(--toast-color, #f1f5f9)',
+                background: '#1e293b',
+                border: '1px solid #334155',
+                color: '#f1f5f9',
+                borderRadius: '12px',
+                fontSize: '13px',
+                boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
               },
             }}
             richColors
+            closeButton
           />
+          <Script src="https://checkout.razorpay.com/v1/checkout.js" strategy="lazyOnload" />
         </ThemeProvider>
       </body>
     </html>

@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { createClient } from '@/lib/supabase';
+import { isDevAuthBypassEnabled } from '@/lib/dev-auth';
 import { Bell, CheckCircle2, AlertCircle, Info, XCircle, ExternalLink } from 'lucide-react';
 import type { Notification } from '@/lib/types';
 import Link from 'next/link';
@@ -18,6 +19,22 @@ export function NotificationDropdown() {
     let channel: ReturnType<typeof supabase.channel>;
 
     const loadNotifications = async () => {
+      if (isDevAuthBypassEnabled()) {
+        setNotifications([
+          {
+            id: 'notif-dev-1',
+            user_id: 'dev-user',
+            title: 'Welcome to Dev Preview',
+            message: 'UI preview bypass is active. All dashboard routes are accessible.',
+            type: 'info',
+            is_read: false,
+            created_at: new Date().toISOString(),
+          }
+        ]);
+        setUnreadCount(1);
+        return;
+      }
+
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 

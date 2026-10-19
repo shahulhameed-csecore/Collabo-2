@@ -6,7 +6,7 @@ import { CheckCircle2 } from 'lucide-react';
 
 const steps = [
   { title: "Upload Screenshot", desc: "Drag and drop the messy negotiation from WhatsApp or Instagram DMs." },
-  { title: "AI Extraction", desc: "Our Gemini-powered engine instantly finds the influencer name, deliverables, and budget." },
+  { title: "AI Extraction", desc: "Our AI engine instantly finds the creator name, deliverables, and budget." },
   { title: "Campaign Creation", desc: "A clean database row is created automatically. No manual data entry needed." },
   { title: "Automated Reminders", desc: "48 hours before the deadline, the creator gets a WhatsApp ping automatically." },
   { title: "Creator Proof Submission", desc: "They click a Magic Link and paste their live post URL. No account required." },

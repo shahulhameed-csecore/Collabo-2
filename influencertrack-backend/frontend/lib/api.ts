@@ -1,5 +1,6 @@
 import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
 import { createClient } from './supabase';
+import { isDevAuthBypassEnabled, getDevMockApiResponse } from './dev-auth';
 
 import type {
   Campaign,
@@ -41,12 +42,20 @@ const supabase = createClient();
 
 // ─── Request Interceptor: Auto-inject Supabase JWT ───────────────────────────
 api.interceptors.request.use(async (config: InternalAxiosRequestConfig) => {
+  // CRITICAL: Check for a real Supabase session FIRST!
   const {
     data: { session },
   } = await supabase.auth.getSession();
 
   if (session?.access_token) {
     config.headers.Authorization = `Bearer ${session.access_token}`;
+  } else if (isDevAuthBypassEnabled()) {
+    // Only use mock dev token when NO real Supabase session exists
+    config.headers.Authorization = 'Bearer dev-mock-access-token';
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`[API Dev Bypass] ${config.method?.toUpperCase()} ${config.baseURL}${config.url}`);
+    }
+    return config;
   } else if (process.env.NODE_ENV !== 'production' && typeof document !== 'undefined') {
     const match = document.cookie.match(/collabo-test-token=([^;]+)/);
     if (match) {
@@ -65,6 +74,29 @@ api.interceptors.request.use(async (config: InternalAxiosRequestConfig) => {
 api.interceptors.response.use(
   (response) => response,
   async (error: AxiosError) => {
+    // ── Local Dev UI Preview Bypass Interceptor ──
+    // Only intercept with mock data if there is NO real Supabase session
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session && isDevAuthBypassEnabled()) {
+      const status = error.response?.status;
+      const url = error.config?.url || '';
+
+      if (status === 401 || status === 403 || status === 404 || !error.response) {
+        if (process.env.NODE_ENV === 'development') {
+          console.warn(`[Dev Auth Bypass] Returning graceful mock data for: ${error.config?.method?.toUpperCase()} ${url} (${status || 'Network Error'})`);
+        }
+        const mockData = getDevMockApiResponse(url, error.config?.method);
+        return {
+          data: mockData,
+          status: 200,
+          statusText: 'OK (Dev Bypass Mock)',
+          headers: {},
+          config: error.config!,
+        };
+      }
+      return Promise.reject(error);
+    }
+
     const originalRequest = error.config;
 
     // If it's 401 and we haven't already retried this request
@@ -321,7 +353,8 @@ export async function downloadReport(month: string, format: 'pdf' | 'excel'): Pr
 
 // ─── Client-side Dashboard Stats Computation ─────────────────────────────────
 
-export function computeDashboardStats(campaigns: Campaign[]): DashboardStats {
+export function computeDashboardStats(campaigns: Campaign[] = []): DashboardStats {
+  const safeCampaigns = Array.isArray(campaigns) ? campaigns : [];
   const now = new Date();
   const sevenDaysLater = new Date(now);
   sevenDaysLater.setDate(now.getDate() + 7);
@@ -329,19 +362,19 @@ export function computeDashboardStats(campaigns: Campaign[]): DashboardStats {
   // Define logical buckets for financial calculations
   const pendingStatuses: string[] = ['draft', 'active', 'content_received', 'needs_revision', 'approved'];
 
-  const active = campaigns.filter(c => c.status === 'active');
-  const completed = campaigns.filter(c => c.status === 'paid');
-  const cancelled = campaigns.filter(c => c.status === 'cancelled');
-  const rejected = campaigns.filter(c => c.status === 'rejected');
+  const active = safeCampaigns.filter(c => c.status === 'active');
+  const completed = safeCampaigns.filter(c => c.status === 'paid');
+  const cancelled = safeCampaigns.filter(c => c.status === 'cancelled');
+  const rejected = safeCampaigns.filter(c => c.status === 'rejected');
 
   // Overdue: Only states where the influencer owes us action (draft, active, needs_revision)
-  const overdue = campaigns.filter(c =>
+  const overdue = safeCampaigns.filter(c =>
     ['draft', 'active', 'needs_revision'].includes(c.status) &&
     c.deadline && new Date(c.deadline) < now
   );
 
   // Upcoming deadlines (next 7 days, influencer owes action)
-  const upcomingDeadlines = campaigns
+  const upcomingDeadlines = safeCampaigns
     .filter(c => {
       if (!['draft', 'active', 'needs_revision'].includes(c.status) || !c.deadline) return false;
       const d = new Date(c.deadline);
@@ -359,7 +392,7 @@ export function computeDashboardStats(campaigns: Campaign[]): DashboardStats {
   const paidSpend = completed.reduce((s, c) => s + (c.payment_amount || 0), 0);
 
   // Pending spend is ANY campaign that is currently ongoing/pending payment
-  const pendingSpend = campaigns
+  const pendingSpend = safeCampaigns
     .filter(c => pendingStatuses.includes(c.status))
     .reduce((s, c) => s + (c.payment_amount || 0), 0);
 
@@ -372,7 +405,7 @@ export function computeDashboardStats(campaigns: Campaign[]): DashboardStats {
     : 0;
 
   return {
-    total: campaigns.length,
+    total: safeCampaigns.length,
     active: active.length,
     overdue: overdue.length,
     completed: completed.length,

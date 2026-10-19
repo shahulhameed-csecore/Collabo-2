@@ -45,8 +45,8 @@ export default function SubmitProofPage() {
     }
     
     // Check sizes
-    if (selectedFile.type.startsWith('image/') && selectedFile.size > 5 * 1024 * 1024) {
-      toast.error('Image size exceeds 5MB limit.');
+    if (selectedFile.type.startsWith('image/') && selectedFile.size > 10 * 1024 * 1024) {
+      toast.error('Image size exceeds 10MB limit.');
       return;
     }
     if (selectedFile.type.startsWith('video/') && selectedFile.size > 50 * 1024 * 1024) {
@@ -70,9 +70,15 @@ export default function SubmitProofPage() {
         body: formData,
       });
 
-      const data = await res.json();
+      let data;
+      try {
+        data = await res.json();
+      } catch (_parseError) {
+        throw new Error('Server returned an unexpected response. Please try again later.');
+      }
+
       if (!res.ok) {
-        throw new Error(data.detail || 'Upload failed');
+        throw new Error(data?.detail || 'Upload failed');
       }
 
       setSuccess(true);
@@ -127,7 +133,7 @@ export default function SubmitProofPage() {
             {file ? file.name : 'Click or drag file to upload'}
           </h3>
           <p className="text-slate-500 text-xs">
-            JPG, PNG (max 5MB) • MP4, MOV (max 50MB)
+            JPG, PNG (max 10MB) • MP4, MOV (max 50MB)
           </p>
         </div>
 

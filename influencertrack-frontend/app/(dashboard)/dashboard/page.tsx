@@ -106,13 +106,14 @@ export default function DashboardPage() {
       const limit = 50;
       const offset = (pageNum - 1) * limit;
       const data = await getCampaigns(limit, offset);
+      const items = Array.isArray(data?.data) ? data.data : Array.isArray((data as any)?.campaigns) ? (data as any).campaigns : [];
       setCampaigns(prev => {
-        const newData = pageNum === 1 ? data.data : [...prev, ...data.data];
+        const newData = pageNum === 1 ? items : [...prev, ...items];
         setStats(computeDashboardStats(newData));
         return newData;
       });
-      setHasMore(data.data.length === limit);
-      setTotalCount(data.count);
+      setHasMore(items.length === limit);
+      setTotalCount(data?.count ?? items.length);
     } catch (err) {
       const msg = getApiErrorMessage(err, 'Failed to load campaigns.');
       if (!silent) setError(msg);
@@ -182,12 +183,8 @@ export default function DashboardPage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
         <div>
           <h1 className="text-xl font-semibold text-white tracking-tight">Campaign Command Center</h1>
-          <p className="text-xs text-slate-400 font-mono mt-0.5">
-            {isLoading
-              ? 'Synchronizing campaign data...'
-              : totalCount === 0
-              ? 'Zero campaigns active — start your first pipeline'
-              : `${totalCount} active deal${totalCount !== 1 ? 's' : ''} in pipeline`}
+          <p className="text-xs text-slate-400 font-sans mt-0.5 font-normal">
+            Track deliverables, deadlines, and payouts.
           </p>
         </div>
 

@@ -1,15 +1,31 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { 
-  Settings, MessageSquare, Phone, AlertCircle, 
-  Bell, Mail, Copy, Check, Info, ShieldCheck, Send, Smartphone, Sparkles, CreditCard, ArrowRight
+  Settings, MessageSquare, AlertCircle, 
+  Bell, Mail, Copy, Check, Send, Smartphone,
+  CreditCard, ExternalLink, RotateCcw
 } from 'lucide-react';
-import Image from 'next/image';
 import { toast } from 'sonner';
-import { saveWhatsAppNumber, getWhatsAppNumber, verifyWhatsAppConnection, getApiErrorMessage, getBillingUsage, BillingUsage, createRazorpayOrder, verifyRazorpayPayment } from '@/lib/api';
+import { 
+  saveWhatsAppNumber, 
+  getWhatsAppNumber, 
+  verifyWhatsAppConnection, 
+  getApiErrorMessage, 
+  getBillingUsage, 
+  BillingUsage, 
+  generateWhatsAppCode, 
+  unlinkWhatsApp 
+} from '@/lib/api';
 import { IS_TESTING_PHASE } from '@/lib/config';
 import { createClient } from '@/lib/supabase';
+
+interface SubscriptionData {
+  tier: string;
+  is_paid?: boolean;
+  trial_ends_at?: string | null;
+}
 
 export default function SettingsPage() {
   const [whatsappNumber, setWhatsappNumber] = useState('');
@@ -18,55 +34,87 @@ export default function SettingsPage() {
   const [waEnabled, setWaEnabled] = useState(true);
   const [isLoading, setIsLoading] = useState(true);
   const [isSavingWA, setIsSavingWA] = useState(false);
-  const [isSavingTG, setIsSavingTG] = useState(false);
   const [isSavingReminders, setIsSavingReminders] = useState(false);
   const [copied, setCopied] = useState(false);
   const [usage, setUsage] = useState<BillingUsage | null>(null);
+  const [subscriptionData, setSubscriptionData] = useState<SubscriptionData | null>(null);
   
   // Verification states
-  const [waVerificationStatus, setWaVerificationStatus] = useState<'none' | 'pending' | 'connected' | 'failed'>('none');
   const [isVerifyingWA, setIsVerifyingWA] = useState(false);
-  const [lastVerifiedAt, setLastVerifiedAt] = useState<string | null>(null);
+  const [pairingCode, setPairingCode] = useState<string | null>(null);
 
-  // Updated fallback Bot Number as requested
   const botNumber = process.env.NEXT_PUBLIC_BOT_NUMBER || "+91 6374771074";
-  const telegramBotUsername = process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME || "@collabo_bot";
 
   const handleCopy = () => {
     navigator.clipboard.writeText(botNumber);
     setCopied(true);
-    toast.success('Bot number copied to clipboard!');
+    toast.success('Bot number copied to clipboard');
     setTimeout(() => setCopied(false), 2000);
   };
 
   useEffect(() => {
     async function loadSettings() {
       try {
-        const settings = await getWhatsAppNumber();
-        if (settings.whatsapp_number) {
-          setWhatsappNumber(settings.whatsapp_number);
+        const supabase = createClient();
+        const { data: { session } } = await supabase.auth.getSession();
+        const userId = session?.user?.id;
+
+        // 1. Direct Supabase fetch for instant resilience and accurate Pro/WhatsApp state
+        if (userId) {
+          const [{ data: userSettings }, { data: subData }] = await Promise.all([
+            supabase.from('user_settings').select('*').eq('user_id', userId).maybeSingle(),
+            supabase.from('subscriptions').select('*').eq('user_id', userId).maybeSingle(),
+          ]);
+
+          if (userSettings) {
+            if (userSettings.whatsapp_number) {
+              setWhatsappNumber(userSettings.whatsapp_number);
+            }
+            if (userSettings.telegram_username) {
+              setTelegramUsername(userSettings.telegram_username);
+            }
+            if (userSettings.email_reminders_enabled !== undefined) {
+              setEmailEnabled(userSettings.email_reminders_enabled);
+            }
+            if (userSettings.whatsapp_reminders_enabled !== undefined) {
+              setWaEnabled(userSettings.whatsapp_reminders_enabled);
+            }
+          }
+
+          if (subData) {
+            setSubscriptionData(subData);
+          }
         }
-        if (settings.telegram_username) {
-          setTelegramUsername(settings.telegram_username);
+
+        // 2. Fetch from backend API
+        try {
+          const settings = await getWhatsAppNumber();
+          if (settings.whatsapp_number) {
+            setWhatsappNumber(settings.whatsapp_number);
+          }
+          if (settings.telegram_username) {
+            setTelegramUsername(settings.telegram_username);
+          }
+          if (settings.email_reminders_enabled !== undefined) {
+            setEmailEnabled(settings.email_reminders_enabled);
+          }
+          if (settings.whatsapp_reminders_enabled !== undefined) {
+            setWaEnabled(settings.whatsapp_reminders_enabled);
+          }
+        } catch {
+          // Handled via Supabase data
         }
-        if (settings.email_reminders_enabled !== undefined) {
-          setEmailEnabled(settings.email_reminders_enabled);
-          setWaEnabled(settings.whatsapp_reminders_enabled);
-        }
-        if (settings.verification_status) {
-          setWaVerificationStatus(settings.verification_status as any);
-        }
-        if (settings.whatsapp_verified_at) {
-          setLastVerifiedAt(new Date(settings.whatsapp_verified_at).toLocaleString());
-        } else {
-          setLastVerifiedAt(null);
-        }
-        const usageData = await getBillingUsage().catch(() => null);
-        if (usageData) {
-          setUsage(usageData);
+
+        try {
+          const usageData = await getBillingUsage();
+          if (usageData) {
+            setUsage(usageData);
+          }
+        } catch {
+          // Handled via Supabase data
         }
       } catch (error) {
-        console.error("Failed to load settings:", error);
+        console.warn("Notice: settings initial load:", error);
       } finally {
         setIsLoading(false);
       }
@@ -74,73 +122,44 @@ export default function SettingsPage() {
     loadSettings();
   }, []);
 
-  const handleSaveWA = async () => {
+  const isPro = IS_TESTING_PHASE || 
+    usage?.current_plan === 'pro' || 
+    Boolean(usage?.is_paid) || 
+    subscriptionData?.tier === 'pro' || 
+    Boolean(subscriptionData?.is_paid);
+
+  const formatMaskedPhone = (num: string) => {
+    if (!num) return '';
+    const clean = num.startsWith('+') ? num : `+${num}`;
+    if (clean.length > 4) {
+      return clean.slice(0, -4) + '****';
+    }
+    return clean;
+  };
+
+  const handleGenerateCode = async () => {
+    if (!isPro) {
+      toast.error('WhatsApp integration is a Pro feature. Please upgrade your subscription.');
+      return;
+    }
     setIsSavingWA(true);
     try {
-      const response = await saveWhatsAppNumber({
-        whatsapp_number: whatsappNumber,
-        telegram_username: telegramUsername,
-        email_reminders_enabled: emailEnabled,
-        whatsapp_reminders_enabled: waEnabled
-      });
-      setWhatsappNumber(response.whatsapp_number || '');
-      setWaVerificationStatus('none');
-      setLastVerifiedAt(null);
-      toast.success('WhatsApp integration updated successfully!');
+      const response = await generateWhatsAppCode();
+      setPairingCode(response.code);
     } catch (error) {
-      toast.error(getApiErrorMessage(error, 'Failed to save settings. Please try again.'));
+      toast.error(getApiErrorMessage(error, 'Failed to generate code. Please try again.'));
     } finally {
       setIsSavingWA(false);
-    }
-  };
-
-  const handleSaveTG = async () => {
-    setIsSavingTG(true);
-    try {
-      const response = await saveWhatsAppNumber({
-        whatsapp_number: whatsappNumber,
-        telegram_username: telegramUsername,
-        email_reminders_enabled: emailEnabled,
-        whatsapp_reminders_enabled: waEnabled
-      });
-      setTelegramUsername(response.telegram_username || '');
-      toast.success('Telegram integration updated successfully!');
-    } catch (error) {
-      toast.error(getApiErrorMessage(error, 'Failed to save settings. Please try again.'));
-    } finally {
-      setIsSavingTG(false);
-    }
-  };
-
-  const handleUnlinkTG = async () => {
-    setIsSavingTG(true);
-    try {
-      await saveWhatsAppNumber({
-        whatsapp_number: whatsappNumber,
-        telegram_username: "", 
-        email_reminders_enabled: emailEnabled,
-        whatsapp_reminders_enabled: waEnabled
-      });
-      setTelegramUsername('');
-      toast.success('Telegram account unlinked successfully!');
-    } catch (error) {
-      toast.error(getApiErrorMessage(error, 'Failed to unlink Telegram account.'));
-    } finally {
-      setIsSavingTG(false);
     }
   };
 
   const handleUnlinkWA = async () => {
     setIsSavingWA(true);
     try {
-      await saveWhatsAppNumber({
-        whatsapp_number: "", 
-        telegram_username: telegramUsername,
-        email_reminders_enabled: emailEnabled,
-        whatsapp_reminders_enabled: waEnabled
-      });
+      await unlinkWhatsApp();
       setWhatsappNumber('');
-      toast.success('WhatsApp account unlinked successfully!');
+      setPairingCode(null);
+      toast.success('WhatsApp account unlinked successfully');
     } catch (error) {
       toast.error(getApiErrorMessage(error, 'Failed to unlink WhatsApp account.'));
     } finally {
@@ -149,598 +168,417 @@ export default function SettingsPage() {
   };
 
   const handleVerifyWA = async () => {
+    if (!isPro) {
+      toast.error('WhatsApp integration is a Pro feature. Please upgrade your subscription.');
+      return;
+    }
     setIsVerifyingWA(true);
-    setWaVerificationStatus('pending');
     try {
       await verifyWhatsAppConnection();
-      setWaVerificationStatus('connected');
-      setLastVerifiedAt(new Date().toLocaleString());
-      toast.success('Test message sent successfully! Your WhatsApp is connected.');
+      toast.success('Test ping sent successfully! Your WhatsApp is connected.');
     } catch (error) {
-      setWaVerificationStatus('failed');
       toast.error(getApiErrorMessage(error, 'Failed to verify connection.'));
     } finally {
       setIsVerifyingWA(false);
     }
   };
 
-  const handleSaveReminders = async () => {
+  // Instant auto-save toggle for Email reminders
+  const handleToggleEmail = async () => {
+    const nextVal = !emailEnabled;
+    setEmailEnabled(nextVal);
+    try {
+      await saveWhatsAppNumber({
+        whatsapp_number: whatsappNumber,
+        telegram_username: telegramUsername,
+        email_reminders_enabled: nextVal,
+        whatsapp_reminders_enabled: waEnabled
+      });
+      toast.success(nextVal ? 'Email reminders enabled' : 'Email reminders disabled');
+    } catch (error) {
+      setEmailEnabled(!nextVal);
+      toast.error(getApiErrorMessage(error, 'Failed to update reminder settings.'));
+    }
+  };
+
+  // Instant auto-save toggle for WhatsApp reminders
+  const handleToggleWA = async () => {
+    const nextVal = !waEnabled;
+    setWaEnabled(nextVal);
+    try {
+      await saveWhatsAppNumber({
+        whatsapp_number: whatsappNumber,
+        telegram_username: telegramUsername,
+        email_reminders_enabled: emailEnabled,
+        whatsapp_reminders_enabled: nextVal
+      });
+      toast.success(nextVal ? 'WhatsApp reminders enabled' : 'WhatsApp reminders disabled');
+    } catch (error) {
+      setWaEnabled(!nextVal);
+      toast.error(getApiErrorMessage(error, 'Failed to update reminder settings.'));
+    }
+  };
+
+  // Explicit Save Preferences button
+  const handleSavePreferences = async () => {
     setIsSavingReminders(true);
     try {
-      const response = await saveWhatsAppNumber({
+      await saveWhatsAppNumber({
         whatsapp_number: whatsappNumber,
         telegram_username: telegramUsername,
         email_reminders_enabled: emailEnabled,
         whatsapp_reminders_enabled: waEnabled
       });
-      setEmailEnabled(response.email_reminders_enabled);
-      setWaEnabled(response.whatsapp_reminders_enabled);
-      toast.success('Reminder preferences updated successfully!');
+      toast.success('Preferences saved successfully');
     } catch (error) {
-      toast.error(getApiErrorMessage(error, 'Failed to save settings. Please try again.'));
+      toast.error(getApiErrorMessage(error, 'Failed to save preferences.'));
     } finally {
       setIsSavingReminders(false);
     }
   };
 
-  const isPro = IS_TESTING_PHASE || usage?.current_plan === 'pro';
-
-  const handleUpgrade = async () => {
-    if (IS_TESTING_PHASE && !process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID) {
-      toast.info('Payments are currently disabled during the testing phase.');
-      return;
-    }
-    
-    let userEmail = "";
-    let userName = "";
-
-    try {
-      const supabase = createClient();
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session?.user) {
-        userEmail = session.user.email || "";
-        userName = session.user.user_metadata?.full_name || session.user.user_metadata?.name || "";
-      }
-    } catch (err) {
-      console.error("Failed to fetch session for prefill", err);
-    }
-
-    try {
-      const order = await createRazorpayOrder();
-      
-      const options = {
-        key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
-        amount: order.amount,
-        currency: order.currency,
-        name: "Collabo",
-        description: "Collabo Pro - Monthly",
-        order_id: order.order_id,
-        prefill: {
-          email: userEmail,
-          name: userName,
-        },
-        handler: async function (response: any) {
-          try {
-            await verifyRazorpayPayment({
-              razorpay_payment_id: response.razorpay_payment_id,
-              razorpay_order_id: response.razorpay_order_id,
-              razorpay_signature: response.razorpay_signature,
-            });
-            toast.success("Payment successful! You are now on the Pro plan.");
-            // Refresh usage
-            const data = await getBillingUsage();
-            setUsage(data);
-          } catch (_err) {
-            toast.error("Payment verification failed.");
-          }
-        },
-        theme: {
-          color: "#10b981"
-        }
-      };
-      
-      const rzp = new (window as any).Razorpay(options);
-      rzp.on('payment.failed', function (response: any){
-        toast.error(`Payment failed: ${response.error.description}`);
-      });
-      rzp.open();
-    } catch (_err) {
-      toast.error("Failed to initiate payment. Please try again.");
-    }
-  };
-
   return (
-    <>
-      <div className="max-w-6xl mx-auto pb-16 animate-fade-in px-2 sm:px-4">
-        
-        {/* Premium Page Header */}
-        <div className="mb-10 flex flex-col sm:flex-row sm:items-center gap-4 border-b border-slate-200 dark:border-slate-800/60 pb-8 mt-2">
-          <div className="w-14 h-14 bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-800 dark:to-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-700/50 flex items-center justify-center shadow-inner shrink-0">
-            <Settings className="w-7 h-7 text-slate-700 dark:text-slate-300" />
+    <div className="max-w-5xl mx-auto space-y-4 pb-16 animate-fade-in select-none">
+      
+      {/* ── Page Header ── */}
+      <div className="pb-4">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 shrink-0">
+            <Settings className="w-5 h-5" />
           </div>
           <div>
-            <h1 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight mb-1">Settings</h1>
-            <p className="text-slate-500 font-medium">Manage integrations, notifications, and application preferences.</p>
+            <h1 className="text-2xl font-semibold text-white font-sans">
+              Settings
+            </h1>
+            <p className="text-sm text-slate-400 font-sans mt-0.5">
+              Manage integrations, notifications, and application preferences.
+            </p>
           </div>
         </div>
+      </div>
 
-        {isLoading ? (
-          <div className="space-y-12 animate-pulse">
-            <div className="h-64 w-full bg-slate-100 dark:bg-slate-800/50 rounded-3xl"></div>
-            <div className="h-48 w-full bg-slate-100 dark:bg-slate-800/50 rounded-3xl"></div>
-          </div>
-        ) : (
-        <div className="space-y-16">
+      {isLoading ? (
+        /* ── Skeletons ── */
+        <div className="space-y-8 animate-pulse pt-4">
+          {[1, 2, 3, 4].map(i => (
+            <div key={i} className="h-44 bg-[#0A0E17] border border-white/[0.07] rounded-2xl" />
+          ))}
+        </div>
+      ) : (
+        <div className="divide-y divide-white/[0.06]">
           
-          {/* ─── SECTION: Subscription ─── */}
-          <section className="flex flex-col xl:flex-row gap-8 xl:gap-12 relative">
-            <div className="xl:w-1/3 flex-shrink-0 space-y-4">
-              <div className="inline-flex items-center justify-center p-3.5 rounded-2xl bg-gradient-to-br from-purple-400/10 to-purple-500/10 border border-purple-500/20 text-purple-500 shadow-inner">
-                <CreditCard className="w-7 h-7" />
+          {/* ── SECTION 1: Subscription Plan ── */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 py-8 border-b border-white/[0.06] items-start">
+            {/* Left Side: Open Canvas, NO box border */}
+            <div className="lg:col-span-5">
+              <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
+                <CreditCard className="w-5 h-5" />
               </div>
-              <div>
-                <h2 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight mb-2">Subscription Plan</h2>
-                <p className="text-sm text-slate-500 leading-relaxed max-w-sm font-medium">
-                  Manage your subscription tier and upgrade to unlock unlimited campaigns and premium features.
-                </p>
-              </div>
+              <h2 className="text-lg font-semibold text-white mt-3 font-sans">
+                Subscription Plan
+              </h2>
+              <p className="text-sm text-slate-400 font-sans leading-relaxed mt-1">
+                Manage your workspace tier, billing status, and unlocked platform quotas.
+              </p>
             </div>
-            
-            <div className="xl:w-2/3">
-              <div className="bg-white/70 dark:bg-slate-950/70 backdrop-blur-xl border border-slate-200 dark:border-slate-800/80 rounded-[2rem] overflow-hidden shadow-sm">
-                <div className="p-6 sm:p-10 space-y-6">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between p-5 sm:p-6 bg-slate-50 dark:bg-slate-900/40 rounded-3xl border border-slate-200 dark:border-slate-800/60 shadow-sm gap-5">
-                    <div>
-                      <h3 className="text-base font-bold text-slate-900 dark:text-white mb-1.5 flex items-center gap-2">
-                        Current Plan: {isPro ? <span className="text-emerald-500">Collabo Pro</span> : <span className="text-slate-500">Starter (Free)</span>}
-                      </h3>
-                      {!isPro && (
-                        <p className="text-xs sm:text-sm text-slate-500 leading-relaxed font-medium">
-                          You are currently on the free tier. Upgrade to unlock unlimited campaigns and priority extractions.
-                        </p>
-                      )}
+
+            {/* Right Side: Clean Card Container */}
+            <div className="lg:col-span-7">
+              <div className="bg-[#0A0E17] border border-white/[0.07] rounded-2xl p-6 shadow-xl">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div>
+                    <div className="flex items-center gap-2 mb-1.5">
+                      <span className="text-xs uppercase tracking-wider text-slate-400 font-sans font-medium">Current Plan</span>
+                      <span className={`text-xs px-2.5 py-0.5 rounded-full font-medium ${
+                        isPro 
+                          ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' 
+                          : 'bg-white/[0.04] text-slate-400 border border-white/[0.08]'
+                      }`}>
+                        {isPro ? 'PRO' : 'STARTER'}
+                      </span>
                     </div>
-                    {!isPro && (
-                      <button
-                        onClick={handleUpgrade}
-                        className="inline-flex items-center justify-center gap-2 shrink-0 bg-emerald-500 hover:bg-emerald-400 shadow-lg shadow-emerald-500/20 active:scale-95 text-white font-bold rounded-2xl px-6 py-3 text-sm transition-all"
-                      >
-                        Upgrade to Pro <ArrowRight className="w-4 h-4" />
-                      </button>
-                    )}
+                    <p className="text-lg font-semibold text-emerald-400 font-sans">
+                      {isPro ? 'Collabo Pro' : 'Starter Plan (Free)'}
+                    </p>
+                    <p className="text-xs text-slate-400 font-sans mt-1">
+                      {isPro 
+                        ? 'Unlimited campaign pipelines, priority AI brief parsing, and automated alerts.' 
+                        : 'Free tier includes basic deal tracking. Upgrade for unlimited scale.'}
+                    </p>
                   </div>
+                  
+                  <Link
+                    href="/billing"
+                    className="inline-flex items-center justify-center gap-1.5 bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] hover:border-white/[0.15] text-slate-200 hover:text-white px-4 py-2.5 rounded-xl text-xs font-sans font-medium transition cursor-pointer shrink-0"
+                  >
+                    <span>Manage Billing</span>
+                    <ExternalLink className="w-3.5 h-3.5 text-slate-400" />
+                  </Link>
                 </div>
               </div>
             </div>
-          </section>
+          </div>
 
-          <hr className="border-slate-200 dark:border-slate-800/60" />
-
-          {/* ─── SECTION: WhatsApp Integration ─── */}
-
-          <section className="flex flex-col xl:flex-row gap-8 xl:gap-12 relative">
-            <div className="xl:w-1/3 flex-shrink-0 space-y-4">
-              <div className="inline-flex items-center justify-center p-3.5 rounded-2xl bg-gradient-to-br from-emerald-400/10 to-emerald-500/10 border border-emerald-500/20 text-emerald-500 shadow-inner">
-                <MessageSquare className="w-7 h-7" />
+          {/* ── SECTION 2: WhatsApp AI Bot ── */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 py-8 border-b border-white/[0.06] items-start">
+            {/* Left Side: Open Canvas, NO box border */}
+            <div className="lg:col-span-5">
+              <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
+                <MessageSquare className="w-5 h-5" />
               </div>
-              <div>
-                <h2 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight mb-2">WhatsApp AI Bot</h2>
-                <p className="text-sm text-slate-500 leading-relaxed max-w-sm font-medium">
-                  Connect your WhatsApp to forward negotiation chats, voice notes, and screenshots directly to Collabo. Our AI instantly extracts the data.
-                </p>
-              </div>
+              <h2 className="text-lg font-semibold text-white mt-3 font-sans">
+                WhatsApp AI Bot
+              </h2>
+              <p className="text-sm text-slate-400 font-sans leading-relaxed mt-1">
+                Forward creator negotiations, audio notes, and screenshots for zero-touch brief extraction.
+              </p>
             </div>
-            
-            <div className="xl:w-2/3">
-              <div className="bg-white/70 dark:bg-slate-950/70 backdrop-blur-xl border border-slate-200 dark:border-slate-800/80 rounded-[2rem] overflow-hidden shadow-xl shadow-slate-200/40 dark:shadow-black/40 relative group transition-all">
-                {/* Glow effect */}
-                <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-emerald-500/10 rounded-full blur-3xl pointer-events-none translate-x-1/3 -translate-y-1/3 group-hover:bg-emerald-500/15 transition-colors duration-500" />
-                
-                <div className="p-6 sm:p-10 relative z-10 space-y-8">
-                  <h3 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2 uppercase tracking-wider">
-                    <ShieldCheck className="w-5 h-5 text-emerald-500" />
-                    Connection Setup
-                  </h3>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {/* Step 1: QR Code Card */}
-                    <div className="bg-white dark:bg-slate-900/80 rounded-3xl p-6 border border-slate-200 dark:border-slate-800/80 flex flex-col items-center text-center gap-5 shadow-sm relative overflow-hidden">
-                      <div className="absolute top-0 w-full h-1 bg-gradient-to-r from-emerald-400 to-teal-500" />
-                      <div className="w-10 h-10 rounded-full bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center font-black text-sm border border-emerald-100 dark:border-emerald-500/20 shadow-sm shrink-0">1</div>
+            {/* Right Side: Clean Card Container */}
+            <div className="lg:col-span-7">
+              <div className="bg-[#0A0E17] border border-white/[0.07] rounded-2xl p-6 shadow-xl space-y-5">
+                {/* Official Bot Number Pill */}
+                <div className="flex items-center justify-between gap-4 pb-4 border-b border-white/[0.06]">
+                  <span className="text-xs text-slate-400 font-sans">Official AI Bot Number:</span>
+                  <button
+                    onClick={handleCopy}
+                    className="inline-flex items-center gap-2 text-xs font-mono text-slate-300 bg-white/[0.03] hover:bg-white/[0.06] border border-white/[0.08] rounded-lg px-3 py-1.5 transition active:scale-95 cursor-pointer group"
+                    title="Click to copy bot number"
+                  >
+                    <span className="text-slate-400 font-sans text-[11px]">Bot:</span>
+                    <span className="font-mono text-slate-200">{botNumber}</span>
+                    {copied ? (
+                      <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                    ) : (
+                      <Copy className="w-3.5 h-3.5 text-slate-400 group-hover:text-white transition shrink-0" />
+                    )}
+                  </button>
+                </div>
+
+                {whatsappNumber ? (
+                  <div className="space-y-4">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                       <div>
-                        <p className="font-extrabold text-slate-900 dark:text-white mb-1.5 text-base">Scan to Chat</p>
-                        <p className="text-xs text-slate-500 font-medium px-4">Scan this QR code with your phone to open our bot instantly.</p>
-                      </div>
-                      
-                      <div className="p-3 bg-white rounded-2xl shadow-md border border-slate-100 dark:border-slate-800 transition-transform duration-500 hover:scale-105 hover:shadow-xl hover:shadow-emerald-500/10 group-hover:rotate-1">
-                        <Image src="/whatsapp-qr.png" alt="WhatsApp QR Code" width={144} height={144} className="w-36 h-36 object-contain" />
-                      </div>
-                      
-                      <a href={`https://wa.me/${botNumber.replace(/[^0-9]/g, '')}`} target="_blank" rel="noopener noreferrer" className="text-xs font-bold text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 dark:hover:text-emerald-300 flex items-center gap-1 mt-1 bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-500/10 dark:hover:bg-emerald-500/20 px-5 py-2.5 rounded-xl transition-colors">
-                        <Smartphone className="w-3.5 h-3.5" /> Or click to open app
-                      </a>
-                    </div>
-
-                    {/* Step 2 & 3 Container */}
-                    <div className="flex flex-col gap-6">
-                      
-                      {/* Alt Step 1: Save Number */}
-                      <div className="bg-slate-50/50 dark:bg-slate-900/40 rounded-3xl p-5 border border-slate-200/80 dark:border-slate-800/50 flex flex-col justify-center flex-1 shadow-sm relative overflow-hidden">
-                        <div className="absolute inset-0 bg-gradient-to-br from-transparent to-slate-100/50 dark:to-slate-800/20" />
-                        <div className="relative z-10">
-                          <div className="flex items-center gap-3 mb-4">
-                            <div className="w-7 h-7 rounded-full bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400 flex items-center justify-center font-black text-[10px] tracking-wider uppercase shadow-inner">or</div>
-                            <p className="font-bold text-slate-900 dark:text-white text-sm">Save Number Manually</p>
-                          </div>
-                          
-                          <div className="flex items-center gap-0 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-shadow">
-                            <div className="px-5 py-3.5 bg-slate-50 dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 flex-1">
-                              <code className="text-sm font-mono font-bold text-slate-900 dark:text-emerald-400">{botNumber}</code>
-                            </div>
-                            <button onClick={handleCopy} className="px-5 py-3.5 text-slate-500 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-500/10 transition-colors flex items-center gap-2 group/btn active:bg-emerald-100 dark:active:bg-emerald-500/20">
-                              {copied ? <Check className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4 group-hover/btn:scale-110 transition-transform" />}
-                              <span className={`text-xs font-bold uppercase tracking-wider hidden sm:inline ${copied ? 'text-emerald-500' : ''}`}>{copied ? 'Copied' : 'Copy'}</span>
-                            </button>
-                          </div>
+                        <div className="flex items-center gap-2 mb-1.5">
+                          <span className="text-xs uppercase tracking-wider text-slate-400 font-sans font-medium">Connection Status</span>
+                          <span className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-xs px-2.5 py-0.5 rounded-full font-medium flex items-center gap-1.5">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                            CONNECTED
+                          </span>
                         </div>
-                      </div>
-
-                      {/* Step 2: Link Number */}
-                      <div className="bg-gradient-to-br from-emerald-50 to-white dark:from-emerald-950/30 dark:to-slate-900/50 rounded-3xl p-5 border border-emerald-100 dark:border-emerald-800/40 flex flex-col justify-center flex-1 shadow-sm">
-                        <div className="flex items-center gap-3 mb-4">
-                          <div className="w-8 h-8 rounded-full bg-emerald-500 text-white flex items-center justify-center font-black text-sm shadow-md shadow-emerald-500/40">2</div>
-                          <p className="font-bold text-emerald-900 dark:text-emerald-400 text-sm">Link Your Number</p>
-                        </div>
-                        
-                        <div className="relative group/input">
-                          <Phone className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-emerald-500/60 group-focus-within/input:text-emerald-500 transition-colors" />
-                          <input
-                            type="tel"
-                            value={whatsappNumber}
-                            onChange={(e) => setWhatsappNumber(e.target.value)}
-                            placeholder="e.g. 9876543210"
-                            disabled={isLoading}
-                            className="w-full bg-white dark:bg-slate-950 border border-emerald-200 dark:border-emerald-800/60 text-slate-900 dark:text-white placeholder-slate-400 rounded-2xl pl-11 pr-4 py-3.5 text-sm font-medium focus:outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 transition-all shadow-sm"
-                          />
-                        </div>
-                        <p className="text-[11px] text-emerald-600/80 dark:text-emerald-500/70 mt-2.5 font-medium flex items-center gap-1.5 ml-1">
-                          <Info className="w-3 h-3" /> We auto-format Indian numbers (no +91 needed)
+                        <p className="text-lg font-mono font-semibold text-white tracking-wide">
+                          {formatMaskedPhone(whatsappNumber)}
+                        </p>
+                        <p className="text-xs text-slate-400 font-sans mt-0.5">
+                          Active encrypted connection for auto-deal extraction.
                         </p>
                       </div>
 
-                    </div>
-                  </div>
-
-                  {/* ── CONNECTION STATUS UI ── */}
-                  {whatsappNumber && (
-                    <div className="mt-8 p-5 bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-800/60 rounded-3xl shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-5 transition-all">
-                      <div className="flex items-center gap-4">
-                        <div className={`w-12 h-12 rounded-full flex items-center justify-center shrink-0 shadow-inner ${
-                          waVerificationStatus === 'connected' ? 'bg-emerald-100 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400' :
-                          waVerificationStatus === 'pending' ? 'bg-amber-100 dark:bg-amber-500/20 text-amber-600 dark:text-amber-400' :
-                          waVerificationStatus === 'failed' ? 'bg-rose-100 dark:bg-rose-500/20 text-rose-600 dark:text-rose-400' :
-                          'bg-slate-100 dark:bg-slate-800 text-slate-500'
-                        }`}>
-                          {waVerificationStatus === 'connected' ? <ShieldCheck className="w-6 h-6" /> :
-                           waVerificationStatus === 'pending' ? <div className="w-5 h-5 border-2 border-amber-500/30 border-t-amber-500 rounded-full animate-spin" /> :
-                           waVerificationStatus === 'failed' ? <AlertCircle className="w-6 h-6" /> :
-                           <Phone className="w-6 h-6" />}
-                        </div>
-                        <div>
-                          <h3 className="font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                            Connection Status
-                            <span className={`text-[10px] uppercase font-black tracking-wider px-2 py-0.5 rounded-full ${
-                              waVerificationStatus === 'connected' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400' :
-                              waVerificationStatus === 'pending' ? 'bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-400' :
-                              waVerificationStatus === 'failed' ? 'bg-rose-100 text-rose-700 dark:bg-rose-500/20 dark:text-rose-400' :
-                              'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400'
-                            }`}>
-                              {waVerificationStatus === 'none' ? 'Not Verified' : waVerificationStatus}
-                            </span>
-                          </h3>
-                          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 font-medium">
-                            {whatsappNumber}
-                            {lastVerifiedAt && <span className="ml-2 pl-2 border-l border-slate-300 dark:border-slate-700">Last verified: {lastVerifiedAt}</span>}
-                          </p>
-                        </div>
-                      </div>
-                      
-                      <div className="w-full md:w-auto flex gap-3">
-                        {waVerificationStatus === 'connected' ? (
-                          <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400 font-medium text-sm">
-                            <ShieldCheck className="w-5 h-5" />
-                            Your WhatsApp integration is working properly.
-                          </div>
-                        ) : (
-                          <>
-                            {waVerificationStatus === 'failed' && (
-                              <button
-                                onClick={handleVerifyWA}
-                                disabled={isVerifyingWA}
-                                className="flex-1 md:flex-none flex items-center justify-center gap-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 active:scale-95 font-bold rounded-2xl px-6 py-3 text-sm transition-all"
-                              >
-                                Retry
-                              </button>
-                            )}
-                            <button
-                              onClick={handleVerifyWA}
-                              disabled={isVerifyingWA}
-                              className="flex-1 md:flex-none flex items-center justify-center gap-2 bg-emerald-500 hover:bg-emerald-400 text-white active:scale-95 font-bold rounded-2xl px-6 py-3 text-sm transition-all shadow-lg shadow-emerald-500/25 disabled:opacity-60 disabled:cursor-not-allowed"
-                            >
-                              {isVerifyingWA ? 'Sending...' : 'Verify via WhatsApp'}
-                            </button>
-                          </>
-                        )}
-                      </div>
-                    </div>
-                  )}
-
-                  <div className="pt-6 border-t border-slate-200/60 dark:border-slate-800/60 flex justify-end gap-4 mt-6">
-                    {whatsappNumber && (
                       <button
                         onClick={handleUnlinkWA}
                         disabled={isSavingWA || isLoading}
-                        className="inline-flex items-center gap-2 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-500/10 active:scale-95 font-bold rounded-2xl px-6 py-3.5 text-sm transition-all"
+                        className="font-sans text-xs text-rose-300 hover:text-rose-200 bg-rose-500/[0.08] hover:bg-rose-500/[0.15] border border-rose-500/20 px-4 py-2 rounded-xl flex items-center gap-1.5 transition active:scale-95 cursor-pointer disabled:opacity-50 shrink-0 self-start sm:self-center"
                       >
-                        Unlink
+                        <AlertCircle className="w-3.5 h-3.5" />
+                        <span>{isSavingWA ? 'Unlinking...' : 'Unlink Number'}</span>
                       </button>
-                    )}
-                    <button
-                      onClick={handleSaveWA}
-                      disabled={isSavingWA || isLoading}
-                      className="inline-flex items-center gap-2 bg-slate-900 hover:bg-slate-800 dark:bg-emerald-500 dark:hover:bg-emerald-400 text-white active:scale-95 font-bold rounded-2xl px-8 py-3.5 text-sm transition-all shadow-lg shadow-slate-900/20 dark:shadow-emerald-500/25 hover:shadow-xl disabled:opacity-70 disabled:pointer-events-none"
-                    >
-                      {isSavingWA ? (
-                        <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                      ) : (
-                        <>Save Connection <Sparkles className="w-4 h-4" /></>
-                      )}
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </section>
-
-          <hr className="border-slate-200 dark:border-slate-800/60" />
-
-          {/* ─── SECTION: Notifications ─── */}
-          <section className="flex flex-col xl:flex-row gap-8 xl:gap-12 relative">
-            <div className="xl:w-1/3 flex-shrink-0 space-y-4">
-              <div className="inline-flex items-center justify-center p-3.5 rounded-2xl bg-gradient-to-br from-rose-400/10 to-rose-500/10 border border-rose-500/20 text-rose-500 shadow-inner">
-                <Bell className="w-7 h-7" />
-              </div>
-              <div>
-                <h2 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight mb-2">Notification Settings</h2>
-                <p className="text-sm text-slate-500 leading-relaxed max-w-sm font-medium">
-                  Control how you want to be reminded about upcoming deadlines. We recommend keeping WhatsApp reminders on for the best experience.
-                </p>
-              </div>
-            </div>
-            
-            <div className="xl:w-2/3">
-              <div className="bg-white/70 dark:bg-slate-950/70 backdrop-blur-xl border border-slate-200 dark:border-slate-800/80 rounded-[2rem] overflow-hidden shadow-xl shadow-slate-200/40 dark:shadow-black/40 group">
-                <div className="absolute top-0 right-0 w-[400px] h-[400px] bg-rose-500/5 rounded-full blur-3xl pointer-events-none translate-x-1/2 -translate-y-1/2 group-hover:bg-rose-500/10 transition-colors duration-500" />
-                
-                <div className="p-6 sm:p-10 relative z-10 space-y-5">
-                  
-                  {/* Email Toggle */}
-                  <div 
-                    onClick={() => setEmailEnabled(!emailEnabled)}
-                    className={`cursor-pointer flex flex-col sm:flex-row sm:items-center justify-between p-5 sm:p-6 rounded-3xl border transition-all duration-300 gap-5 ${
-                      emailEnabled 
-                        ? 'bg-white dark:bg-slate-900 border-rose-200 dark:border-rose-900/50 shadow-lg shadow-rose-100/50 dark:shadow-none ring-1 ring-rose-500/10' 
-                        : 'bg-slate-50 dark:bg-slate-900/40 border-slate-200 dark:border-slate-800/60 hover:border-slate-300 dark:hover:border-slate-700'
-                    }`}
-                  >
-                    <div className="flex items-start gap-4 sm:gap-5">
-                      <div className={`p-3.5 rounded-2xl border transition-colors shrink-0 shadow-inner ${
-                        emailEnabled ? 'bg-rose-50 dark:bg-rose-500/10 border-rose-100 dark:border-rose-500/20 text-rose-500' : 'bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-400'
-                      }`}>
-                        <Mail className="w-5 h-5" />
-                      </div>
-                      <div>
-                        <h3 className={`text-base font-bold mb-1.5 ${emailEnabled ? 'text-slate-900 dark:text-white' : 'text-slate-700 dark:text-slate-300'}`}>Email Reminders</h3>
-                        <p className="text-xs sm:text-sm text-slate-500 leading-relaxed max-w-sm font-medium">
-                          Get an email 48 hours before a deadline, and an alert when a campaign becomes overdue.
-                        </p>
-                      </div>
-                    </div>
-                    {/* iOS style Toggle */}
-                    <div
-                      className={`relative inline-flex h-8 w-14 shrink-0 cursor-pointer items-center rounded-full transition-colors duration-300 ease-in-out shadow-inner border border-black/5 dark:border-white/5 ${
-                        emailEnabled ? 'bg-rose-500' : 'bg-slate-200 dark:bg-slate-800'
-                      }`}
-                    >
-                      <span className={`pointer-events-none inline-block h-6 w-6 transform rounded-full bg-white shadow-md transition duration-300 ease-in-out ${
-                        emailEnabled ? 'translate-x-[26px]' : 'translate-x-1'
-                      }`} />
-                    </div>
-                  </div>
-
-                  {/* WA Toggle */}
-                  <div 
-                    onClick={() => setWaEnabled(!waEnabled)}
-                    className={`cursor-pointer flex flex-col sm:flex-row sm:items-center justify-between p-5 sm:p-6 rounded-3xl border transition-all duration-300 gap-5 ${
-                      waEnabled 
-                        ? 'bg-white dark:bg-slate-900 border-emerald-200 dark:border-emerald-900/50 shadow-lg shadow-emerald-100/50 dark:shadow-none ring-1 ring-emerald-500/10' 
-                        : 'bg-slate-50 dark:bg-slate-900/40 border-slate-200 dark:border-slate-800/60 hover:border-slate-300 dark:hover:border-slate-700'
-                    }`}
-                  >
-                    <div className="flex items-start gap-4 sm:gap-5">
-                      <div className={`p-3.5 rounded-2xl border transition-colors shrink-0 shadow-inner ${
-                        waEnabled ? 'bg-emerald-50 dark:bg-emerald-500/10 border-emerald-100 dark:border-emerald-500/20 text-emerald-500' : 'bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-400'
-                      }`}>
-                        <MessageSquare className="w-5 h-5" />
-                      </div>
-                      <div>
-                        <h3 className={`text-base font-bold mb-1.5 ${waEnabled ? 'text-slate-900 dark:text-white' : 'text-slate-700 dark:text-slate-300'}`}>WhatsApp Reminders</h3>
-                        <p className="text-xs sm:text-sm text-slate-500 leading-relaxed max-w-sm font-medium">
-                          Receive instant pings from our bot to your linked number for critical deadlines.
-                        </p>
-                      </div>
-                    </div>
-                    {/* iOS style Toggle */}
-                    <div
-                      className={`relative inline-flex h-8 w-14 shrink-0 cursor-pointer items-center rounded-full transition-colors duration-300 ease-in-out shadow-inner border border-black/5 dark:border-white/5 ${
-                        waEnabled ? 'bg-emerald-500' : 'bg-slate-200 dark:bg-slate-800'
-                      }`}
-                    >
-                      <span className={`pointer-events-none inline-block h-6 w-6 transform rounded-full bg-white shadow-md transition duration-300 ease-in-out ${
-                        waEnabled ? 'translate-x-[26px]' : 'translate-x-1'
-                      }`} />
-                    </div>
-                  </div>
-
-                  <div className="pt-6 border-t border-slate-200/60 dark:border-slate-800/60 flex justify-end mt-4">
-                    <button
-                      onClick={handleSaveReminders}
-                      disabled={isSavingReminders || isLoading}
-                      className="inline-flex items-center gap-2 bg-slate-900 hover:bg-slate-800 dark:bg-white dark:hover:bg-slate-200 dark:text-slate-900 text-white active:scale-95 font-bold rounded-2xl px-8 py-3.5 text-sm transition-all shadow-lg shadow-slate-900/20 dark:shadow-white/10 hover:shadow-xl disabled:opacity-70 disabled:pointer-events-none"
-                    >
-                      {isSavingReminders ? (
-                        <div className="w-5 h-5 border-2 border-slate-500 border-t-transparent rounded-full animate-spin" />
-                      ) : (
-                        'Save Preferences'
-                      )}
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </section>
-
-          <hr className="border-slate-200 dark:border-slate-800/60" />
-
-          {/* ─── SECTION: Telegram Integration ─── */}
-          <section className="flex flex-col xl:flex-row gap-8 xl:gap-12 relative opacity-80 hover:opacity-100 transition-opacity">
-            <div className="xl:w-1/3 flex-shrink-0 space-y-4">
-              <div className="inline-flex items-center justify-center p-3.5 rounded-2xl bg-gradient-to-br from-blue-400/10 to-blue-500/10 border border-blue-500/20 text-blue-500 shadow-inner">
-                <Send className="w-7 h-7" />
-              </div>
-              <div>
-                <h2 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight mb-2">Telegram AI Bot</h2>
-                <p className="text-sm text-slate-500 leading-relaxed max-w-sm font-medium">
-                  Prefer Telegram? Connect your account to forward messages directly to our Telegram Bot as a fallback.
-                </p>
-              </div>
-            </div>
-            
-            <div className="xl:w-2/3">
-              <div className="bg-white/50 dark:bg-slate-950/50 backdrop-blur-md border border-slate-200 dark:border-slate-800/80 rounded-[2rem] overflow-hidden shadow-sm relative group">
-                <div className="p-6 sm:p-10 relative z-10 space-y-8">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {/* Step 1 */}
-                    <div className="bg-slate-50/50 dark:bg-slate-900/40 rounded-3xl p-5 border border-slate-200/80 dark:border-slate-800/50 flex flex-col justify-center h-full shadow-sm">
-                      <div className="flex items-center gap-3 mb-4">
-                        <div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-500/20 text-blue-600 dark:text-blue-400 flex items-center justify-center font-bold text-sm shadow-inner border border-blue-200 dark:border-blue-500/30">1</div>
-                        <p className="font-bold text-slate-900 dark:text-white text-sm">Find our Bot</p>
-                      </div>
-                      <div className="px-5 py-3.5 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm text-center">
-                        <code className="text-sm font-mono font-bold text-slate-900 dark:text-blue-400">{telegramBotUsername}</code>
-                      </div>
                     </div>
 
-                    {/* Step 2 */}
-                    <div className="bg-blue-50/50 dark:bg-blue-900/10 rounded-3xl p-5 border border-blue-100 dark:border-blue-800/30 flex flex-col justify-center h-full shadow-sm">
-                      <div className="flex items-center gap-3 mb-4">
-                        <div className="w-8 h-8 rounded-full bg-blue-500 text-white flex items-center justify-center font-bold text-sm shadow-md shadow-blue-500/40">2</div>
-                        <p className="font-bold text-blue-900 dark:text-blue-400 text-sm">Link Username</p>
-                      </div>
-                      <div className="relative group/input">
-                        <Send className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-blue-500/60 group-focus-within/input:text-blue-500 transition-colors" />
-                        <input
-                          type="text"
-                          value={telegramUsername}
-                          onChange={(e) => setTelegramUsername(e.target.value)}
-                          placeholder="e.g. @yourusername"
-                          disabled={isLoading}
-                          className="w-full bg-white dark:bg-slate-950 border border-blue-200 dark:border-blue-800/60 text-slate-900 dark:text-white placeholder-slate-400 rounded-2xl pl-11 pr-4 py-3.5 text-sm font-medium focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all shadow-sm"
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="pt-6 border-t border-slate-200/60 dark:border-slate-800/60 flex justify-end gap-4">
-                    {telegramUsername && (
+                    <div className="pt-3 border-t border-white/[0.06] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                      <span className="text-xs font-sans text-slate-400">
+                        Verify bot connectivity by dispatching a test ping:
+                      </span>
                       <button
-                        onClick={handleUnlinkTG}
-                        disabled={isSavingTG || isLoading}
-                        className="inline-flex items-center gap-2 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-500/10 active:scale-95 font-bold rounded-2xl px-6 py-3.5 text-sm transition-all"
+                        onClick={handleVerifyWA}
+                        disabled={isVerifyingWA}
+                        className="font-sans text-xs text-slate-300 hover:text-white bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] px-3.5 py-2 rounded-xl flex items-center gap-1.5 transition active:scale-95 cursor-pointer disabled:opacity-50 shrink-0"
                       >
-                        Unlink
+                        <Send className="w-3.5 h-3.5 text-emerald-400" />
+                        <span>{isVerifyingWA ? 'Pinging...' : 'Send Test Ping'}</span>
                       </button>
-                    )}
-                    <button
-                      onClick={handleSaveTG}
-                      disabled={isSavingTG || isLoading}
-                      className="inline-flex items-center gap-2 bg-blue-500 hover:bg-blue-600 text-white active:scale-95 font-bold rounded-2xl px-8 py-3.5 text-sm transition-all shadow-lg shadow-blue-500/25 hover:shadow-xl disabled:opacity-70"
-                    >
-                      {isSavingTG ? (
-                        <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                      ) : (
-                        'Save Telegram'
-                      )}
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </section>
-
-          <hr className="border-slate-200 dark:border-slate-800/60" />
-
-          {/* ─── SECTION: App Preferences ─── */}
-          <section className="flex flex-col xl:flex-row gap-8 xl:gap-12 relative pb-12">
-            <div className="xl:w-1/3 flex-shrink-0 space-y-4">
-              <div className="inline-flex items-center justify-center p-3.5 rounded-2xl bg-gradient-to-br from-slate-200 to-slate-300 dark:from-slate-700 dark:to-slate-800 border border-slate-300 dark:border-slate-700 shadow-inner">
-                <Settings className="w-7 h-7 text-slate-700 dark:text-slate-300" />
-              </div>
-              <div>
-                <h2 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight mb-2">App Preferences</h2>
-                <p className="text-sm text-slate-500 leading-relaxed max-w-sm font-medium">
-                  Manage your general application settings and experiences.
-                </p>
-              </div>
-            </div>
-            
-            <div className="xl:w-2/3">
-              <div className="bg-white/70 dark:bg-slate-950/70 backdrop-blur-xl border border-slate-200 dark:border-slate-800/80 rounded-[2rem] overflow-hidden shadow-sm">
-                <div className="p-6 sm:p-10">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between p-5 sm:p-6 bg-slate-50 dark:bg-slate-900/40 rounded-3xl border border-slate-200 dark:border-slate-800/60 shadow-sm gap-5">
-                    <div className="flex items-start gap-5">
-                      <div className="p-3.5 bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700/50 shadow-inner shrink-0">
-                        <Info className="w-5 h-5 text-slate-600 dark:text-slate-400" />
-                      </div>
-                      <div>
-                        <h3 className="text-base font-bold text-slate-900 dark:text-white mb-1.5">Onboarding Tour</h3>
-                        <p className="text-xs sm:text-sm text-slate-500 leading-relaxed max-w-sm font-medium">
-                          Replay the interactive welcome tour to learn about the dashboard features.
-                        </p>
-                      </div>
                     </div>
-                    <button
-                      onClick={() => {
-                        Object.keys(localStorage).forEach(key => {
-                          if (key.startsWith('collabo_tour_completed')) {
-                            localStorage.removeItem(key);
-                          }
-                        });
-                        window.location.href = '/dashboard';
-                      }}
-                      className="inline-flex items-center justify-center shrink-0 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm hover:shadow-md hover:bg-slate-50 dark:hover:bg-slate-700 active:scale-95 text-slate-900 dark:text-white font-bold rounded-2xl px-6 py-3 text-sm transition-all"
-                    >
-                      Restart Tour
-                    </button>
                   </div>
-                </div>
+                ) : (
+                  <div className="space-y-4">
+                    <div>
+                      <div className="flex items-center gap-2 mb-1.5">
+                        <span className="text-xs uppercase tracking-wider text-slate-400 font-sans font-medium">Connection Status</span>
+                        <span className="bg-amber-500/10 text-amber-400 border border-amber-500/20 text-xs px-2.5 py-0.5 rounded-full font-medium">
+                          Disconnected
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-400 font-sans leading-relaxed">
+                        Pair your WhatsApp to auto-extract creator agreements. Generate a secure 10-minute code below to connect.
+                      </p>
+                    </div>
+
+                    {!pairingCode ? (
+                      <button
+                        onClick={handleGenerateCode}
+                        disabled={isSavingWA || isLoading}
+                        className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-sans font-semibold rounded-xl px-4 py-2.5 text-xs transition-all shadow-[0_0_12px_rgba(16,185,129,0.25)] active:scale-95 cursor-pointer flex items-center gap-2"
+                      >
+                        <Smartphone className="w-4 h-4" />
+                        <span>{isSavingWA ? 'Generating...' : 'Generate Pairing Code'}</span>
+                      </button>
+                    ) : (
+                      <div className="p-4 bg-black/40 rounded-xl border border-white/[0.08] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                        <div>
+                          <p className="text-[10px] font-sans font-medium text-slate-400 uppercase tracking-wider">Your Pairing Code</p>
+                          <p className="text-3xl font-mono font-bold tracking-widest text-emerald-400 mt-0.5">{pairingCode}</p>
+                          <p className="text-[11px] font-sans text-slate-400 mt-1">Expires in 10 minutes. Send this code to our bot.</p>
+                        </div>
+                        <a 
+                          href={`https://wa.me/${botNumber.replace(/[^0-9]/g, '')}?text=${pairingCode}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="bg-[#25D366] hover:bg-[#20ba59] text-black font-sans text-xs font-semibold rounded-xl px-4 py-2.5 flex items-center gap-2 transition active:scale-95 shrink-0"
+                        >
+                          <Smartphone className="w-4 h-4" /> Open in WhatsApp
+                        </a>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
-          </section>
+          </div>
+
+          {/* ── SECTION 3: Notification Settings ── */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 py-8 border-b border-white/[0.06] items-start">
+            {/* Left Side: Open Canvas, NO box border */}
+            <div className="lg:col-span-5">
+              <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
+                <Bell className="w-5 h-5" />
+              </div>
+              <h2 className="text-lg font-semibold text-white mt-3 font-sans">
+                Notification Settings
+              </h2>
+              <p className="text-sm text-slate-400 font-sans leading-relaxed mt-1">
+                Configure delivery channels for campaign deadlines, reminders, and delivery alerts.
+              </p>
+            </div>
+
+            {/* Right Side: Clean Card Container */}
+            <div className="lg:col-span-7">
+              <div className="bg-[#0A0E17] border border-white/[0.07] rounded-2xl p-6 shadow-xl space-y-4">
+                
+                {/* Email Reminders Toggle Row */}
+                <div 
+                  onClick={handleToggleEmail}
+                  className="bg-white/[0.02] border border-white/[0.06] hover:border-white/[0.12] rounded-xl p-4 flex items-center justify-between gap-4 transition-colors cursor-pointer select-none"
+                >
+                  <div className="flex items-center gap-3.5">
+                    <div className="w-10 h-10 rounded-xl bg-white/[0.04] border border-white/[0.08] flex items-center justify-center text-slate-300 shrink-0">
+                      <Mail className="w-4 h-4 text-emerald-400" />
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-semibold text-white font-sans">Email Reminders</h3>
+                      <p className="text-xs text-slate-400 font-sans mt-0.5">
+                        Receive 48h warnings and overdue alerts directly in your inbox.
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Smooth Linear Switch */}
+                  <div className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors duration-200 ease-in-out ${
+                    emailEnabled ? 'bg-emerald-500' : 'bg-white/[0.1]'
+                  }`}>
+                    <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-sm transition-transform duration-200 ease-in-out ${
+                      emailEnabled ? 'translate-x-6' : 'translate-x-1'
+                    }`} />
+                  </div>
+                </div>
+
+                {/* WhatsApp Reminders Toggle Row */}
+                <div 
+                  onClick={handleToggleWA}
+                  className="bg-white/[0.02] border border-white/[0.06] hover:border-white/[0.12] rounded-xl p-4 flex items-center justify-between gap-4 transition-colors cursor-pointer select-none"
+                >
+                  <div className="flex items-center gap-3.5">
+                    <div className="w-10 h-10 rounded-xl bg-white/[0.04] border border-white/[0.08] flex items-center justify-center text-slate-300 shrink-0">
+                      <MessageSquare className="w-4 h-4 text-emerald-400" />
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-semibold text-white font-sans">WhatsApp Reminders</h3>
+                      <p className="text-xs text-slate-400 font-sans mt-0.5">
+                        Get real-time deadline notifications and instant ping alerts on WhatsApp.
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Smooth Linear Switch */}
+                  <div className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors duration-200 ease-in-out ${
+                    waEnabled ? 'bg-emerald-500' : 'bg-white/[0.1]'
+                  }`}>
+                    <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-sm transition-transform duration-200 ease-in-out ${
+                      waEnabled ? 'translate-x-6' : 'translate-x-1'
+                    }`} />
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between pt-2">
+                  <p className="text-[11px] text-slate-500 font-sans">
+                    Changes auto-save. Click button for explicit confirmation.
+                  </p>
+                  <button
+                    onClick={handleSavePreferences}
+                    disabled={isSavingReminders}
+                    className="bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] text-slate-200 text-xs font-sans font-medium rounded-xl px-4 py-2 transition active:scale-95 cursor-pointer disabled:opacity-50"
+                  >
+                    {isSavingReminders ? 'Saving...' : 'Save Preferences'}
+                  </button>
+                </div>
+
+              </div>
+            </div>
+          </div>
+
+          {/* ── SECTION 4: App Preferences ── */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 py-8 items-start">
+            {/* Left Side: Open Canvas, NO box border */}
+            <div className="lg:col-span-5">
+              <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
+                <Settings className="w-5 h-5" />
+              </div>
+              <h2 className="text-lg font-semibold text-white mt-3 font-sans">
+                App Preferences
+              </h2>
+              <p className="text-sm text-slate-400 font-sans leading-relaxed mt-1">
+                Customize local interface behaviors and guided walk-through walkthroughs.
+              </p>
+            </div>
+
+            {/* Right Side: Clean Card Container */}
+            <div className="lg:col-span-7">
+              <div className="bg-[#0A0E17] border border-white/[0.07] rounded-2xl p-6 shadow-xl flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                  <h3 className="text-sm font-semibold text-white font-sans">Onboarding Tour</h3>
+                  <p className="text-xs text-slate-400 font-sans mt-1">
+                    Restart the guided interactive dashboard tour from the beginning.
+                  </p>
+                </div>
+                <button
+                  onClick={() => {
+                    Object.keys(localStorage).forEach(key => {
+                      if (key.startsWith('collabo_tour_completed')) {
+                        localStorage.removeItem(key);
+                      }
+                    });
+                    window.location.href = '/dashboard';
+                  }}
+                  className="inline-flex items-center gap-2 bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] text-slate-200 text-xs font-sans font-medium rounded-xl px-4 py-2.5 transition active:scale-95 cursor-pointer shrink-0"
+                >
+                  <RotateCcw className="w-3.5 h-3.5 text-slate-400" />
+                  <span>Restart Tour</span>
+                </button>
+              </div>
+            </div>
+          </div>
 
         </div>
-        )}
-      </div>
-    </>
+      )}
+
+    </div>
   );
 }

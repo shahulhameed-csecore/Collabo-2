@@ -110,10 +110,10 @@ export function BentoBenefits() {
                 </div>
 
                 <h3 className="text-xl sm:text-2xl font-medium text-slate-100 tracking-[-0.02em] mb-2 font-sans">
-                  Frictionless Magic Links for Creators.
+                  Magic Proof Links
                 </h3>
                 <p className="text-sm text-slate-400 leading-relaxed font-sans mb-6 font-normal">
-                  Never force creators to download an app or remember passwords. They receive a secure tokenized link on WhatsApp to drag-and-drop raw video drafts, screenshots, and live post URLs.
+                  Creators upload proof via a link—no login needed.
                 </p>
 
                 {/* Interactive Mini-Preview of /submit-proof/[token] */}
@@ -177,11 +177,6 @@ export function BentoBenefits() {
                   </div>
                 </div>
               </div>
-
-              <div className="mt-6 pt-4 border-t border-white/[0.04] flex items-center justify-between text-xs text-slate-400 font-sans">
-                <span>Security: <strong className="font-normal text-emerald-400">Encrypted Token</strong></span>
-                <span>Expires in 30 days</span>
-              </div>
             </div>
           </motion.div>
 
@@ -206,10 +201,10 @@ export function BentoBenefits() {
               </div>
 
               <h3 className="text-xl sm:text-2xl font-medium text-slate-100 tracking-[-0.02em] mb-2 font-sans">
-                Autonomous 48h WhatsApp Chaser.
+                Auto WhatsApp Reminders
               </h3>
               <p className="text-sm text-slate-400 leading-relaxed font-sans mb-6 font-normal">
-                Our scheduler watches campaign delivery timestamps and dispatches polite WhatsApp nudges automatically—saving your team from manual nagging.
+                Automatic WhatsApp nudges 48 hours before every deadline.
               </p>
 
               {/* Pulsing Sequenced Timeline */}
@@ -277,16 +272,10 @@ export function BentoBenefits() {
                     Flags campaign in your dashboard notification center and freezes pending payouts.
                   </p>
                 </div>
-
               </div>
             </div>
-
-              <div className="mt-6 pt-4 border-t border-white/[0.04] flex items-center justify-between text-xs text-slate-400 font-sans">
-                <span>Channel: WhatsApp Bot</span>
-                <span className="font-mono text-emerald-400">98.2% Open Rate</span>
-              </div>
-            </div>
-          </motion.div>
+          </div>
+        </motion.div>
 
           {/* ── CELL 3: Affiliate Shortlinks & Real-Time CPC (Col 1-5, Row 2) ─── */}
           <motion.div
@@ -306,10 +295,10 @@ export function BentoBenefits() {
                 </div>
 
                 <h3 className="text-xl sm:text-2xl font-medium text-slate-100 tracking-[-0.02em] mb-2 font-sans">
-                  Affiliate Shortlinks & CPC ROI.
+                  Smart Click Tracking
                 </h3>
                 <p className="text-sm text-slate-400 leading-relaxed font-sans mb-6 font-normal">
-                  Stop guessing which creator drove actual buyers. Collabo generates branded tracking shortlinks that log unique clicks and dynamically calculate Cost-Per-Click.
+                  Track creator link clicks and cost-per-click live.
                 </p>
 
                 {/* Interactive Click Matrix */}
@@ -344,11 +333,6 @@ export function BentoBenefits() {
                   </button>
                 </div>
               </div>
-
-              <div className="mt-6 pt-4 border-t border-white/[0.04] flex items-center justify-between text-xs text-slate-400 font-sans">
-                <span>Agreed Fee: <strong className="font-mono text-slate-200">₹15,000</strong></span>
-                <span>Redirect latency: 18ms</span>
-              </div>
             </div>
           </motion.div>
 
@@ -372,10 +356,10 @@ export function BentoBenefits() {
                 </div>
 
                 <h3 className="text-xl sm:text-2xl font-medium text-slate-100 tracking-[-0.02em] mb-2 font-sans">
-                  Creator CRM & Commercial Ledger.
+                  Creator CRM
                 </h3>
                 <p className="text-sm text-slate-400 leading-relaxed font-sans mb-6 font-normal">
-                  Build institutional memory for your brand. Record lifetime payouts, past turnaround speeds, negotiation notes, and verified creator tax identifiers in one confidential terminal.
+                  All your creator rates, history, and notes in one place.
                 </p>
 
                 {/* Creator Ledger Record Card */}
@@ -420,11 +404,6 @@ export function BentoBenefits() {
                     “Accepts 15% discount for quarterly upfront commitments. Best performing reels are posted Sunday evenings 7 PM. Prompt on invoice submissions.”
                   </div>
                 </div>
-              </div>
-
-              <div className="mt-6 pt-4 border-t border-white/[0.04] flex items-center justify-between text-xs text-slate-400 font-sans">
-                <span>Security: End-to-End Encrypted</span>
-                <span>1-Click CSV Export</span>
               </div>
             </div>
           </motion.div>

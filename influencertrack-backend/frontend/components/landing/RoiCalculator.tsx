@@ -51,7 +51,7 @@ export function RoiCalculator() {
               Campaign Automation.
             </span>
           }
-          description="Plug in your monthly creator volume and average payout to see how Collabo eliminates manual administrative waste while preventing lost campaign deliverables."
+          description="Slide to estimate your monthly time and budget savings."
         />
 
         {/* Main Terminal Box */}
@@ -180,13 +180,6 @@ export function RoiCalculator() {
                 </div>
               </div>
 
-              {/* Methodology Explainer */}
-              <div className="p-4 rounded-xl bg-white/[0.02] border border-white/[0.06] text-xs text-slate-400 font-sans leading-relaxed">
-                <strong className="text-slate-200 block mb-1 font-medium">
-                  Calculation Benchmarks:
-                </strong>
-                Assumes 2.8 hours saved per creator by removing manual WhatsApp chasing and spreadsheet logging (valued at ₹650/hr), plus recovering 8% of campaign budget otherwise lost to missed deadlines.
-              </div>
             </div>
 
             {/* ── RIGHT: Financial Outputs & Value Metrics (Col 7-12) ─────────── */}

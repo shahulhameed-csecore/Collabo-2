@@ -176,7 +176,7 @@ export function HeroLiveDemo() {
             className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-emerald-500/[0.08] border border-emerald-500/20 text-emerald-400 font-sans text-xs font-medium mb-6 shadow-[inset_0_1px_0_0_rgba(16,185,129,0.15)]"
           >
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-            <span>Zero-Entry Influencer CRM • Powered by Gemini 3.5</span>
+            <span>Zero-Entry Influencer CRM • AI-Powered Workflow</span>
           </motion.div>
 
           <motion.h1
@@ -195,7 +195,7 @@ export function HeroLiveDemo() {
             transition={{ duration: 0.45, delay: 0.2 }}
             className="text-base sm:text-lg lg:text-xl text-slate-400 max-w-2xl mx-auto leading-relaxed font-sans font-normal mb-9"
           >
-            Built for Indian D2C brands and agencies. Forward creator voice notes, Hinglish DMs, or rate screenshots to our WhatsApp bot—Gemini AI structures your entire campaign pipeline automatically.
+            Forward creator voice notes, chats, or screenshots on WhatsApp. AI turns them into organized campaigns in seconds.
           </motion.p>
 
           <motion.div
@@ -275,7 +275,7 @@ export function HeroLiveDemo() {
 
               <div className="flex items-center gap-2 text-xs font-sans text-emerald-400">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                <span className="font-medium">Gemini 3.5 Active</span>
+                <span className="font-medium">AI Active</span>
               </div>
             </div>
 
@@ -286,7 +286,7 @@ export function HeroLiveDemo() {
               <div className="lg:col-span-5 flex flex-col justify-center">
                 
                 <div className="flex items-center justify-between text-xs text-slate-400 font-sans mb-3">
-                  <span className="font-medium">Raw Unstructured Message</span>
+                  <span className="font-medium">WhatsApp Input</span>
                   <span className="text-slate-400 text-[11px]">{currentCase.sourceLabel}</span>
                 </div>
 
@@ -415,13 +415,13 @@ export function HeroLiveDemo() {
                 </div>
               </div>
 
-              {/* ── CENTER: Flowing Glowing Emerald Beam & Gemini Node (Col 6-7) ───────── */}
+              {/* ── CENTER: Flowing Glowing Emerald Beam & AI Node (Col 6-7) ───────── */}
               <div className="lg:col-span-2 flex flex-col items-center justify-center py-6 lg:py-0 relative">
                 
                 {/* Desktop Flowing Laser Conduit System */}
                 <div className="hidden lg:flex items-center w-full relative">
                   
-                  {/* Left-to-Center Pipe: Raw Input -> Gemini 3.5 */}
+                  {/* Left-to-Center Pipe: Raw Input -> AI */}
                   <div className="flex-1 relative h-10 flex items-center">
                     <svg className="w-full h-6 overflow-visible" preserveAspectRatio="none">
                       <defs>
@@ -467,14 +467,14 @@ export function HeroLiveDemo() {
                     />
                   </div>
 
-                  {/* Center Gemini Extraction Hub Node */}
+                  {/* Center AI Extraction Hub Node */}
                   <div className="relative z-10 mx-1 px-3 py-2.5 rounded-2xl bg-[#0D1522] border border-emerald-500/40 text-center shadow-[0_4px_24px_rgba(16,185,129,0.15),inset_0_1px_0_0_rgba(255,255,255,0.1)] group/node hover:border-emerald-400 transition-all shrink-0">
                     <div className="absolute -inset-1 rounded-2xl bg-emerald-500/20 blur-sm animate-pulse -z-10" />
                     <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-emerald-400/20 to-teal-500/10 border border-emerald-400/30 text-emerald-400 flex items-center justify-center mx-auto mb-1 shadow-[0_0_10px_rgba(16,185,129,0.3)]">
                       <Sparkles className="w-3.5 h-3.5 animate-spin-slow" />
                     </div>
                     <div className="text-[11px] font-sans font-semibold text-white tracking-tight">
-                      Gemini 3.5
+                      AI
                     </div>
                     <div className="text-[10px] font-mono text-emerald-400 mt-0.5 flex items-center justify-center gap-1">
                       <span className="w-1 h-1 rounded-full bg-emerald-400 animate-ping" />
@@ -482,7 +482,7 @@ export function HeroLiveDemo() {
                     </div>
                   </div>
 
-                  {/* Center-to-Right Pipe: Gemini 3.5 -> Structured Record */}
+                  {/* Center-to-Right Pipe: AI -> Structured Record */}
                   <div className="flex-1 relative h-10 flex items-center">
                     <svg className="w-full h-6 overflow-visible" preserveAspectRatio="none">
                       <defs>
@@ -536,7 +536,7 @@ export function HeroLiveDemo() {
                   <div className="w-[2px] h-6 bg-gradient-to-b from-transparent via-emerald-400 to-emerald-500 shadow-[0_0_8px_#10B981]" />
                   <div className="px-3 py-1.5 rounded-xl bg-[#0D1522] border border-emerald-500/30 flex items-center gap-2 text-xs text-white">
                     <Sparkles className="w-3.5 h-3.5 text-emerald-400" />
-                    <span className="font-semibold">Gemini 3.5</span>
+                    <span className="font-semibold">AI</span>
                     <span className="font-mono text-emerald-400 text-[10px]">• {currentCase.latency}</span>
                   </div>
                   <div className="w-[2px] h-6 bg-gradient-to-b from-emerald-500 via-emerald-400 to-transparent shadow-[0_0_8px_#10B981]" />
@@ -548,7 +548,7 @@ export function HeroLiveDemo() {
               <div className="lg:col-span-5">
                 
                 <div className="flex items-center justify-between text-xs font-sans text-slate-400 mb-3">
-                  <span className="font-medium">Structured Campaign Record</span>
+                  <span className="font-medium">Campaign Ready</span>
                   <span className="text-emerald-400 font-mono text-[11px] flex items-center gap-1">
                     <ShieldCheck className="w-3.5 h-3.5" /> Verified
                   </span>

@@ -17,6 +17,7 @@ import { Logo } from '@/components/Logo';
 import { NotificationDropdown } from '@/components/NotificationDropdown';
 import { ProfileDropdown } from '@/components/ProfileDropdown';
 import { IS_TESTING_PHASE } from '@/lib/config';
+import { isDevAuthBypassEnabled, DEV_MOCK_USER } from '@/lib/dev-auth';
 import dynamic from 'next/dynamic';
 import { useCampaignModal } from '@/contexts/CampaignModalContext';
 
@@ -112,6 +113,8 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
         const { data: { user } } = await supabase.auth.getUser();
         if (user) {
           activeUser = user;
+        } else if (isDevAuthBypassEnabled()) {
+          activeUser = DEV_MOCK_USER;
         } else if (process.env.NODE_ENV !== 'production' && typeof document !== 'undefined') {
           const match = document.cookie.match(/collabo-test-session=([^;]+)/);
           if (match) {
@@ -127,21 +130,30 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
         }
         setUser(activeUser);
 
-        const { data: subData } = await supabase
-          .from('subscriptions')
-          .select('tier, trial_ends_at, is_paid')
-          .eq('user_id', activeUser.id)
-          .single();
-        if (subData) setSubscription(subData);
+        if (activeUser.id === DEV_MOCK_USER.id) {
+          setSubscription({
+            tier: 'pro',
+            trial_ends_at: '2026-10-29T00:00:00.000Z',
+            is_paid: true,
+          });
+          setCustomUsername('Dev User');
+        } else {
+          const { data: subData } = await supabase
+            .from('subscriptions')
+            .select('tier, trial_ends_at, is_paid')
+            .eq('user_id', activeUser.id)
+            .maybeSingle();
+          if (subData) setSubscription(subData);
 
-        const { data: settingsData } = await supabase
-          .from('user_settings')
-          .select('username')
-          .eq('user_id', activeUser.id)
-          .single();
-        if (settingsData?.username) setCustomUsername(settingsData.username);
+          const { data: settingsData } = await supabase
+            .from('user_settings')
+            .select('username')
+            .eq('user_id', activeUser.id)
+            .maybeSingle();
+          if (settingsData?.username) setCustomUsername(settingsData.username);
+        }
       } catch (err) {
-        console.error('Error fetching user data:', err);
+        console.warn('User auth state check:', err);
       } finally {
         setLoading(false);
       }
@@ -149,6 +161,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
     getUser();
 
     const { data: { subscription: authSub } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (isDevAuthBypassEnabled()) return;
       if (event === 'SIGNED_OUT') router.replace('/login');
       if (session) setUser(session.user);
     });

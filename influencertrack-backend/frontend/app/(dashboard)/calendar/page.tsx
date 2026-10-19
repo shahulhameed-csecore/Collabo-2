@@ -168,8 +168,8 @@ export default function CalendarPage() {
             </div>
             Content Calendar
           </h1>
-          <p className="text-xs text-slate-400 mt-1">
-            Schedule deliverables and track influencer deadline commitments.
+          <p className="text-xs text-slate-400 font-sans mt-1 font-normal">
+            Your monthly schedule of creator deliverables.
           </p>
         </div>
 

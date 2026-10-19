@@ -3,6 +3,7 @@
 import { useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase';
+import { isDevAuthBypassEnabled } from '@/lib/dev-auth';
 
 const TIMEOUT_MS = 15 * 60 * 1000; // 15 minutes in milliseconds
 const STORAGE_KEY = 'lastActivityTime';
@@ -19,6 +20,7 @@ export default function AutoLogoutProvider({
   const isLoggingOut = useRef(false);
 
   const handleLogout = useCallback(async () => {
+    if (isDevAuthBypassEnabled()) return;
     if (isLoggingOut.current) return;
     isLoggingOut.current = true;
 
@@ -38,6 +40,8 @@ export default function AutoLogoutProvider({
   }, [router, supabase]);
 
   useEffect(() => {
+    if (isDevAuthBypassEnabled()) return;
+
     // 1. Initialize or update activity time
     const updateActivityTime = () => {
       localStorage.setItem(STORAGE_KEY, Date.now().toString());

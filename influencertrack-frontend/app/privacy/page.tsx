@@ -76,7 +76,7 @@ export default function PrivacyPolicy() {
               <h2 className="text-2xl font-bold text-white mb-4">3. Third-Party Services and Data Sharing</h2>
               <p className="mb-4">To provide our Services, we rely on trusted third-party sub-processors. We do not sell your personal data to advertisers.</p>
               <ul className="list-disc pl-6 space-y-2">
-                <li><strong>Google Gemini AI:</strong> Used to extract structured campaign data from the unstructured text, images, and voice notes you forward to us. Data sent to Gemini is strictly for processing your request and is not used to train Google's public models.</li>
+                <li><strong>AI Infrastructure:</strong> Used to extract structured campaign data from the unstructured text, images, and voice notes you forward to us. Data processed is strictly for executing your requests and is never used to train public language models.</li>
                 <li><strong>Meta (WhatsApp Cloud API):</strong> Used to receive your forwarded briefs and to send automated reminders to influencers.</li>
                 <li><strong>Supabase:</strong> Our primary PostgreSQL database and authentication provider. Data is stored securely with Row Level Security (RLS) enforcement.</li>
                 <li><strong>Render / Vercel:</strong> Our cloud hosting infrastructure providers.</li>

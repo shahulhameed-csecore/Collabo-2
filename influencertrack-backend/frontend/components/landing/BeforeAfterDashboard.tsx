@@ -36,7 +36,7 @@ export function BeforeAfterDashboard() {
               Influencer Pipeline Deserves.
             </span>
           }
-          description="Managing creator rosters across scattered WhatsApp chats and fragmented spreadsheets is guaranteed chaos. Compare the legacy workflow with Collabo's automated command engine."
+          description="Stop chasing creators across messy chats and spreadsheets."
         />
 
         {/* View Switcher Segmented Control */}
@@ -161,8 +161,8 @@ export function BeforeAfterDashboard() {
                     <ShieldAlert className="w-5 h-5 text-rose-400 shrink-0 mt-0.5" />
                     <div>
                       <div className="text-sm font-sans font-semibold text-rose-200">14+ Hours Lost Weekly</div>
-                      <div className="text-xs text-slate-400 mt-1 leading-relaxed">
-                        Manually chasing influencers on WhatsApp, tracking drive folders, and updating rows.
+                      <div className="text-xs text-slate-400 mt-1">
+                        Chasing creators and updating spreadsheets.
                       </div>
                     </div>
                   </div>
@@ -171,8 +171,8 @@ export function BeforeAfterDashboard() {
                     <AlertTriangle className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
                     <div>
                       <div className="text-sm font-sans font-semibold text-amber-200">28% Missed Deliverables</div>
-                      <div className="text-xs text-slate-400 mt-1 leading-relaxed">
-                        Creators ghost or miss launch dates because no automated 48-hour deadline chaser exists.
+                      <div className="text-xs text-slate-400 mt-1">
+                        Ghosted with no automated reminders.
                       </div>
                     </div>
                   </div>
@@ -181,8 +181,8 @@ export function BeforeAfterDashboard() {
                     <X className="w-5 h-5 text-rose-400 shrink-0 mt-0.5" />
                     <div>
                       <div className="text-sm font-sans font-semibold text-rose-200">Zero Proof Version History</div>
-                      <div className="text-xs text-slate-400 mt-1 leading-relaxed">
-                        Brands pay creators without verifying raw drafts, missing tracking links, or engagement proofs.
+                      <div className="text-xs text-slate-400 mt-1">
+                        Paying blindly without verified drafts.
                       </div>
                     </div>
                   </div>
@@ -342,7 +342,7 @@ export function BeforeAfterDashboard() {
                   </div>
                   <div className="p-5 text-center">
                     <div className="text-2xl font-mono font-medium text-emerald-400 tabular-nums">0.8s</div>
-                    <div className="text-xs font-sans text-slate-400 mt-1">Gemini Extraction Latency</div>
+                    <div className="text-xs font-sans text-slate-400 mt-1">AI Extraction Speed</div>
                   </div>
                   <div className="p-5 text-center">
                     <div className="text-2xl font-sans font-medium text-emerald-400">Zero</div>
