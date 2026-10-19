@@ -47,7 +47,7 @@ export default function LandingPage() {
         <div className="max-w-[1320px] mx-auto px-6 sm:px-12 h-16 flex items-center justify-between">
           
           <div className="flex items-center gap-10">
-            <Logo variant="full" size={26} href="/" />
+            <Logo variant="full" size={26} href="/" theme="dark" />
 
             {/* Desktop Section Anchors (Smooth font-sans, relaxed tracking) */}
             <nav className="hidden lg:flex items-center gap-7">
@@ -151,7 +151,7 @@ export default function LandingPage() {
         <footer className="border-t border-white/[0.06] bg-[#070A10] py-14 px-6 sm:px-12 relative">
           <div className="max-w-[1320px] mx-auto flex flex-col md:flex-row justify-between items-start md:items-center gap-8">
             <div className="space-y-3">
-              <Logo variant="full" size={24} href="/" />
+              <Logo variant="full" size={24} href="/" theme="dark" />
               <p className="text-xs text-slate-400 max-w-sm font-sans font-normal leading-relaxed">
                 The zero-entry autonomous influencer campaign operating system for Indian D2C brands & agencies.
               </p>

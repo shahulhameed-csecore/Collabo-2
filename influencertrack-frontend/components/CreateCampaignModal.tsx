@@ -221,16 +221,16 @@ export default function CreateCampaignModal({ isOpen, onClose, onSuccess }: Crea
         onClick={step === 'submitting' ? undefined : handleClose}
       />
 
-      <div className="relative w-full sm:max-w-2xl bg-slate-900 border border-slate-700/50 rounded-t-2xl sm:rounded-2xl shadow-2xl shadow-black/60 overflow-hidden flex flex-col max-h-[95vh] animate-scale-in">
+      <div className="relative w-full sm:max-w-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700/50 rounded-t-2xl sm:rounded-2xl shadow-2xl shadow-black/60 overflow-hidden flex flex-col max-h-[95vh] animate-scale-in">
 
         {/* ── Header ──────────────────────────────────────────────── */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-800/60 flex-shrink-0">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200 dark:border-slate-800/60 flex-shrink-0">
           <div className="flex items-center gap-3">
             <div className="p-2 bg-gradient-to-br from-emerald-500/15 to-teal-500/10 rounded-xl border border-emerald-500/20">
-              <Sparkles className="w-4 h-4 text-emerald-400" />
+              <Sparkles className="w-4 h-4 text-emerald-500 dark:text-emerald-400" />
             </div>
             <div>
-              <h2 className="font-bold text-white text-base leading-tight">
+              <h2 className="font-bold text-slate-900 dark:text-white text-base leading-tight">
                 {step === 'upload' ? 'New Campaign' : step === 'submitting' ? 'Creating Campaign...' : 'Review & Confirm'}
               </h2>
               <p className="text-xs text-slate-500 mt-0.5">
@@ -255,13 +255,13 @@ export default function CreateCampaignModal({ isOpen, onClose, onSuccess }: Crea
                     ${isCurrent
                       ? 'bg-gradient-to-br from-emerald-500 to-teal-500 text-white shadow-lg shadow-emerald-500/30'
                       : isDone
-                      ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
-                      : 'bg-slate-800 text-slate-600 border border-slate-700'}
+                      ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30'
+                      : 'bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-600 border border-slate-200 dark:border-slate-700'}
                   `}>
                     {isDone ? <CheckCircle2 className="w-4 h-4" /> : i + 1}
                   </div>
                   {i < STEPS.length - 1 && (
-                    <div className={`w-8 h-px transition-colors duration-300 ${isDone ? 'bg-emerald-500/40' : 'bg-slate-700'}`} />
+                    <div className={`w-8 h-px transition-colors duration-300 ${isDone ? 'bg-emerald-500/40' : 'bg-slate-200 dark:bg-slate-700'}`} />
                   )}
                 </div>
               );
@@ -271,7 +271,7 @@ export default function CreateCampaignModal({ isOpen, onClose, onSuccess }: Crea
           <button
             onClick={handleClose}
             disabled={step === 'submitting'}
-            className="absolute right-4 top-4 p-1.5 text-slate-500 hover:text-white hover:bg-slate-800 rounded-lg transition-all disabled:opacity-30"
+            className="absolute right-4 top-4 p-1.5 text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-all disabled:opacity-30"
           >
             <X className="w-4 h-4" />
           </button>
@@ -288,10 +288,10 @@ export default function CreateCampaignModal({ isOpen, onClose, onSuccess }: Crea
                   <Zap className="w-4 h-4 text-emerald-400" />
                 </div>
                 <div>
-                  <p className="text-sm font-semibold text-white mb-0.5">AI-powered extraction</p>
-                  <p className="text-xs text-slate-400 leading-relaxed">
+                  <p className="text-sm font-semibold text-slate-900 dark:text-white mb-0.5">AI-powered extraction</p>
+                  <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
                     Upload an Image, PDF, or Text file and AI will auto-fill{' '}
-                    <span className="text-emerald-400 font-medium">influencer details, deliverables, deadline & payment</span>.
+                    <span className="text-emerald-600 dark:text-emerald-400 font-medium">influencer details, deliverables, deadline & payment</span>.
                   </p>
                 </div>
               </div>
@@ -311,16 +311,16 @@ export default function CreateCampaignModal({ isOpen, onClose, onSuccess }: Crea
                         ? 'border-emerald-400 bg-emerald-500/8 scale-[1.005]'
                         : file
                         ? 'border-emerald-500/40 bg-emerald-500/5 cursor-default'
-                        : 'border-slate-700/50 hover:border-emerald-500/40 hover:bg-emerald-500/3'}
+                        : 'border-slate-300 dark:border-slate-700/50 hover:border-emerald-500/40 hover:bg-emerald-500/[0.03]'}
                     `}
                   >
                     {file ? (
                       <div className="relative p-6">
                         {filePreview === 'doc' ? (
-                          <div className="flex flex-col items-center justify-center p-8 bg-slate-800/60 rounded-xl border border-slate-700">
-                            <FileIcon className="w-16 h-16 text-emerald-400 mb-3" />
-                            <p className="text-white font-bold text-center truncate w-full max-w-xs">{file.name}</p>
-                            <p className="text-slate-400 text-sm mt-1">{(file.size / 1024 / 1024).toFixed(2)} MB</p>
+                          <div className="flex flex-col items-center justify-center p-8 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200 dark:border-slate-700">
+                            <FileIcon className="w-16 h-16 text-emerald-500 dark:text-emerald-400 mb-3" />
+                            <p className="text-slate-900 dark:text-white font-bold text-center truncate w-full max-w-xs">{file.name}</p>
+                            <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">{(file.size / 1024 / 1024).toFixed(2)} MB</p>
                           </div>
                         ) : (
                           <Image
@@ -346,25 +346,25 @@ export default function CreateCampaignModal({ isOpen, onClose, onSuccess }: Crea
                       </div>
                     ) : (
                       <div className="flex flex-col items-center justify-center py-14 px-6">
-                        <div className={`p-5 rounded-2xl mb-4 transition-all ${isDragOver ? 'bg-emerald-500/20 scale-110' : 'bg-slate-800/60'}`}>
-                          <CloudUpload className={`w-9 h-9 transition-colors ${isDragOver ? 'text-emerald-400' : 'text-slate-500'}`} />
+                        <div className={`p-5 rounded-2xl mb-4 transition-all ${isDragOver ? 'bg-emerald-500/20 scale-110' : 'bg-slate-100 dark:bg-slate-800/60'}`}>
+                          <CloudUpload className={`w-9 h-9 transition-colors ${isDragOver ? 'text-emerald-500' : 'text-slate-400 dark:text-slate-500'}`} />
                         </div>
-                        <p className="text-white font-bold text-base mb-1">Drop your file or screenshot here</p>
+                        <p className="text-slate-900 dark:text-white font-bold text-base mb-1">Drop your file or screenshot here</p>
                         <p className="text-slate-500 text-sm mb-4">or click to browse files</p>
-                        <p className="text-xs text-slate-600">PDF, DOCX, TXT, PNG, JPG, HEIC · Max 10 MB</p>
+                        <p className="text-xs text-slate-400 dark:text-slate-600">PDF, DOCX, TXT, PNG, JPG, HEIC · Max 10 MB</p>
                       </div>
                     )}
                   </div>
                   <input ref={fileRef} type="file" accept=".pdf,.doc,.docx,.txt,image/*,.heic" className="hidden" onChange={handleFileChange} />
 
                   {file && (
-                    <div className="flex items-center gap-2 p-3 bg-slate-800/40 rounded-xl border border-slate-700/40">
-                      <ImageIcon className="w-4 h-4 text-slate-500 flex-shrink-0" />
-                      <span className="text-sm text-slate-300 truncate flex-1">{file.name}</span>
+                    <div className="flex items-center gap-2 p-3 bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-slate-200 dark:border-slate-700/40">
+                      <ImageIcon className="w-4 h-4 text-slate-400 dark:text-slate-500 flex-shrink-0" />
+                      <span className="text-sm text-slate-700 dark:text-slate-300 truncate flex-1">{file.name}</span>
                       <span className="text-xs text-slate-500 flex-shrink-0">{(file.size / 1024).toFixed(0)} KB</span>
                       <button
                         onClick={() => { setFile(null); if (filePreview && filePreview !== 'doc') URL.revokeObjectURL(filePreview); setFilePreview(null); }}
-                        className="text-slate-600 hover:text-rose-400 transition-colors p-0.5"
+                        className="text-slate-400 hover:text-rose-500 transition-colors p-0.5"
                       >
                         <X className="w-3.5 h-3.5" />
                       </button>
@@ -382,7 +382,7 @@ export default function CreateCampaignModal({ isOpen, onClose, onSuccess }: Crea
                     </button>
                     <button
                       onClick={handleSkipToManual}
-                      className="sm:w-auto flex items-center justify-center gap-2 bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold rounded-xl px-5 py-3 text-sm transition-all border border-slate-700/50 hover:border-slate-600"
+                      className="sm:w-auto flex items-center justify-center gap-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-semibold rounded-xl px-5 py-3 text-sm transition-all border border-slate-200 dark:border-slate-700/50 hover:border-slate-300 dark:hover:border-slate-600"
                     >
                       Enter manually
                     </button>
@@ -422,9 +422,9 @@ export default function CreateCampaignModal({ isOpen, onClose, onSuccess }: Crea
               )}
 
               {!extractedData && (
-                <div className="flex gap-3 p-4 bg-slate-800/40 border border-slate-700/40 rounded-xl">
-                  <Info className="w-4 h-4 text-slate-400 flex-shrink-0 mt-0.5" />
-                  <p className="text-sm text-slate-400">Enter the campaign details manually below.</p>
+                <div className="flex gap-3 p-4 bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700/40 rounded-xl">
+                  <Info className="w-4 h-4 text-slate-500 dark:text-slate-400 flex-shrink-0 mt-0.5" />
+                  <p className="text-sm text-slate-600 dark:text-slate-400">Enter the campaign details manually below.</p>
                 </div>
               )}
 
@@ -548,19 +548,19 @@ export default function CreateCampaignModal({ isOpen, onClose, onSuccess }: Crea
 
         {/* ── Footer ──────────────────────────────────────────────── */}
         {(step === 'review' || step === 'submitting') && (
-          <div className="border-t border-slate-800/60 bg-slate-900/95 px-5 py-4 flex-shrink-0">
+          <div className="border-t border-slate-200 dark:border-slate-800/60 bg-white/95 dark:bg-slate-900/95 px-5 py-4 flex-shrink-0">
             <div className={`flex items-center justify-between mb-4 p-3.5 rounded-xl border transition-all duration-200 ${
               markActive
-                ? 'bg-emerald-500/8 border-emerald-500/20'
-                : 'bg-slate-800/40 border-slate-700/30'
+                ? 'bg-emerald-500/10 dark:bg-emerald-500/8 border-emerald-500/25 dark:border-emerald-500/20'
+                : 'bg-slate-50 dark:bg-slate-800/40 border-slate-200 dark:border-slate-700/30'
             }`}>
               <div className="flex items-center gap-3">
-                <div className={`p-1.5 rounded-lg transition-all ${markActive ? 'bg-emerald-500/15 border border-emerald-500/20' : 'bg-slate-700/40'}`}>
-                  <Rocket className={`w-3.5 h-3.5 transition-colors ${markActive ? 'text-emerald-400' : 'text-slate-500'}`} />
+                <div className={`p-1.5 rounded-lg transition-all ${markActive ? 'bg-emerald-500/20 dark:bg-emerald-500/15 border border-emerald-500/30 dark:border-emerald-500/20' : 'bg-slate-200 dark:bg-slate-700/40'}`}>
+                  <Rocket className={`w-3.5 h-3.5 transition-colors ${markActive ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400 dark:text-slate-500'}`} />
                 </div>
                 <div>
-                  <p className="text-sm font-semibold text-white">Launch immediately</p>
-                  <p className="text-xs text-slate-500">Save as <span className={markActive ? 'text-emerald-400 font-medium' : ''}>Active</span> instead of Draft</p>
+                  <p className="text-sm font-semibold text-slate-900 dark:text-white">Launch immediately</p>
+                  <p className="text-xs text-slate-500">Save as <span className={markActive ? 'text-emerald-600 dark:text-emerald-400 font-medium' : ''}>Active</span> instead of Draft</p>
                 </div>
               </div>
               <button
@@ -569,7 +569,7 @@ export default function CreateCampaignModal({ isOpen, onClose, onSuccess }: Crea
                 className={`relative flex-shrink-0 w-11 h-6 rounded-full border transition-all duration-300 ${
                   markActive
                     ? 'bg-emerald-500 border-emerald-500 shadow-lg shadow-emerald-500/25'
-                    : 'bg-slate-700 border-slate-600'
+                    : 'bg-slate-300 dark:bg-slate-700 border-slate-300 dark:border-slate-600'
                 }`}
                 aria-label="Toggle launch immediately"
               >
@@ -582,7 +582,7 @@ export default function CreateCampaignModal({ isOpen, onClose, onSuccess }: Crea
                 type="button"
                 onClick={() => setStep('upload')}
                 disabled={step === 'submitting'}
-                className="flex items-center gap-1.5 text-slate-400 hover:text-white text-sm font-semibold transition-colors disabled:opacity-40 px-2 py-1.5 rounded-lg hover:bg-slate-800"
+                className="flex items-center gap-1.5 text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white text-sm font-semibold transition-colors disabled:opacity-40 px-2 py-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800"
               >
                 <ArrowLeft className="w-4 h-4" />
                 Back

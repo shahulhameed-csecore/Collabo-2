@@ -27,10 +27,10 @@ function Field({
 }) {
   return (
     <div>
-      <label className="flex items-center gap-1.5 text-xs font-bold mb-2 tracking-wide text-slate-400">
+      <label className="flex items-center gap-1.5 text-xs font-bold mb-2 tracking-wide text-slate-600 dark:text-slate-400">
         <Icon className="w-3.5 h-3.5" />
         {label}
-        {required && <span className="text-rose-400 font-bold">*</span>}
+        {required && <span className="text-rose-500 dark:text-rose-400 font-bold">*</span>}
       </label>
       {children}
     </div>
@@ -38,7 +38,7 @@ function Field({
 }
 
 const inputCls = () =>
-  `w-full bg-slate-800/50 border border-slate-700/50 text-white placeholder-slate-600 rounded-xl px-3.5 py-2.5 text-sm
+  `w-full bg-slate-50 dark:bg-slate-800/50 border border-slate-300 dark:border-slate-700/50 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-600 rounded-xl px-3.5 py-2.5 text-sm
    focus:outline-none focus:ring-1 focus:border-emerald-500/50 focus:ring-emerald-500/15 transition-all resize-none`;
 
 export default function EditCampaignModal({ campaign, isOpen, onClose, onSuccess }: EditCampaignModalProps) {
@@ -112,23 +112,23 @@ export default function EditCampaignModal({ campaign, isOpen, onClose, onSuccess
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 animate-fade-in">
       <div className="absolute inset-0 bg-black/80 backdrop-blur-md" onClick={isSubmitting ? undefined : onClose} />
 
-      <div className="relative w-full sm:max-w-2xl bg-slate-900 border border-slate-700/50 rounded-t-2xl sm:rounded-2xl shadow-2xl shadow-black/60 overflow-hidden flex flex-col max-h-[95vh] animate-scale-in">
+      <div className="relative w-full sm:max-w-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700/50 rounded-t-2xl sm:rounded-2xl shadow-2xl shadow-black/60 overflow-hidden flex flex-col max-h-[95vh] animate-scale-in">
         
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-800/60 flex-shrink-0">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200 dark:border-slate-800/60 flex-shrink-0">
           <div className="flex items-center gap-3">
             <div className="p-2 bg-gradient-to-br from-blue-500/15 to-indigo-500/10 rounded-xl border border-blue-500/20">
-              <User className="w-4 h-4 text-blue-400" />
+              <User className="w-4 h-4 text-blue-500 dark:text-blue-400" />
             </div>
             <div>
-              <h2 className="font-bold text-white text-base leading-tight">Edit Campaign</h2>
+              <h2 className="font-bold text-slate-900 dark:text-white text-base leading-tight">Edit Campaign</h2>
               <p className="text-xs text-slate-500 mt-0.5">Update details for {campaign.influencer_name || campaign.influencer_handle}</p>
             </div>
           </div>
           <button
             onClick={onClose}
             disabled={isSubmitting}
-            className="absolute right-4 top-4 p-1.5 text-slate-500 hover:text-white hover:bg-slate-800 rounded-lg transition-all disabled:opacity-30"
+            className="absolute right-4 top-4 p-1.5 text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-all disabled:opacity-30"
           >
             <X className="w-4 h-4" />
           </button>
@@ -248,7 +248,7 @@ export default function EditCampaignModal({ campaign, isOpen, onClose, onSuccess
         </div>
 
         {/* Footer */}
-        <div className="border-t border-slate-800/60 bg-slate-900/95 px-5 py-4 flex-shrink-0 flex items-center justify-end">
+        <div className="border-t border-slate-200 dark:border-slate-800/60 bg-white/95 dark:bg-slate-900/95 px-5 py-4 flex-shrink-0 flex items-center justify-end">
           <button
             type="submit"
             form="edit-campaign-form"

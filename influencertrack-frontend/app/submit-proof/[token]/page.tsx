@@ -92,12 +92,12 @@ export default function SubmitProofPage() {
 
   if (success) {
     return (
-      <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center p-6 text-center">
-        <div className="w-20 h-20 bg-emerald-500/10 rounded-full flex items-center justify-center mb-6">
-          <CheckCircle2 className="w-10 h-10 text-emerald-400" />
+      <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col items-center justify-center p-6 text-center transition-colors">
+        <div className="w-20 h-20 bg-emerald-500/10 rounded-full flex items-center justify-center mb-6 border border-emerald-500/20">
+          <CheckCircle2 className="w-10 h-10 text-emerald-500 dark:text-emerald-400" />
         </div>
-        <h1 className="text-3xl font-extrabold text-white mb-2">Proof Submitted!</h1>
-        <p className="text-slate-400 max-w-md mx-auto leading-relaxed">
+        <h1 className="text-3xl font-extrabold text-slate-900 dark:text-white mb-2">Proof Submitted!</h1>
+        <p className="text-slate-600 dark:text-slate-400 max-w-md mx-auto leading-relaxed">
           Thank you. The brand has been notified and will review your content shortly. You can safely close this page.
         </p>
       </div>
@@ -105,16 +105,16 @@ export default function SubmitProofPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center p-4">
-      <div className="w-full max-w-lg bg-slate-900 border border-slate-800 rounded-2xl p-8 shadow-2xl">
-        <h1 className="text-2xl font-bold text-white mb-2 text-center">Upload Proof of Posting</h1>
-        <p className="text-slate-400 text-sm text-center mb-8">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col items-center justify-center p-4 transition-colors">
+      <div className="w-full max-w-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-8 shadow-xl dark:shadow-2xl">
+        <h1 className="text-2xl font-bold text-slate-900 dark:text-white mb-2 text-center">Upload Proof of Posting</h1>
+        <p className="text-slate-500 dark:text-slate-400 text-sm text-center mb-8">
           Please upload your post screenshot or video to mark your deliverable as completed.
         </p>
 
         <div
           className={`relative w-full h-64 border-2 border-dashed rounded-xl flex flex-col items-center justify-center cursor-pointer transition-all ${
-            isDragging ? 'border-emerald-500 bg-emerald-500/5' : 'border-slate-700 bg-slate-800/50 hover:border-emerald-500/50 hover:bg-slate-800'
+            isDragging ? 'border-emerald-500 bg-emerald-500/5' : 'border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 hover:border-emerald-500/50 hover:bg-slate-100 dark:hover:bg-slate-800'
           }`}
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
@@ -128,8 +128,8 @@ export default function SubmitProofPage() {
             accept="image/jpeg,image/png,video/mp4,video/quicktime"
             className="hidden"
           />
-          <UploadCloud className={`w-12 h-12 mb-4 transition-colors ${isDragging ? 'text-emerald-400' : 'text-slate-500'}`} />
-          <h3 className="text-white font-semibold mb-1 text-center px-4">
+          <UploadCloud className={`w-12 h-12 mb-4 transition-colors ${isDragging ? 'text-emerald-500 dark:text-emerald-400' : 'text-slate-400 dark:text-slate-500'}`} />
+          <h3 className="text-slate-900 dark:text-white font-semibold mb-1 text-center px-4">
             {file ? file.name : 'Click or drag file to upload'}
           </h3>
           <p className="text-slate-500 text-xs">

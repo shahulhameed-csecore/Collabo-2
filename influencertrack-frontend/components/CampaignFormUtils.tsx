@@ -13,22 +13,22 @@ export function Field({
   const id = useId();
   return (
     <div>
-      <label htmlFor={id} className={`flex items-center gap-1.5 text-xs font-bold mb-2 tracking-wide ${highlight ? 'text-amber-400' : 'text-slate-400'}`}>
+      <label htmlFor={id} className={`flex items-center gap-1.5 text-xs font-bold mb-2 tracking-wide ${highlight ? 'text-amber-500 dark:text-amber-400' : 'text-slate-600 dark:text-slate-400'}`}>
         <Icon className="w-3.5 h-3.5" />
         {label}
-        {required && <span className="text-rose-400 font-bold">*</span>}
-        {highlight && <span className="text-amber-400/60 font-normal ml-1">- please fill</span>}
+        {required && <span className="text-rose-500 dark:text-rose-400 font-bold">*</span>}
+        {highlight && <span className="text-amber-600/75 dark:text-amber-400/60 font-normal ml-1">- please fill</span>}
       </label>
       {React.isValidElement(children) ? React.cloneElement(children as React.ReactElement<any>, { id }) : children}
     </div>
   );
 }
 export const inputCls = (highlight = false) =>
-  `w-full bg-slate-800/50 border text-white placeholder-slate-600 rounded-xl px-3.5 py-2.5 text-sm
+  `w-full bg-slate-50 dark:bg-slate-800/50 border text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-600 rounded-xl px-3.5 py-2.5 text-sm
    focus:outline-none focus:ring-1 transition-all resize-none
    ${highlight
-     ? 'border-amber-500/40 focus:border-amber-500/60 focus:ring-amber-500/15'
-     : 'border-slate-700/50 focus:border-emerald-500/50 focus:ring-emerald-500/15'}`;
+     ? 'border-amber-500/50 dark:border-amber-500/40 focus:border-amber-500/70 focus:ring-amber-500/20'
+     : 'border-slate-300 dark:border-slate-700/50 focus:border-emerald-500/50 focus:ring-emerald-500/15'}`;
 
 export function AiThinkingAnimation() {
   const [elapsed, setElapsed] = useState(0);
@@ -43,12 +43,12 @@ export function AiThinkingAnimation() {
         <div className="absolute inset-0 rounded-full border-2 border-emerald-500/20 animate-ping" style={{ animationDuration: '1.5s' }} />
         <div className="absolute inset-0 rounded-full border border-emerald-400/30 animate-spin" style={{ animationDuration: '3s' }} />
         <div className="relative p-5 bg-gradient-to-br from-emerald-500/15 to-teal-500/10 rounded-full border border-emerald-500/25">
-          <Sparkles className="w-8 h-8 text-emerald-400 animate-pulse" />
+          <Sparkles className="w-8 h-8 text-emerald-500 dark:text-emerald-400 animate-pulse" />
         </div>
       </div>
       <div className="text-center">
-        <p className="text-white font-bold text-base mb-1">Analyzing your file with AI...</p>
-        <p className="text-slate-500 text-sm h-10">
+        <p className="text-slate-900 dark:text-white font-bold text-base mb-1">Analyzing your file with AI...</p>
+        <p className="text-slate-500 dark:text-slate-400 text-sm h-10">
           {elapsed < 5 
             ? "Extracting influencer details, deliverables, deadline & payment..."
             : elapsed < 15

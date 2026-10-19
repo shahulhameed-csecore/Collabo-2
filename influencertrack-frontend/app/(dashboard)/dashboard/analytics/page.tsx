@@ -16,7 +16,7 @@ import dynamic from 'next/dynamic';
 const AnalyticsChart = dynamic(() => import('@/components/AnalyticsChart'), { 
   ssr: false, 
   loading: () => (
-    <div className="h-full w-full bg-[#05070B] rounded-xl border border-white/[0.06] animate-pulse flex items-center justify-center text-slate-500 font-mono text-xs">
+    <div className="h-full w-full bg-slate-50 dark:bg-[#05070B] rounded-xl border border-slate-200 dark:border-white/[0.06] animate-pulse flex items-center justify-center text-slate-400 dark:text-slate-500 font-mono text-xs">
       Loading attribution timeline...
     </div>
   )
@@ -356,27 +356,27 @@ export default function AnalyticsPage() {
       {/* ── 1. Compact Architectural Header ── */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-white flex items-center gap-2.5">
-            <BarChart3 className="w-6 h-6 text-emerald-400" />
+          <h1 className="text-2xl font-semibold tracking-tight text-slate-900 dark:text-white flex items-center gap-2.5">
+            <BarChart3 className="w-6 h-6 text-emerald-500 dark:text-emerald-400" />
             Campaign Analytics
           </h1>
-          <p className="text-xs text-slate-400 font-sans mt-1 font-normal">
+          <p className="text-xs text-slate-500 dark:text-slate-400 font-sans mt-1 font-normal">
             Campaign spend, link clicks, and ROI.
           </p>
         </div>
 
         {!isEmpty && (
           <div className="flex items-center gap-3">
-            <div className="font-mono text-xs text-emerald-400 bg-emerald-500/[0.08] border border-emerald-500/20 px-3 py-1.5 rounded-lg flex items-center gap-1.5 shadow-[inset_0_1px_0_0_rgba(16,185,129,0.1)]">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
+            <div className="font-mono text-xs text-emerald-600 dark:text-emerald-400 bg-emerald-500/[0.08] border border-emerald-500/20 px-3 py-1.5 rounded-lg flex items-center gap-1.5 shadow-sm dark:shadow-[inset_0_1px_0_0_rgba(16,185,129,0.1)]">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 dark:bg-emerald-400 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
               Live Attribution Active
             </div>
 
             <button
               onClick={handleExportCSV}
-              className="font-mono text-xs text-slate-300 hover:text-white bg-[#0A0E17] hover:bg-white/[0.06] border border-white/[0.08] hover:border-white/[0.15] px-3.5 py-1.5 rounded-lg transition-all flex items-center gap-2 shadow-sm active:scale-[0.98] cursor-pointer"
+              className="font-mono text-xs text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white bg-white dark:bg-[#0A0E17] hover:bg-slate-50 dark:hover:bg-white/[0.06] border border-slate-200 dark:border-white/[0.08] hover:border-slate-300 dark:hover:border-white/[0.15] px-3.5 py-1.5 rounded-lg transition-all flex items-center gap-2 shadow-sm active:scale-[0.98] cursor-pointer"
             >
-              <Download className="w-3.5 h-3.5 text-slate-400" />
+              <Download className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400" />
               Export CSV
             </button>
           </div>
@@ -386,22 +386,22 @@ export default function AnalyticsPage() {
       {isLoading ? (
         /* ── Loading Skeletons ── */
         <div className="space-y-6">
-          <div className="h-14 bg-[#0A0E17] border border-white/[0.07] rounded-xl animate-pulse" />
+          <div className="h-14 bg-slate-100 dark:bg-[#0A0E17] border border-slate-200 dark:border-white/[0.07] rounded-xl animate-pulse" />
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {[1, 2, 3, 4].map(i => (
-              <div key={i} className="h-32 bg-[#0A0E17] border border-white/[0.07] rounded-xl animate-pulse p-5" />
+              <div key={i} className="h-32 bg-slate-100 dark:bg-[#0A0E17] border border-slate-200 dark:border-white/[0.07] rounded-xl animate-pulse p-5" />
             ))}
           </div>
-          <div className="h-96 bg-[#0A0E17] border border-white/[0.07] rounded-xl animate-pulse" />
+          <div className="h-96 bg-slate-100 dark:bg-[#0A0E17] border border-slate-200 dark:border-white/[0.07] rounded-xl animate-pulse" />
         </div>
       ) : isEmpty ? (
         /* ── Architectural Empty State ── */
-        <div className="flex flex-col items-center justify-center py-20 px-4 bg-[#0A0E17] border border-white/[0.07] rounded-2xl text-center shadow-[inset_0_1px_0_0_rgba(255,255,255,0.06)] relative overflow-hidden">
-          <div className="w-14 h-14 bg-white/[0.04] border border-white/[0.08] rounded-xl flex items-center justify-center mx-auto mb-4">
-            <BarChart3 className="w-7 h-7 text-emerald-400" />
+        <div className="flex flex-col items-center justify-center py-20 px-4 bg-white dark:bg-[#0A0E17] border border-slate-200 dark:border-white/[0.07] rounded-2xl text-center shadow-sm dark:shadow-[inset_0_1px_0_0_rgba(255,255,255,0.06)] relative overflow-hidden">
+          <div className="w-14 h-14 bg-slate-100 dark:bg-white/[0.04] border border-slate-200 dark:border-white/[0.08] rounded-xl flex items-center justify-center mx-auto mb-4">
+            <BarChart3 className="w-7 h-7 text-emerald-500 dark:text-emerald-400" />
           </div>
-          <h2 className="text-xl font-semibold text-white mb-2 tracking-tight">Unlock Campaign Intelligence</h2>
-          <p className="text-slate-400 max-w-md mx-auto mb-6 text-xs font-mono leading-relaxed">
+          <h2 className="text-xl font-semibold text-slate-900 dark:text-white mb-2 tracking-tight">Unlock Campaign Intelligence</h2>
+          <p className="text-slate-500 dark:text-slate-400 max-w-md mx-auto mb-6 text-xs font-mono leading-relaxed">
             Create deals, generate deterministic shortlinks (`/t/...`), and monitor live click velocity and creator cost per click.
           </p>
           <Link 
@@ -415,26 +415,26 @@ export default function AnalyticsPage() {
       ) : (
         <>
           {/* ── 2. Refined AI Performance Insights Strip (Sharp Architectural Callout) ── */}
-          <div className="bg-[#0A0E17] border border-white/[0.07] border-l-2 border-l-emerald-500 rounded-xl px-4 py-3 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.06)]">
+          <div className="bg-white dark:bg-[#0A0E17] border border-slate-200 dark:border-white/[0.07] border-l-2 border-l-emerald-500 rounded-xl px-4 py-3 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-sm dark:shadow-[inset_0_1px_0_0_rgba(255,255,255,0.06)]">
             <div className="space-y-0.5">
               <div className="flex items-center gap-2">
-                <span className="text-[10px] font-mono tracking-wider uppercase text-emerald-400 font-semibold flex items-center gap-1.5">
-                  <Sparkles className="w-3 h-3 text-emerald-400" />
+                <span className="text-[10px] font-mono tracking-wider uppercase text-emerald-600 dark:text-emerald-400 font-semibold flex items-center gap-1.5">
+                  <Sparkles className="w-3 h-3 text-emerald-500 dark:text-emerald-400" />
                   AI Performance Insight
                 </span>
                 {peakDay && (
-                  <span className="text-[10px] font-mono text-emerald-400/80 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.2 rounded">
+                  <span className="text-[10px] font-mono text-emerald-700 dark:text-emerald-400/80 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.2 rounded">
                     Peak: {peakDay}
                   </span>
                 )}
               </div>
-              <p className="text-xs text-slate-300 leading-relaxed font-sans">
+              <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed font-sans">
                 {insightBannerText}
               </p>
             </div>
 
-            <div className="font-mono text-[10px] text-slate-400 bg-white/[0.03] border border-white/[0.06] px-2.5 py-1 rounded-md flex items-center gap-1.5 flex-shrink-0">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+            <div className="font-mono text-[10px] text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-white/[0.03] border border-slate-200 dark:border-white/[0.06] px-2.5 py-1 rounded-md flex items-center gap-1.5 flex-shrink-0">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 dark:bg-emerald-400" />
               Attribution Engine: Deterministic Shortlinks
             </div>
           </div>
@@ -443,45 +443,45 @@ export default function AnalyticsPage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             
             {/* KPI 1: TOTAL SPEND */}
-            <div className="bg-[#0A0E17] border border-white/[0.07] rounded-xl p-5 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.06)] hover:border-white/[0.12] transition-colors flex flex-col justify-between">
+            <div className="bg-white dark:bg-[#0A0E17] border border-slate-200 dark:border-white/[0.07] rounded-xl p-5 shadow-sm dark:shadow-[inset_0_1px_0_0_rgba(255,255,255,0.06)] hover:border-slate-300 dark:hover:border-white/[0.12] transition-colors flex flex-col justify-between">
               <div className="flex items-center justify-between gap-2 mb-3">
-                <span className="text-[11px] font-medium tracking-wider text-slate-400 uppercase font-sans flex items-center gap-1.5">
-                  <Target className="w-3.5 h-3.5 text-slate-400" /> Total Spend
+                <span className="text-[11px] font-medium tracking-wider text-slate-500 dark:text-slate-400 uppercase font-sans flex items-center gap-1.5">
+                  <Target className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500" /> Total Spend
                 </span>
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shadow-[0_0_6px_rgba(16,185,129,0.5)] flex-shrink-0" />
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 dark:bg-emerald-400 shadow-[0_0_6px_rgba(16,185,129,0.5)] flex-shrink-0" />
               </div>
               <div className="my-1">
-                <span className="font-mono tabular-nums text-3xl font-semibold text-white tracking-tight leading-none block">
+                <span className="font-mono tabular-nums text-3xl font-semibold text-slate-900 dark:text-white tracking-tight leading-none block">
                   {formatINR(totalSpend)}
                 </span>
               </div>
-              <p className="text-xs text-slate-400 font-mono mt-2 truncate">
+              <p className="text-xs text-slate-500 dark:text-slate-400 font-mono mt-2 truncate">
                 {activeOrPaidCount} active/paid deal{activeOrPaidCount !== 1 ? 's' : ''}
               </p>
             </div>
 
             {/* KPI 2: TOTAL CLICKS */}
-            <div className="bg-[#0A0E17] border border-white/[0.07] rounded-xl p-5 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.06)] hover:border-white/[0.12] transition-colors flex flex-col justify-between">
+            <div className="bg-white dark:bg-[#0A0E17] border border-slate-200 dark:border-white/[0.07] rounded-xl p-5 shadow-sm dark:shadow-[inset_0_1px_0_0_rgba(255,255,255,0.06)] hover:border-slate-300 dark:hover:border-white/[0.12] transition-colors flex flex-col justify-between">
               <div className="flex items-center justify-between gap-2 mb-3">
-                <span className="text-[11px] font-medium tracking-wider text-slate-400 uppercase font-sans flex items-center gap-1.5">
-                  <MousePointerClick className="w-3.5 h-3.5 text-slate-400" /> Total Clicks
+                <span className="text-[11px] font-medium tracking-wider text-slate-500 dark:text-slate-400 uppercase font-sans flex items-center gap-1.5">
+                  <MousePointerClick className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500" /> Total Clicks
                 </span>
-                <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${totalClicks > 0 ? 'bg-emerald-400 shadow-[0_0_6px_rgba(16,185,129,0.5)]' : 'bg-slate-500'}`} />
+                <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${totalClicks > 0 ? 'bg-emerald-500 dark:bg-emerald-400 shadow-[0_0_6px_rgba(16,185,129,0.5)]' : 'bg-slate-400 dark:bg-slate-500'}`} />
               </div>
               <div className="my-1">
-                <span className="font-mono tabular-nums text-3xl font-semibold text-white tracking-tight leading-none block">
+                <span className="font-mono tabular-nums text-3xl font-semibold text-slate-900 dark:text-white tracking-tight leading-none block">
                   {totalClicks.toLocaleString('en-IN')}
                 </span>
               </div>
               <div className="mt-2">
                 {totalClicks === 0 ? (
-                  <span className="text-xs text-slate-400 font-mono">Awaiting traffic</span>
+                  <span className="text-xs text-slate-500 dark:text-slate-400 font-mono">Awaiting traffic</span>
                 ) : totalClicks < 20 ? (
-                  <span className="text-xs text-amber-400/90 font-mono flex items-center gap-1">
+                  <span className="text-xs text-amber-600 dark:text-amber-400/90 font-mono flex items-center gap-1">
                     <ArrowUpRight className="w-3.5 h-3.5" /> Early traction ({totalClicks} clicks)
                   </span>
                 ) : (
-                  <span className="text-xs text-emerald-400 font-mono flex items-center gap-1">
+                  <span className="text-xs text-emerald-600 dark:text-emerald-400 font-mono flex items-center gap-1">
                     <ArrowUpRight className="w-3.5 h-3.5" /> High velocity
                   </span>
                 )}
@@ -489,27 +489,27 @@ export default function AnalyticsPage() {
             </div>
 
             {/* KPI 3: COST PER CLICK */}
-            <div className="bg-[#0A0E17] border border-white/[0.07] rounded-xl p-5 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.06)] hover:border-white/[0.12] transition-colors flex flex-col justify-between">
+            <div className="bg-white dark:bg-[#0A0E17] border border-slate-200 dark:border-white/[0.07] rounded-xl p-5 shadow-sm dark:shadow-[inset_0_1px_0_0_rgba(255,255,255,0.06)] hover:border-slate-300 dark:hover:border-white/[0.12] transition-colors flex flex-col justify-between">
               <div className="flex items-center justify-between gap-2 mb-3">
-                <span className="text-[11px] font-medium tracking-wider text-slate-400 uppercase font-sans flex items-center gap-1.5">
-                  <Zap className="w-3.5 h-3.5 text-slate-400" /> Cost Per Click
+                <span className="text-[11px] font-medium tracking-wider text-slate-500 dark:text-slate-400 uppercase font-sans flex items-center gap-1.5">
+                  <Zap className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500" /> Cost Per Click
                 </span>
-                <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${totalClicks > 0 && costPerClickNum <= 50 ? 'bg-emerald-400' : costPerClickNum > 50 ? 'bg-amber-400' : 'bg-slate-500'}`} />
+                <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${totalClicks > 0 && costPerClickNum <= 50 ? 'bg-emerald-500 dark:bg-emerald-400' : costPerClickNum > 50 ? 'bg-amber-500 dark:bg-amber-400' : 'bg-slate-400 dark:bg-slate-500'}`} />
               </div>
               <div className="my-1">
-                <span className="font-mono tabular-nums text-3xl font-semibold text-white tracking-tight leading-none block">
+                <span className="font-mono tabular-nums text-3xl font-semibold text-slate-900 dark:text-white tracking-tight leading-none block">
                   {formatINR(costPerClickNum)}
                 </span>
               </div>
               <div className="mt-2">
                 {costPerClickNum === 0 ? (
-                  <span className="text-xs text-slate-400 font-mono">No click spend yet</span>
+                  <span className="text-xs text-slate-500 dark:text-slate-400 font-mono">No click spend yet</span>
                 ) : costPerClickNum <= 50 ? (
-                  <span className="text-xs text-emerald-400 font-mono flex items-center gap-1">
+                  <span className="text-xs text-emerald-600 dark:text-emerald-400 font-mono flex items-center gap-1">
                     <ArrowDownRight className="w-3.5 h-3.5" /> Optimal CPC
                   </span>
                 ) : (
-                  <span className="text-xs text-amber-400/90 font-mono flex items-center gap-1">
+                  <span className="text-xs text-amber-600 dark:text-amber-400/90 font-mono flex items-center gap-1">
                     <ArrowUpRight className="w-3.5 h-3.5" /> Avg. {formatINR(costPerClickNum)}/click
                   </span>
                 )}
@@ -517,20 +517,20 @@ export default function AnalyticsPage() {
             </div>
 
             {/* KPI 4: TOP PLATFORM */}
-            <div className="bg-[#0A0E17] border border-white/[0.07] rounded-xl p-5 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.06)] hover:border-white/[0.12] transition-colors flex flex-col justify-between">
+            <div className="bg-white dark:bg-[#0A0E17] border border-slate-200 dark:border-white/[0.07] rounded-xl p-5 shadow-sm dark:shadow-[inset_0_1px_0_0_rgba(255,255,255,0.06)] hover:border-slate-300 dark:hover:border-white/[0.12] transition-colors flex flex-col justify-between">
               <div className="flex items-center justify-between gap-2 mb-3">
-                <span className="text-[11px] font-medium tracking-wider text-slate-400 uppercase font-sans flex items-center gap-1.5">
-                  <Smartphone className="w-3.5 h-3.5 text-slate-400" /> Top Platform
+                <span className="text-[11px] font-medium tracking-wider text-slate-500 dark:text-slate-400 uppercase font-sans flex items-center gap-1.5">
+                  <Smartphone className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500" /> Top Platform
                 </span>
-                <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${topPlatform !== 'None yet' ? 'bg-emerald-400' : 'bg-slate-500'}`} />
+                <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${topPlatform !== 'None yet' ? 'bg-emerald-500 dark:bg-emerald-400' : 'bg-slate-400 dark:bg-slate-500'}`} />
               </div>
               <div className="my-1 flex items-center gap-2.5 truncate">
-                <PlatformIcon platform={topPlatform} className="w-6 h-6 text-emerald-400 flex-shrink-0" />
-                <span className="font-mono text-3xl font-semibold text-white tracking-tight capitalize truncate leading-none">
+                <PlatformIcon platform={topPlatform} className="w-6 h-6 text-emerald-500 dark:text-emerald-400 flex-shrink-0" />
+                <span className="font-mono text-3xl font-semibold text-slate-900 dark:text-white tracking-tight capitalize truncate leading-none">
                   {topPlatform}
                 </span>
               </div>
-              <p className="text-xs text-slate-400 font-mono mt-2 truncate">
+              <p className="text-xs text-slate-500 dark:text-slate-400 font-mono mt-2 truncate">
                 {topPlatformPercent}% of volume
               </p>
             </div>
@@ -538,28 +538,28 @@ export default function AnalyticsPage() {
           </div>
 
           {/* ── 4. Performance Over Time Chart Card ── */}
-          <div className="bg-[#0A0E17] border border-white/[0.07] rounded-xl p-5 sm:p-6 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.06)]">
+          <div className="bg-white dark:bg-[#0A0E17] border border-slate-200 dark:border-white/[0.07] rounded-xl p-5 sm:p-6 shadow-sm dark:shadow-[inset_0_1px_0_0_rgba(255,255,255,0.06)]">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
               <div>
-                <h2 className="text-base font-semibold text-white tracking-tight flex items-center gap-2">
-                  <CalendarIcon className="w-4 h-4 text-emerald-400" /> Performance Over Time
+                <h2 className="text-base font-semibold text-slate-900 dark:text-white tracking-tight flex items-center gap-2">
+                  <CalendarIcon className="w-4 h-4 text-emerald-500 dark:text-emerald-400" /> Performance Over Time
                 </h2>
-                <p className="text-xs text-slate-400 font-mono mt-0.5">
+                <p className="text-xs text-slate-500 dark:text-slate-400 font-mono mt-0.5">
                   Clicks velocity and spend attribution timeline.
                 </p>
               </div>
 
               <div className="flex flex-wrap items-center gap-3">
                 {/* Timeframe Filter Segmented Control */}
-                <div className="flex items-center bg-white/[0.04] p-0.5 rounded-lg border border-white/[0.08]">
+                <div className="flex items-center bg-slate-100 dark:bg-white/[0.04] p-0.5 rounded-lg border border-slate-200 dark:border-white/[0.08]">
                   {(['30D', '90D', 'All Time'] as Timeframe[]).map((tf) => (
                     <button
                       key={tf}
                       onClick={() => setSelectedTimeframe(tf)}
                       className={`font-mono text-xs px-3 py-1 rounded-md transition-all cursor-pointer ${
                         activeTimeframe === tf
-                          ? 'bg-white/[0.1] text-white shadow-sm font-semibold'
-                          : 'text-slate-400 hover:text-slate-200 font-medium'
+                          ? 'bg-white dark:bg-white/[0.1] text-slate-900 dark:text-white shadow-sm font-semibold'
+                          : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 font-medium'
                       }`}
                     >
                       {tf}
@@ -568,12 +568,12 @@ export default function AnalyticsPage() {
                 </div>
 
                 {/* Legend */}
-                <div className="flex items-center gap-3 bg-white/[0.03] border border-white/[0.06] px-3 py-1 rounded-lg">
-                  <div className="flex items-center gap-1.5 font-mono text-xs text-slate-300">
-                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 shadow-[0_0_6px_rgba(16,185,129,0.5)]" />
+                <div className="flex items-center gap-3 bg-slate-50 dark:bg-white/[0.03] border border-slate-200 dark:border-white/[0.06] px-3 py-1 rounded-lg">
+                  <div className="flex items-center gap-1.5 font-mono text-xs text-slate-700 dark:text-slate-300">
+                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 dark:bg-emerald-400 shadow-[0_0_6px_rgba(16,185,129,0.5)]" />
                     Clicks
                   </div>
-                  <div className="flex items-center gap-1.5 font-mono text-xs text-slate-300">
+                  <div className="flex items-center gap-1.5 font-mono text-xs text-slate-700 dark:text-slate-300">
                     <span className="w-2.5 h-2.5 rounded-full bg-blue-500 shadow-[0_0_6px_rgba(59,130,246,0.5)]" />
                     Spend (₹)
                   </div>
@@ -590,25 +590,25 @@ export default function AnalyticsPage() {
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
             
             {/* Left Card: Platform Spend & Click Share */}
-            <div className="lg:col-span-5 bg-[#0A0E17] border border-white/[0.07] rounded-xl p-5 sm:p-6 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.06)] flex flex-col justify-between">
+            <div className="lg:col-span-5 bg-white dark:bg-[#0A0E17] border border-slate-200 dark:border-white/[0.07] rounded-xl p-5 sm:p-6 shadow-sm dark:shadow-[inset_0_1px_0_0_rgba(255,255,255,0.06)] flex flex-col justify-between">
               <div>
-                <div className="flex items-center justify-between pb-3 mb-4 border-b border-white/[0.06]">
+                <div className="flex items-center justify-between pb-3 mb-4 border-b border-slate-100 dark:border-white/[0.06]">
                   <div>
-                    <h3 className="text-sm font-semibold text-white tracking-tight flex items-center gap-2">
-                      <Smartphone className="w-4 h-4 text-emerald-400" /> Platform Distribution
+                    <h3 className="text-sm font-semibold text-slate-900 dark:text-white tracking-tight flex items-center gap-2">
+                      <Smartphone className="w-4 h-4 text-emerald-500 dark:text-emerald-400" /> Platform Distribution
                     </h3>
-                    <p className="text-xs text-slate-400 font-mono mt-0.5">
+                    <p className="text-xs text-slate-500 dark:text-slate-400 font-mono mt-0.5">
                       Spend and engagement breakdown across channels
                     </p>
                   </div>
-                  <span className="text-xs font-mono text-slate-400">
+                  <span className="text-xs font-mono text-slate-500 dark:text-slate-400">
                     {platformStats.length} channel{platformStats.length !== 1 ? 's' : ''}
                   </span>
                 </div>
 
                 <div className="space-y-4">
                   {platformStats.length === 0 ? (
-                    <div className="py-8 text-center text-slate-500 font-mono text-xs">
+                    <div className="py-8 text-center text-slate-400 dark:text-slate-500 font-mono text-xs">
                       No platform channels recorded yet.
                     </div>
                   ) : (
@@ -616,38 +616,38 @@ export default function AnalyticsPage() {
                       <div key={item.platform} className="space-y-1.5">
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-2.5">
-                            <div className="w-7 h-7 rounded-lg bg-white/[0.04] border border-white/[0.08] flex items-center justify-center text-slate-300 flex-shrink-0">
-                              <PlatformIcon platform={item.platform} className="w-3.5 h-3.5 text-emerald-400" />
+                            <div className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-white/[0.04] border border-slate-200 dark:border-white/[0.08] flex items-center justify-center text-slate-600 dark:text-slate-300 flex-shrink-0">
+                              <PlatformIcon platform={item.platform} className="w-3.5 h-3.5 text-emerald-500 dark:text-emerald-400" />
                             </div>
                             <div>
-                              <span className="text-xs font-medium text-white capitalize block">
+                              <span className="text-xs font-medium text-slate-900 dark:text-white capitalize block">
                                 {item.platform}
                               </span>
-                              <span className="text-[11px] text-slate-400 font-mono">
+                              <span className="text-[11px] text-slate-500 dark:text-slate-400 font-mono">
                                 {item.count} deal{item.count !== 1 ? 's' : ''}
                               </span>
                             </div>
                           </div>
 
                           <div className="text-right">
-                            <span className="text-xs font-semibold text-white font-mono block">
+                            <span className="text-xs font-semibold text-slate-900 dark:text-white font-mono block">
                               {formatINR(item.spend)}
                             </span>
-                            <span className="text-[11px] text-emerald-400/90 font-mono">
+                            <span className="text-[11px] text-emerald-600 dark:text-emerald-400/90 font-mono">
                               {item.clicks.toLocaleString('en-IN')} clicks ({item.clickShare}%)
                             </span>
                           </div>
                         </div>
 
                         {/* Hairline Progress Bar */}
-                        <div className="w-full bg-white/[0.06] h-1.5 rounded-full overflow-hidden mt-1 relative">
+                        <div className="w-full bg-slate-100 dark:bg-white/[0.06] h-1.5 rounded-full overflow-hidden mt-1 relative">
                           <div 
                             className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-teal-400 transition-all duration-500" 
                             style={{ width: `${Math.max(item.spendShare, 4)}%` }} 
                           />
                         </div>
 
-                        <div className="flex items-center justify-between text-[10px] text-slate-400 font-mono pt-0.5">
+                        <div className="flex items-center justify-between text-[10px] text-slate-500 dark:text-slate-400 font-mono pt-0.5">
                           <span>{item.spendShare}% of budget</span>
                           <span>{item.clickShare}% of click volume</span>
                         </div>
@@ -659,31 +659,31 @@ export default function AnalyticsPage() {
             </div>
 
             {/* Right Card: Top Performing Campaigns Leaderboard */}
-            <div className="lg:col-span-7 bg-[#0A0E17] border border-white/[0.07] rounded-xl p-5 sm:p-6 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.06)] flex flex-col justify-between">
+            <div className="lg:col-span-7 bg-white dark:bg-[#0A0E17] border border-slate-200 dark:border-white/[0.07] rounded-xl p-5 sm:p-6 shadow-sm dark:shadow-[inset_0_1px_0_0_rgba(255,255,255,0.06)] flex flex-col justify-between">
               <div>
-                <div className="flex items-center justify-between pb-3 mb-4 border-b border-white/[0.06]">
+                <div className="flex items-center justify-between pb-3 mb-4 border-b border-slate-100 dark:border-white/[0.06]">
                   <div>
-                    <h3 className="text-sm font-semibold text-white tracking-tight flex items-center gap-2">
-                      <Award className="w-4 h-4 text-emerald-400" /> Top Performing Campaigns
+                    <h3 className="text-sm font-semibold text-slate-900 dark:text-white tracking-tight flex items-center gap-2">
+                      <Award className="w-4 h-4 text-emerald-500 dark:text-emerald-400" /> Top Performing Campaigns
                     </h3>
-                    <p className="text-xs text-slate-400 font-mono mt-0.5">
+                    <p className="text-xs text-slate-500 dark:text-slate-400 font-mono mt-0.5">
                       Ranked by click volume and cost efficiency
                     </p>
                   </div>
-                  <span className="text-xs font-mono text-slate-400">
+                  <span className="text-xs font-mono text-slate-500 dark:text-slate-400">
                     Leaderboard
                   </span>
                 </div>
 
                 {topCampaigns.length === 0 ? (
-                  <div className="py-12 text-center text-slate-500 font-mono text-xs">
+                  <div className="py-12 text-center text-slate-400 dark:text-slate-500 font-mono text-xs">
                     No active campaigns to rank yet.
                   </div>
                 ) : (
                   <div className="overflow-x-auto">
                     <table className="w-full text-left font-sans">
                       <thead>
-                        <tr className="border-b border-white/[0.06] text-[10px] font-mono uppercase text-slate-400 tracking-wider">
+                        <tr className="border-b border-slate-100 dark:border-white/[0.06] text-[10px] font-mono uppercase text-slate-500 dark:text-slate-400 tracking-wider">
                           <th className="pb-2.5 font-medium pl-1">Rank</th>
                           <th className="pb-2.5 font-medium">Creator</th>
                           <th className="pb-2.5 font-medium">Channel</th>
@@ -692,41 +692,41 @@ export default function AnalyticsPage() {
                           <th className="pb-2.5 font-medium text-right pr-1">Unit CPC</th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-white/[0.04]">
+                      <tbody className="divide-y divide-slate-100 dark:divide-white/[0.04]">
                         {topCampaigns.map((c, idx) => {
                           const cpc = (c.clicks || 0) > 0 ? (c.payment_amount || 0) / c.clicks : 0;
                           return (
-                            <tr key={c.id} className="hover:bg-white/[0.02] transition-colors">
-                              <td className="py-3 pl-1 font-mono text-xs text-slate-400">
+                            <tr key={c.id} className="hover:bg-slate-50 dark:hover:bg-white/[0.02] transition-colors">
+                              <td className="py-3 pl-1 font-mono text-xs text-slate-500 dark:text-slate-400">
                                 #{idx + 1}
                               </td>
                               <td className="py-3 pr-2">
                                 <div className="max-w-[150px] sm:max-w-[200px]">
-                                  <p className="text-xs font-medium text-white truncate">
+                                  <p className="text-xs font-medium text-slate-900 dark:text-white truncate">
                                     {c.influencer_name || c.influencer_handle || 'Creator'}
                                   </p>
-                                  <p className="font-mono text-[11px] text-slate-400 truncate">
+                                  <p className="font-mono text-[11px] text-slate-500 dark:text-slate-400 truncate">
                                     {c.influencer_handle ? `@${c.influencer_handle.replace(/^@/, '')}` : '—'}
                                   </p>
                                 </div>
                               </td>
                               <td className="py-3">
-                                <div className="flex items-center gap-1.5 font-mono text-xs text-slate-300">
-                                  <PlatformIcon platform={c.platform} className="w-3.5 h-3.5 text-slate-400" />
+                                <div className="flex items-center gap-1.5 font-mono text-xs text-slate-700 dark:text-slate-300">
+                                  <PlatformIcon platform={c.platform} className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500" />
                                   <span className="capitalize">{c.platform || 'Other'}</span>
                                 </div>
                               </td>
-                              <td className="py-3 text-right font-mono text-xs text-slate-200 tabular-nums">
+                              <td className="py-3 text-right font-mono text-xs text-slate-800 dark:text-slate-200 tabular-nums">
                                 {formatINR(c.payment_amount || 0)}
                               </td>
-                              <td className="py-3 text-right font-mono text-xs font-semibold text-emerald-400 tabular-nums">
+                              <td className="py-3 text-right font-mono text-xs font-semibold text-emerald-600 dark:text-emerald-400 tabular-nums">
                                 {(c.clicks || 0).toLocaleString('en-IN')}
                               </td>
-                              <td className="py-3 text-right pr-1 font-mono text-xs text-slate-300 tabular-nums">
+                              <td className="py-3 text-right pr-1 font-mono text-xs text-slate-700 dark:text-slate-300 tabular-nums">
                                 {c.clicks > 0 ? (
                                   <span>{formatINR(cpc)}</span>
                                 ) : (
-                                  <span className="text-slate-500">—</span>
+                                  <span className="text-slate-400 dark:text-slate-500">—</span>
                                 )}
                               </td>
                             </tr>
@@ -738,9 +738,9 @@ export default function AnalyticsPage() {
                 )}
               </div>
 
-              <div className="pt-3 mt-4 border-t border-white/[0.06] flex items-center justify-between text-[11px] font-mono text-slate-400">
+              <div className="pt-3 mt-4 border-t border-slate-100 dark:border-white/[0.06] flex items-center justify-between text-[11px] font-mono text-slate-500 dark:text-slate-400">
                 <span>Attribution: shortlinks (/t/...)</span>
-                <Link href="/dashboard" className="text-emerald-400 hover:text-emerald-300 transition-colors flex items-center gap-1">
+                <Link href="/dashboard" className="text-emerald-600 dark:text-emerald-400 hover:text-emerald-500 dark:hover:text-emerald-300 transition-colors flex items-center gap-1">
                   Manage Deals <ArrowUpRight className="w-3 h-3" />
                 </Link>
               </div>

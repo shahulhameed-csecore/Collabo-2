@@ -189,23 +189,23 @@ export default function BillingPage() {
       {/* ── 1. Page Header ── */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-white flex items-center gap-2.5 font-sans">
+          <h1 className="text-2xl font-semibold tracking-tight text-slate-900 dark:text-white flex items-center gap-2.5 font-sans">
             <div className="p-1.5 bg-emerald-500/10 border border-emerald-500/20 rounded-lg">
               <CreditCard className="w-4 h-4 text-emerald-400" />
             </div>
             Billing & Usage
           </h1>
-          <p className="text-xs text-slate-400 font-sans font-normal mt-1 antialiased leading-relaxed">
+          <p className="text-xs text-slate-500 dark:text-slate-400 font-sans font-normal mt-1 antialiased leading-relaxed">
             Manage your workspace plan, usage quotas, and Razorpay billing cycle.
           </p>
         </div>
 
         <div className="flex items-center gap-2 self-start sm:self-auto">
-          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[#0A0E17] border border-white/[0.08] text-xs font-sans text-slate-300 shadow-sm antialiased">
+          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white dark:bg-[#0A0E17] border border-slate-200 dark:border-white/[0.08] text-xs font-sans text-slate-600 dark:text-slate-300 shadow-sm antialiased">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
             <span>Plan: {isPro ? 'Collabo Pro' : 'Free Tier'}</span>
-            <span className="text-slate-600">•</span>
-            <span className="text-slate-400 flex items-center gap-1">
+            <span className="text-slate-400 dark:text-slate-600">•</span>
+            <span className="text-slate-500 dark:text-slate-400 flex items-center gap-1">
               <ShieldCheck className="w-3.5 h-3.5 text-emerald-400 inline" />
               Razorpay Secured • INR (₹)
             </span>
@@ -217,17 +217,17 @@ export default function BillingPage() {
       {isLoading ? (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
           {[1, 2, 3].map(i => (
-            <div key={i} className="h-44 bg-[#0A0E17] border border-white/[0.07] rounded-2xl animate-pulse" />
+            <div key={i} className="h-44 bg-white dark:bg-[#0A0E17] border border-slate-200 dark:border-white/[0.07] rounded-2xl animate-pulse" />
           ))}
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
           
           {/* Card 1: Active Plan */}
-          <div className="bg-[#0A0E17] border border-white/[0.07] border-t-2 border-t-emerald-500 rounded-2xl p-6 shadow-xl flex flex-col justify-between">
+          <div className="bg-white dark:bg-[#0A0E17] border border-slate-200 dark:border-white/[0.07] border-t-2 border-t-emerald-500 rounded-2xl p-6 shadow-sm dark:shadow-xl flex flex-col justify-between">
             <div>
               <div className="flex items-center justify-between mb-3">
-                <span className="text-xs font-sans uppercase tracking-wider text-slate-400 font-medium">
+                <span className="text-xs font-sans uppercase tracking-wider text-slate-500 dark:text-slate-400 font-medium">
                   Active Plan
                 </span>
                 <span className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-xs px-2.5 py-0.5 rounded-full font-medium">
@@ -235,20 +235,20 @@ export default function BillingPage() {
                 </span>
               </div>
 
-              <h2 className="text-xl font-semibold text-emerald-400 font-sans tracking-tight">
+              <h2 className="text-xl font-semibold text-emerald-500 dark:text-emerald-400 font-sans tracking-tight">
                 {isPro ? 'Active Subscription' : 'Starter Plan'}
               </h2>
 
-              <p className="font-sans text-sm text-slate-400 mt-2 leading-relaxed">
+              <p className="font-sans text-sm text-slate-600 dark:text-slate-400 mt-2 leading-relaxed">
                 {isPro 
                   ? 'You are on the Pro plan. Enjoy full access to all features.'
                   : 'You are on the free tier. Upgrade to unlock unlimited campaigns and priority AI.'}
               </p>
             </div>
 
-            <div className="pt-4 mt-4 border-t border-white/[0.06]">
+            <div className="pt-4 mt-4 border-t border-slate-100 dark:border-white/[0.06]">
               {isPro ? (
-                <div className="flex items-center gap-2 text-xs font-sans text-emerald-400 font-medium">
+                <div className="flex items-center gap-2 text-xs font-sans text-emerald-500 dark:text-emerald-400 font-medium">
                   <Check className="w-4 h-4 shrink-0" />
                   <span>Full Enterprise Access Active</span>
                 </div>
@@ -266,29 +266,29 @@ export default function BillingPage() {
           </div>
 
           {/* Card 2: Campaigns Tracked */}
-          <div className="bg-[#0A0E17] border border-white/[0.07] rounded-2xl p-6 shadow-xl flex flex-col justify-between">
+          <div className="bg-white dark:bg-[#0A0E17] border border-slate-200 dark:border-white/[0.07] rounded-2xl p-6 shadow-sm dark:shadow-xl flex flex-col justify-between">
             <div>
               <div className="flex items-center justify-between mb-3">
-                <span className="text-xs font-sans uppercase tracking-wider text-slate-400 font-medium flex items-center gap-1.5">
+                <span className="text-xs font-sans uppercase tracking-wider text-slate-500 dark:text-slate-400 font-medium flex items-center gap-1.5">
                   <TrendingUp className="w-3.5 h-3.5 text-purple-400" />
                   Campaigns Tracked
                 </span>
-                <span className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-xs px-2.5 py-0.5 rounded-full font-medium flex items-center gap-1">
+                <span className="bg-emerald-500/10 text-emerald-500 dark:text-emerald-400 border border-emerald-500/20 text-xs px-2.5 py-0.5 rounded-full font-medium flex items-center gap-1">
                   ∞ Unlimited
                 </span>
               </div>
 
-              <p className="font-mono tabular-nums text-3xl font-semibold text-white tracking-tight">
+              <p className="font-mono tabular-nums text-3xl font-semibold text-slate-900 dark:text-white tracking-tight">
                 {campaignsTracked}
               </p>
 
-              <p className="font-sans text-sm text-slate-400 mt-2 leading-relaxed">
+              <p className="font-sans text-sm text-slate-600 dark:text-slate-400 mt-2 leading-relaxed">
                 Active pipelines monitored with real-time conversion & deadline alerts.
               </p>
             </div>
 
-            <div className="pt-4 mt-4 border-t border-white/[0.06]">
-              <div className="text-xs font-sans text-slate-400 flex items-center gap-2">
+            <div className="pt-4 mt-4 border-t border-slate-100 dark:border-white/[0.06]">
+              <div className="text-xs font-sans text-slate-500 dark:text-slate-400 flex items-center gap-2">
                 <span className="w-2 h-2 rounded-full bg-emerald-400" />
                 <span>Zero quota bottlenecks</span>
               </div>
@@ -296,29 +296,29 @@ export default function BillingPage() {
           </div>
 
           {/* Card 3: AI Extractions */}
-          <div className="bg-[#0A0E17] border border-white/[0.07] rounded-2xl p-6 shadow-xl flex flex-col justify-between">
+          <div className="bg-white dark:bg-[#0A0E17] border border-slate-200 dark:border-white/[0.07] rounded-2xl p-6 shadow-sm dark:shadow-xl flex flex-col justify-between">
             <div>
               <div className="flex items-center justify-between mb-3">
-                <span className="text-xs font-sans uppercase tracking-wider text-slate-400 font-medium flex items-center gap-1.5">
+                <span className="text-xs font-sans uppercase tracking-wider text-slate-500 dark:text-slate-400 font-medium flex items-center gap-1.5">
                   <Zap className="w-3.5 h-3.5 text-emerald-400" />
                   AI Extractions
                 </span>
-                <span className="bg-white/[0.04] text-slate-400 border border-white/[0.08] text-xs px-2.5 py-0.5 rounded-full font-medium">
+                <span className="bg-slate-100 dark:bg-white/[0.04] text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-white/[0.08] text-xs px-2.5 py-0.5 rounded-full font-medium">
                   Lifetime total
                 </span>
               </div>
 
-              <p className="font-mono tabular-nums text-3xl font-semibold text-white tracking-tight">
+              <p className="font-mono tabular-nums text-3xl font-semibold text-slate-900 dark:text-white tracking-tight">
                 {aiExtractionsCount}
               </p>
 
-              <p className="font-sans text-sm text-slate-400 mt-2 leading-relaxed">
+              <p className="font-sans text-sm text-slate-600 dark:text-slate-400 mt-2 leading-relaxed">
                 Save hours of manual data entry by forwarding briefs or screenshots to our WhatsApp bot.
               </p>
             </div>
 
-            <div className="pt-4 mt-4 border-t border-white/[0.06]">
-              <div className="text-xs font-sans text-slate-400 flex items-center gap-2">
+            <div className="pt-4 mt-4 border-t border-slate-100 dark:border-white/[0.06]">
+              <div className="text-xs font-sans text-slate-500 dark:text-slate-400 flex items-center gap-2">
                 <span className="w-2 h-2 rounded-full bg-emerald-400" />
                 <span>Multimodal OCR & Audio Active</span>
               </div>
@@ -330,10 +330,10 @@ export default function BillingPage() {
 
       {/* ── 3. Centered Pricing Header ── */}
       <div className="pt-4 text-center">
-        <h2 className="text-2xl font-semibold text-white text-center font-sans">
+        <h2 className="text-2xl font-semibold text-slate-900 dark:text-white text-center font-sans">
           Supercharge your influencer marketing
         </h2>
-        <p className="text-sm text-slate-400 text-center font-sans mt-1 mb-8">
+        <p className="text-sm text-slate-500 dark:text-slate-400 text-center font-sans mt-1 mb-8">
           Stop using spreadsheets. Start acting like an enterprise.
         </p>
 
@@ -341,49 +341,49 @@ export default function BillingPage() {
         <div className="max-w-4xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-6 text-left">
           
           {/* Left Card: Starter */}
-          <div className="bg-[#0A0E17] border border-white/[0.07] rounded-2xl p-6 shadow-xl flex flex-col justify-between">
+          <div className="bg-white dark:bg-[#0A0E17] border border-slate-200 dark:border-white/[0.07] rounded-2xl p-6 shadow-sm dark:shadow-xl flex flex-col justify-between">
             <div>
               <div className="flex items-center justify-between mb-2">
-                <h3 className="text-lg font-semibold text-white font-sans">Starter</h3>
-                <span className="font-sans text-xs text-slate-400 border border-white/[0.08] px-2.5 py-0.5 rounded-full bg-white/[0.02]">
+                <h3 className="text-lg font-semibold text-slate-900 dark:text-white font-sans">Starter</h3>
+                <span className="font-sans text-xs text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-white/[0.08] px-2.5 py-0.5 rounded-full bg-slate-100 dark:bg-white/[0.02]">
                   FREE TIER
                 </span>
               </div>
               
-              <p className="text-xs text-slate-400 font-sans leading-relaxed">
+              <p className="text-xs text-slate-500 dark:text-slate-400 font-sans leading-relaxed">
                 Essential workspace pipeline for small brands testing creator workflows.
               </p>
 
               <div className="flex items-baseline gap-1.5 my-5">
-                <span className="font-mono tabular-nums text-3xl font-semibold text-white">₹0</span>
+                <span className="font-mono tabular-nums text-3xl font-semibold text-slate-900 dark:text-white">₹0</span>
                 <span className="text-xs font-sans text-slate-500">/ forever</span>
               </div>
 
               {isPro ? (
                 <button
                   disabled
-                  className="w-full py-2.5 px-4 bg-white/[0.02] border border-white/[0.06] text-slate-500 text-xs font-sans font-medium rounded-xl cursor-not-allowed mb-6 text-center"
+                  className="w-full py-2.5 px-4 bg-slate-50 dark:bg-white/[0.02] border border-slate-200 dark:border-white/[0.06] text-slate-400 dark:text-slate-500 text-xs font-sans font-medium rounded-xl cursor-not-allowed mb-6 text-center"
                 >
                   Included in Pro
                 </button>
               ) : (
                 <button
                   disabled
-                  className="w-full py-2.5 px-4 bg-white/[0.04] border border-white/[0.08] text-slate-300 text-xs font-sans font-medium rounded-xl cursor-default mb-6 text-center"
+                  className="w-full py-2.5 px-4 bg-slate-100 dark:bg-white/[0.04] border border-slate-200 dark:border-white/[0.08] text-slate-700 dark:text-slate-300 text-xs font-sans font-medium rounded-xl cursor-default mb-6 text-center"
                 >
                   Current Plan
                 </button>
               )}
 
-              <div className="space-y-3 pt-4 border-t border-white/[0.06]">
+              <div className="space-y-3 pt-4 border-t border-slate-100 dark:border-white/[0.06]">
                 {[
                   "Up to 5 campaigns per month",
                   "Basic WhatsApp AI Extractions",
                   "Email Reminders Only",
                   "Basic Creator List"
                 ].map((feat, i) => (
-                  <div key={i} className="flex items-center gap-2.5 text-sm text-slate-300 font-sans antialiased">
-                    <Check className="w-4 h-4 text-slate-500 shrink-0" />
+                  <div key={i} className="flex items-center gap-2.5 text-sm text-slate-600 dark:text-slate-300 font-sans antialiased">
+                    <Check className="w-4 h-4 text-slate-400 dark:text-slate-500 shrink-0" />
                     <span>{feat}</span>
                   </div>
                 ))}
@@ -392,33 +392,33 @@ export default function BillingPage() {
           </div>
 
           {/* Right Card: Collabo Pro */}
-          <div className="bg-[#0A0E17] border border-emerald-500/30 rounded-2xl p-6 shadow-xl flex flex-col justify-between relative overflow-hidden">
+          <div className="bg-white dark:bg-[#0A0E17] border border-emerald-500/40 dark:border-emerald-500/30 rounded-2xl p-6 shadow-sm dark:shadow-xl flex flex-col justify-between relative overflow-hidden">
             <div>
               <div className="flex items-center justify-between mb-2">
-                <h3 className="text-lg font-semibold text-white font-sans flex items-center gap-1.5">
+                <h3 className="text-lg font-semibold text-slate-900 dark:text-white font-sans flex items-center gap-1.5">
                   Collabo Pro
                   <Sparkles className="w-4 h-4 text-emerald-400" />
                 </h3>
-                <span className="font-sans text-xs font-medium bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 px-2.5 py-0.5 rounded-full">
+                <span className="font-sans text-xs font-medium bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 dark:text-emerald-400 px-2.5 py-0.5 rounded-full">
                   {isPro ? 'ACTIVE PLAN' : 'RECOMMENDED'}
                 </span>
               </div>
 
-              <p className="text-xs text-slate-400 font-sans leading-relaxed">
+              <p className="text-xs text-slate-500 dark:text-slate-400 font-sans leading-relaxed">
                 Complete command center for scaling multi-creator influencer campaigns.
               </p>
 
               <div className="flex items-baseline gap-1.5 my-5">
-                <span className="font-mono tabular-nums text-3xl font-semibold text-white">₹300</span>
-                <span className="text-xs font-sans text-slate-400">/ month</span>
+                <span className="font-mono tabular-nums text-3xl font-semibold text-slate-900 dark:text-white">₹300</span>
+                <span className="text-xs font-sans text-slate-500 dark:text-slate-400">/ month</span>
               </div>
 
               {isPro ? (
                 <button
                   disabled
-                  className="w-full py-2.5 px-4 bg-emerald-500/10 border border-emerald-500/25 text-emerald-300 text-xs font-sans font-semibold rounded-xl flex items-center justify-center gap-2 mb-6 cursor-default"
+                  className="w-full py-2.5 px-4 bg-emerald-500/10 border border-emerald-500/25 text-emerald-600 dark:text-emerald-300 text-xs font-sans font-semibold rounded-xl flex items-center justify-center gap-2 mb-6 cursor-default"
                 >
-                  <Check className="w-4 h-4 text-emerald-400" />
+                  <Check className="w-4 h-4 text-emerald-500 dark:text-emerald-400" />
                   <span>Current Plan</span>
                 </button>
               ) : (
@@ -434,7 +434,7 @@ export default function BillingPage() {
                 </button>
               )}
 
-              <div className="space-y-3 pt-4 border-t border-white/[0.06]">
+              <div className="space-y-3 pt-4 border-t border-slate-100 dark:border-white/[0.06]">
                 {[
                   "Unlimited active campaigns",
                   "Priority Multimodal AI Extractions",
@@ -443,8 +443,8 @@ export default function BillingPage() {
                   "Real-time ROI & Click Analytics",
                   "Premium Support"
                 ].map((feat, i) => (
-                  <div key={i} className="flex items-center gap-2.5 text-sm text-slate-200 font-sans antialiased">
-                    <Check className="w-4 h-4 text-emerald-400 shrink-0" />
+                  <div key={i} className="flex items-center gap-2.5 text-sm text-slate-700 dark:text-slate-200 font-sans antialiased">
+                    <Check className="w-4 h-4 text-emerald-500 dark:text-emerald-400 shrink-0" />
                     <span>{feat}</span>
                   </div>
                 ))}

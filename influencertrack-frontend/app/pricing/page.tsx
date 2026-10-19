@@ -10,7 +10,7 @@ export default function PricingPage() {
       {/* Navbar */}
       <header className="fixed top-0 w-full z-50 border-b border-white/5 bg-[#020617]/80 backdrop-blur-md">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-          <Logo variant="full" size={32} href="/" />
+          <Logo variant="full" size={32} href="/" theme="dark" />
           <div className="flex items-center gap-4">
             <Link href="/login" className="text-sm font-medium text-slate-300 hover:text-white transition-colors">
               Log in

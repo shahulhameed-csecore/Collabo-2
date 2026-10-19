@@ -45,7 +45,7 @@ export function StatusBadge({ status }: { status: CampaignStatus }) {
   const cfg = STATUS_CONFIG[normalizedStatus as CampaignStatus] || {
     label: String(status || 'Unknown'),
     dotClass: 'bg-slate-400',
-    badgeClass: 'bg-white/[0.04] text-slate-400 border-white/[0.08]',
+    badgeClass: 'bg-slate-100 dark:bg-white/[0.04] text-slate-600 dark:text-slate-400 border-slate-200 dark:border-white/[0.08]',
     icon: Clock,
   };
   return (
@@ -57,11 +57,11 @@ export function StatusBadge({ status }: { status: CampaignStatus }) {
 }
 
 export function PlatformBadge({ platform }: { platform: string | null }) {
-  if (!platform) return <span className="text-slate-500 font-mono text-xs">—</span>;
+  if (!platform) return <span className="text-slate-400 dark:text-slate-500 font-mono text-xs">—</span>;
   const normalized = platform.toLowerCase().trim();
   const cfg = PLATFORM_CONFIG[normalized];
   return (
-    <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-xs font-medium border ${cfg ? cfg.bg : 'bg-white/[0.03] border-white/[0.08] text-slate-300'} ${cfg ? cfg.color : 'text-slate-300'}`}>
+    <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-xs font-medium border ${cfg ? cfg.bg : 'bg-slate-100 dark:bg-white/[0.03] border-slate-200 dark:border-white/[0.08] text-slate-700 dark:text-slate-300'} ${cfg ? cfg.color : 'text-slate-700 dark:text-slate-300'}`}>
       {cfg
         ? <span className="text-[10px] leading-none">{cfg.emoji}</span>
         : <Globe className="w-3 h-3 opacity-60" />}
@@ -72,11 +72,11 @@ export function PlatformBadge({ platform }: { platform: string | null }) {
 
 export function SkeletonRow() {
   return (
-    <tr className="border-b border-white/[0.06] animate-pulse">
-      <td className="px-4 py-4 w-10"><div className="w-4 h-4 rounded bg-white/[0.06]" /></td>
+    <tr className="border-b border-slate-100 dark:border-white/[0.06] animate-pulse">
+      <td className="px-4 py-4 w-10"><div className="w-4 h-4 rounded bg-slate-200 dark:bg-white/[0.06]" /></td>
       {[75, 55, 65, 50, 55, 40, 45, 30].map((w, i) => (
         <td key={i} className="px-4 py-4">
-          <div className="h-3.5 rounded bg-white/[0.06]" style={{ width: `${w}%` }} />
+          <div className="h-3.5 rounded bg-slate-200 dark:bg-white/[0.06]" style={{ width: `${w}%` }} />
         </td>
       ))}
     </tr>
@@ -87,15 +87,15 @@ export function EmptyState({ onCreateNew, onLoadSampleData, hasFilters, onClearF
   if (hasFilters) {
     return (
       <div className="flex flex-col items-center justify-center py-16 text-center animate-fade-in">
-        <div className="p-3 bg-white/[0.03] border border-white/[0.08] rounded-xl mb-3 text-slate-400">
+        <div className="p-3 bg-slate-100 dark:bg-white/[0.03] border border-slate-200 dark:border-white/[0.08] rounded-xl mb-3 text-slate-500 dark:text-slate-400">
           <Search className="w-5 h-5" />
         </div>
-        <h3 className="text-sm font-semibold text-white mb-1">No campaigns match your filter</h3>
-        <p className="text-slate-400 text-xs mb-4">Try adjusting your search query or reset status filters.</p>
+        <h3 className="text-sm font-semibold text-slate-900 dark:text-white mb-1">No campaigns match your filter</h3>
+        <p className="text-slate-500 dark:text-slate-400 text-xs mb-4">Try adjusting your search query or reset status filters.</p>
         {onClearFilters && (
           <button
             onClick={onClearFilters}
-            className="flex items-center gap-1.5 bg-white/[0.04] hover:bg-white/[0.08] text-slate-300 hover:text-white font-medium rounded-lg px-3 py-1.5 text-xs transition-colors border border-white/[0.08]"
+            className="flex items-center gap-1.5 bg-slate-100 dark:bg-white/[0.04] hover:bg-slate-200 dark:hover:bg-white/[0.08] text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white font-medium rounded-lg px-3 py-1.5 text-xs transition-colors border border-slate-200 dark:border-white/[0.08]"
           >
             <X className="w-3.5 h-3.5" />
             Clear Filters
@@ -106,11 +106,11 @@ export function EmptyState({ onCreateNew, onLoadSampleData, hasFilters, onClearF
   }
   return (
     <div className="flex flex-col items-center justify-center py-20 text-center animate-fade-in">
-      <div className="p-4 bg-emerald-500/[0.08] border border-emerald-500/20 rounded-2xl mb-4 text-emerald-400 shadow-[0_0_24px_rgba(16,185,129,0.12)]">
+      <div className="p-4 bg-emerald-500/[0.08] border border-emerald-500/20 rounded-2xl mb-4 text-emerald-500 dark:text-emerald-400 shadow-[0_0_24px_rgba(16,185,129,0.12)]">
         <MessageCircle className="w-8 h-8" />
       </div>
-      <h3 className="text-lg font-semibold text-white mb-1.5 tracking-tight">Zero campaigns tracked yet</h3>
-      <p className="text-slate-400 text-xs max-w-sm mb-6 leading-relaxed">
+      <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-1.5 tracking-tight">Zero campaigns tracked yet</h3>
+      <p className="text-slate-500 dark:text-slate-400 text-xs max-w-sm mb-6 leading-relaxed">
         Connect WhatsApp to automatically extract campaigns from creator voice notes and DMs, or launch your first one manually.
       </p>
       <div className="flex flex-col sm:flex-row items-center gap-2.5">
@@ -125,9 +125,9 @@ export function EmptyState({ onCreateNew, onLoadSampleData, hasFilters, onClearF
           <button
             id="load-sample-data-btn"
             onClick={onLoadSampleData}
-            className="flex items-center gap-1.5 bg-white/[0.04] hover:bg-white/[0.08] text-slate-300 hover:text-white font-medium rounded-xl px-4 py-2 text-xs transition-colors border border-white/[0.08]"
+            className="flex items-center gap-1.5 bg-slate-100 dark:bg-white/[0.04] hover:bg-slate-200 dark:hover:bg-white/[0.08] text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white font-medium rounded-xl px-4 py-2 text-xs transition-colors border border-slate-200 dark:border-white/[0.08]"
           >
-            <Database className="w-3.5 h-3.5 text-slate-400" />
+            <Database className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400" />
             Load Sample Data
           </button>
         )}

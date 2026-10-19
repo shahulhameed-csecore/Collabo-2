@@ -249,19 +249,19 @@ export default function CampaignTable({
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 mb-3">
         {/* Search Input */}
         <div className="relative flex-1 max-w-sm">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500 pointer-events-none" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 pointer-events-none" />
           <input
             id="campaign-search"
             type="text"
             placeholder="Search creator, handle, platform, brief..."
             value={filters.search}
             onChange={e => setFilters(f => ({ ...f, search: e.target.value }))}
-            className="w-full bg-[#05070B] border border-white/[0.08] text-slate-200 placeholder-slate-500 rounded-lg pl-8 pr-8 py-1.5 text-xs focus:outline-none focus:border-emerald-500/50 transition-colors font-sans"
+            className="w-full bg-white dark:bg-[#05070B] border border-slate-200 dark:border-white/[0.08] text-slate-900 dark:text-slate-200 placeholder-slate-400 dark:placeholder-slate-500 rounded-lg pl-8 pr-8 py-1.5 text-xs focus:outline-none focus:border-emerald-500/50 transition-colors font-sans shadow-sm"
           />
           {filters.search && (
             <button
               onClick={() => setFilters(f => ({ ...f, search: '' }))}
-              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white p-0.5 rounded transition-colors"
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 dark:hover:text-white p-0.5 rounded transition-colors"
               aria-label="Clear search"
             >
               <X className="w-3 h-3" />
@@ -272,7 +272,7 @@ export default function CampaignTable({
         {/* Right Actions: Result count + Filters toggle + Export CSV */}
         <div className="flex items-center gap-2">
           {!isLoading && campaigns.length > 0 && (
-            <span className="text-xs text-slate-400 font-mono hidden md:inline mr-1">
+            <span className="text-xs text-slate-500 dark:text-slate-400 font-mono hidden md:inline mr-1">
               {filtered.length} / {campaigns.length} shown
             </span>
           )}
@@ -282,31 +282,31 @@ export default function CampaignTable({
             onClick={() => setShowFilters(v => !v)}
             className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
               showFilters || filters.platform
-                ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
-                : 'bg-white/[0.03] border-white/[0.08] text-slate-300 hover:text-white hover:bg-white/[0.06]'
+                ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-600 dark:text-emerald-400'
+                : 'bg-white dark:bg-white/[0.03] border-slate-200 dark:border-white/[0.08] text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-white/[0.06]'
             }`}
           >
             <Filter className="w-3.5 h-3.5" />
             <span>Platforms</span>
             {filters.platform && (
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 dark:bg-emerald-400" />
             )}
           </button>
           
           <button
             id="tour-csv-export"
             onClick={handleExportCSV}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium border bg-white/[0.03] border-white/[0.08] text-slate-300 hover:text-white hover:bg-white/[0.06] transition-colors"
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium border bg-white dark:bg-white/[0.03] border-slate-200 dark:border-white/[0.08] text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-white/[0.06] transition-colors"
             title="Export filtered campaigns to CSV"
           >
-            <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-400" />
+            <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
             <span>Export CSV</span>
           </button>
         </div>
       </div>
 
       {/* ── Single-Line Segmented Status Tabs ── */}
-      <div className="flex items-center gap-1 overflow-x-auto no-scrollbar border-b border-white/[0.06] pb-2 mb-3">
+      <div className="flex items-center gap-1 overflow-x-auto no-scrollbar border-b border-slate-200 dark:border-white/[0.06] pb-2 mb-3">
         {STATUS_FILTERS.map(f => {
           const count = f.value === 'all'
             ? campaigns.length
@@ -321,20 +321,20 @@ export default function CampaignTable({
               onClick={() => setFilters(prev => ({ ...prev, status: f.value }))}
               className={`shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs transition-colors border select-none ${
                 isActive
-                  ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/25 font-semibold shadow-sm'
+                  ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/25 font-semibold shadow-sm'
                   : isZero
-                  ? 'text-slate-500 hover:text-slate-400 border-transparent hover:bg-white/[0.02]'
-                  : 'text-slate-300 hover:text-white border-transparent hover:bg-white/[0.04]'
+                  ? 'text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-400 border-transparent hover:bg-slate-100 dark:hover:bg-white/[0.02]'
+                  : 'text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white border-transparent hover:bg-slate-100 dark:hover:bg-white/[0.04]'
               }`}
             >
               <span>{f.label}</span>
               <span
                 className={`font-mono text-[10px] tabular-nums px-1.5 py-0.2 rounded ${
                   isActive
-                    ? 'bg-emerald-500/20 text-emerald-300 font-bold'
+                    ? 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 font-bold'
                     : isZero
-                    ? 'text-slate-500'
-                    : 'bg-white/[0.06] text-slate-300'
+                    ? 'text-slate-400 dark:text-slate-500'
+                    : 'bg-slate-100 dark:bg-white/[0.06] text-slate-700 dark:text-slate-300'
                 }`}
               >
                 {count}
@@ -346,14 +346,14 @@ export default function CampaignTable({
 
       {/* ── Platform Filter Pills (expanded drawer) ── */}
       {showFilters && (
-        <div className="flex flex-wrap items-center gap-1.5 mb-3 p-2.5 bg-[#05070B] border border-white/[0.07] rounded-lg animate-slide-down">
-          <span className="text-xs text-slate-400 font-medium mr-1">Platform:</span>
+        <div className="flex flex-wrap items-center gap-1.5 mb-3 p-2.5 bg-slate-50 dark:bg-[#05070B] border border-slate-200 dark:border-white/[0.07] rounded-lg animate-slide-down">
+          <span className="text-xs text-slate-500 dark:text-slate-400 font-medium mr-1">Platform:</span>
           <button
             onClick={() => setFilters(f => ({ ...f, platform: '' }))}
             className={`px-2 py-0.5 rounded text-xs transition-colors border ${
               !filters.platform
-                ? 'bg-emerald-500/15 border-emerald-500/30 text-emerald-400 font-semibold'
-                : 'bg-white/[0.03] border-white/[0.06] text-slate-400 hover:text-white'
+                ? 'bg-emerald-500/15 border-emerald-500/30 text-emerald-600 dark:text-emerald-400 font-semibold'
+                : 'bg-white dark:bg-white/[0.03] border-slate-200 dark:border-white/[0.06] text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
             }`}
           >
             All Platforms
@@ -364,8 +364,8 @@ export default function CampaignTable({
               onClick={() => setFilters(f => ({ ...f, platform: f.platform === p ? '' : p }))}
               className={`px-2 py-0.5 rounded text-xs transition-colors border ${
                 filters.platform === p
-                  ? 'bg-emerald-500/15 border-emerald-500/30 text-emerald-400 font-semibold'
-                  : 'bg-white/[0.03] border-white/[0.06] text-slate-400 hover:text-white'
+                  ? 'bg-emerald-500/15 border-emerald-500/30 text-emerald-600 dark:text-emerald-400 font-semibold'
+                  : 'bg-white dark:bg-white/[0.03] border-slate-200 dark:border-white/[0.06] text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
               }`}
             >
               {p}
@@ -374,7 +374,7 @@ export default function CampaignTable({
           {hasFilters && (
             <button
               onClick={() => setFilters({ search: '', status: 'all', platform: '' })}
-              className="ml-auto text-xs text-slate-400 hover:text-rose-400 transition-colors flex items-center gap-1"
+              className="ml-auto text-xs text-slate-500 hover:text-rose-500 dark:text-slate-400 dark:hover:text-rose-400 transition-colors flex items-center gap-1"
             >
               <X className="w-3 h-3" />
               Reset filters
@@ -385,43 +385,43 @@ export default function CampaignTable({
 
       {/* ── Bulk Actions Command Bar ── */}
       {selectedIds.length > 0 && (
-        <div className="flex flex-wrap items-center gap-2 mb-3 p-2.5 bg-[#070A10] border border-emerald-500/30 rounded-lg shadow-sm animate-slide-down">
-          <span className="text-xs font-mono font-semibold text-emerald-400 mr-2 flex items-center gap-1.5">
+        <div className="flex flex-wrap items-center gap-2 mb-3 p-2.5 bg-white dark:bg-[#070A10] border border-emerald-500/30 rounded-lg shadow-sm animate-slide-down">
+          <span className="text-xs font-mono font-semibold text-emerald-600 dark:text-emerald-400 mr-2 flex items-center gap-1.5">
             <span>{selectedIds.length} selected</span>
             {isBulkActioning && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
           </span>
           <button
             onClick={() => handleBulkRemind()}
             disabled={isBulkActioning}
-            className="flex items-center gap-1 px-2.5 py-1 rounded text-xs bg-white/[0.04] border border-white/[0.08] text-slate-200 hover:bg-white/[0.08] transition-colors disabled:opacity-50"
+            className="flex items-center gap-1 px-2.5 py-1 rounded text-xs bg-slate-100 dark:bg-white/[0.04] border border-slate-200 dark:border-white/[0.08] text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-white/[0.08] transition-colors disabled:opacity-50"
           >
-            <MessageCircle className="w-3 h-3 text-emerald-400" /> Send Reminder
+            <MessageCircle className="w-3 h-3 text-emerald-600 dark:text-emerald-400" /> Send Reminder
           </button>
           <button
             onClick={() => handleBulkStatus('active')}
             disabled={isBulkActioning}
-            className="flex items-center gap-1 px-2.5 py-1 rounded text-xs bg-white/[0.04] border border-white/[0.08] text-slate-200 hover:bg-white/[0.08] transition-colors disabled:opacity-50"
+            className="flex items-center gap-1 px-2.5 py-1 rounded text-xs bg-slate-100 dark:bg-white/[0.04] border border-slate-200 dark:border-white/[0.08] text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-white/[0.08] transition-colors disabled:opacity-50"
           >
-            <CheckSquare className="w-3 h-3 text-emerald-400" /> Mark Active
+            <CheckSquare className="w-3 h-3 text-emerald-600 dark:text-emerald-400" /> Mark Active
           </button>
           <button
             onClick={() => handleBulkStatus('paid')}
             disabled={isBulkActioning}
-            className="flex items-center gap-1 px-2.5 py-1 rounded text-xs bg-white/[0.04] border border-white/[0.08] text-slate-200 hover:bg-white/[0.08] transition-colors disabled:opacity-50"
+            className="flex items-center gap-1 px-2.5 py-1 rounded text-xs bg-slate-100 dark:bg-white/[0.04] border border-slate-200 dark:border-white/[0.08] text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-white/[0.08] transition-colors disabled:opacity-50"
           >
-            <CheckCircle2 className="w-3 h-3 text-emerald-400" /> Mark Paid
+            <CheckCircle2 className="w-3 h-3 text-emerald-600 dark:text-emerald-400" /> Mark Paid
           </button>
           <button
             onClick={handleBulkExport}
             disabled={isBulkActioning}
-            className="flex items-center gap-1 px-2.5 py-1 rounded text-xs bg-white/[0.04] border border-white/[0.08] text-slate-200 hover:bg-white/[0.08] transition-colors disabled:opacity-50"
+            className="flex items-center gap-1 px-2.5 py-1 rounded text-xs bg-slate-100 dark:bg-white/[0.04] border border-slate-200 dark:border-white/[0.08] text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-white/[0.08] transition-colors disabled:opacity-50"
           >
-            <Download className="w-3 h-3 text-slate-400" /> Export
+            <Download className="w-3 h-3 text-slate-500 dark:text-slate-400" /> Export
           </button>
           <button
             onClick={handleBulkDelete}
             disabled={isBulkActioning}
-            className="flex items-center gap-1 px-2.5 py-1 rounded text-xs bg-rose-500/10 border border-rose-500/20 text-rose-400 hover:bg-rose-500/20 transition-colors disabled:opacity-50 ml-auto"
+            className="flex items-center gap-1 px-2.5 py-1 rounded text-xs bg-rose-500/10 border border-rose-500/20 text-rose-500 dark:text-rose-400 hover:bg-rose-500/20 transition-colors disabled:opacity-50 ml-auto"
           >
             <Trash2 className="w-3 h-3" /> Delete
           </button>
@@ -442,16 +442,16 @@ export default function CampaignTable({
 
       {/* ── 100% Full-Width Table ── */}
       {(isLoading || filtered.length > 0) && (
-        <div className="w-full overflow-x-auto rounded-lg border border-white/[0.07] bg-[#070A10]/50">
+        <div className="w-full overflow-x-auto rounded-lg border border-slate-200 dark:border-white/[0.07] bg-white dark:bg-[#070A10]/50 shadow-sm">
           <table className="w-full text-left text-xs border-collapse">
             <thead>
-              <tr className="border-b border-white/[0.06] bg-[#0A0E17]/80 text-slate-400">
+              <tr className="border-b border-slate-200 dark:border-white/[0.06] bg-slate-50 dark:bg-[#0A0E17]/80 text-slate-500 dark:text-slate-400">
                 <th className="px-2.5 py-2.5 w-7">
                   <input
                     type="checkbox"
                     checked={filtered.length > 0 && selectedIds.length === filtered.length}
                     onChange={handleSelectAll}
-                    className="rounded border-white/[0.1] bg-[#05070B] text-emerald-500 focus:ring-0 cursor-pointer"
+                    className="rounded border-slate-300 dark:border-white/[0.1] bg-white dark:bg-[#05070B] text-emerald-500 focus:ring-0 cursor-pointer"
                   />
                 </th>
                 {([
@@ -466,7 +466,7 @@ export default function CampaignTable({
                   <th
                     key={key}
                     onClick={() => handleSort(key as any)}
-                    className="px-2.5 py-2.5 font-sans font-medium text-[11px] uppercase tracking-wider text-slate-400 cursor-pointer hover:text-white transition-colors select-none"
+                    className="px-2.5 py-2.5 font-sans font-medium text-[11px] uppercase tracking-wider text-slate-500 dark:text-slate-400 cursor-pointer hover:text-slate-900 dark:hover:text-white transition-colors select-none"
                   >
                     <div className="flex items-center gap-1">
                       <span>{label}</span>
@@ -474,12 +474,12 @@ export default function CampaignTable({
                     </div>
                   </th>
                 ))}
-                <th className="px-3 py-2.5 font-sans font-medium text-[11px] uppercase tracking-wider text-slate-400 text-right w-40">
+                <th className="px-3 py-2.5 font-sans font-medium text-[11px] uppercase tracking-wider text-slate-500 dark:text-slate-400 text-right w-40">
                   Proof / Actions
                 </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-white/[0.04]">
+            <tbody className="divide-y divide-slate-100 dark:divide-white/[0.04]">
               {isLoading
                 ? Array.from({ length: 5 }).map((_, i) => <SkeletonRow key={i} />)
                 : filtered.map(c => {
@@ -492,7 +492,7 @@ export default function CampaignTable({
                       <tr
                         key={c.id}
                         className={`
-                          hover:bg-white/[0.02] transition-colors group relative
+                          hover:bg-slate-50 dark:hover:bg-white/[0.02] transition-colors group relative
                           ${deletingId === c.id ? 'opacity-30 pointer-events-none' : ''}
                           ${updatingId === c.id ? 'opacity-60' : ''}
                         `}
@@ -503,7 +503,7 @@ export default function CampaignTable({
                             type="checkbox"
                             checked={selectedIds.includes(c.id)}
                             onChange={() => handleSelectOne(c.id)}
-                            className="rounded border-white/[0.1] bg-[#05070B] text-emerald-500 focus:ring-0 cursor-pointer"
+                            className="rounded border-slate-300 dark:border-white/[0.1] bg-white dark:bg-[#05070B] text-emerald-500 focus:ring-0 cursor-pointer"
                           />
                         </td>
 
@@ -511,15 +511,15 @@ export default function CampaignTable({
                         <td className="px-2.5 py-2.5">
                           <div className="flex items-center gap-2 min-w-[130px]">
                             <div className="w-6 h-6 rounded-full bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center flex-shrink-0">
-                              <span className="text-[9px] font-mono font-medium text-emerald-400">{initial}</span>
+                              <span className="text-[9px] font-mono font-medium text-emerald-600 dark:text-emerald-400">{initial}</span>
                             </div>
                             <div className="min-w-0">
-                              <p className="font-sans font-medium text-slate-100 truncate">
+                              <p className="font-sans font-medium text-slate-900 dark:text-slate-100 truncate">
                                 {c.influencer_name || (
-                                  <span className="text-slate-500 italic font-normal">Unspecified</span>
+                                  <span className="text-slate-400 dark:text-slate-500 italic font-normal">Unspecified</span>
                                 )}
                               </p>
-                              <p className="font-mono text-[11px] text-slate-400 truncate">{handle}</p>
+                              <p className="font-mono text-[11px] text-slate-500 dark:text-slate-400 truncate">{handle}</p>
                             </div>
                           </div>
                         </td>
@@ -662,15 +662,15 @@ export default function CampaignTable({
                                     >
                                       <Clock className="w-3.5 h-3.5" />
                                     </button>
-                                    <div className="absolute top-full mt-1.5 right-0 hidden group-hover/history:block w-48 bg-[#0A0E17] border border-white/[0.08] rounded-xl shadow-2xl p-2 z-50 animate-fade-in text-left">
-                                      <p className="text-[11px] font-mono text-slate-400 mb-1 px-1 border-b border-white/[0.06] pb-1">Previous Proofs</p>
+                                    <div className="absolute top-full mt-1.5 right-0 hidden group-hover/history:block w-48 bg-white dark:bg-[#0A0E17] border border-slate-200 dark:border-white/[0.08] rounded-xl shadow-2xl p-2 z-50 animate-fade-in text-left">
+                                      <p className="text-[11px] font-mono text-slate-500 dark:text-slate-400 mb-1 px-1 border-b border-slate-100 dark:border-white/[0.06] pb-1">Previous Proofs</p>
                                       {c.proof_history.map((h, i) => (
                                         <a
                                           key={i}
                                           href={h.url}
                                           target="_blank"
                                           rel="noopener noreferrer"
-                                          className="flex items-center justify-between px-2 py-1 text-xs text-slate-300 hover:bg-white/[0.04] hover:text-white rounded transition-colors font-mono"
+                                          className="flex items-center justify-between px-2 py-1 text-xs text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-white/[0.04] hover:text-slate-900 dark:hover:text-white rounded transition-colors font-mono"
                                         >
                                           <span>v{i + 1}</span>
                                           <span className="text-[10px] text-slate-500">{new Date(h.uploaded_at).toLocaleDateString('en-IN')}</span>
@@ -754,7 +754,7 @@ export default function CampaignTable({
                               value={(c.status as string === 'completed') ? 'paid' : c.status}
                               disabled={updatingId === c.id}
                               onChange={e => handleStatusChange(c.id, e.target.value as CampaignStatus)}
-                              className="bg-[#05070B] border border-white/[0.08] text-slate-300 text-[11px] rounded px-1.5 py-1 focus:outline-none focus:border-emerald-500/40 disabled:opacity-50 cursor-pointer hover:border-white/[0.14] transition-colors max-w-[92px]"
+                              className="bg-white dark:bg-[#05070B] border border-slate-200 dark:border-white/[0.08] text-slate-700 dark:text-slate-300 text-[11px] rounded px-1.5 py-1 focus:outline-none focus:border-emerald-500/40 disabled:opacity-50 cursor-pointer hover:border-slate-300 dark:hover:border-white/[0.14] transition-colors max-w-[92px]"
                             >
                               <option value="draft">Draft</option>
                               <option value="active">Active</option>
@@ -772,7 +772,7 @@ export default function CampaignTable({
                                 onClick={() => onEdit(c)}
                                 disabled={!!updatingId}
                                 title="Edit campaign details"
-                                className="p-1 text-slate-400 hover:text-white hover:bg-white/[0.04] rounded transition-colors disabled:opacity-30"
+                                className="p-1 text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/[0.04] rounded transition-colors disabled:opacity-30"
                               >
                                 <Edit2 className="w-3.5 h-3.5" />
                               </button>
@@ -783,7 +783,7 @@ export default function CampaignTable({
                               onClick={() => handleDelete(c.id, name)}
                               disabled={!!deletingId}
                               title="Delete campaign"
-                              className="p-1 text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 rounded transition-colors disabled:opacity-30"
+                              className="p-1 text-slate-400 hover:text-rose-500 hover:bg-rose-500/10 rounded transition-colors disabled:opacity-30"
                             >
                               <Trash2 className="w-3.5 h-3.5" />
                             </button>
@@ -799,25 +799,25 @@ export default function CampaignTable({
 
       {/* ── Proof Revision History Drawer ── */}
       {proofHistoryCampaign && (
-        <div className="fixed inset-0 z-50 flex items-center justify-end bg-black/75 backdrop-blur-sm animate-fade-in">
+        <div className="fixed inset-0 z-50 flex items-center justify-end bg-black/60 dark:bg-black/75 backdrop-blur-sm animate-fade-in">
           <div 
-            className="w-full max-w-md h-full bg-[#0A0E17] border-l border-white/[0.08] p-6 flex flex-col justify-between shadow-2xl animate-slide-in-right overflow-y-auto"
+            className="w-full max-w-md h-full bg-white dark:bg-[#0A0E17] border-l border-slate-200 dark:border-white/[0.08] p-6 flex flex-col justify-between shadow-2xl animate-slide-in-right overflow-y-auto"
             onClick={e => e.stopPropagation()}
           >
             <div>
-              <div className="flex items-center justify-between pb-4 border-b border-white/[0.06] mb-5">
+              <div className="flex items-center justify-between pb-4 border-b border-slate-200 dark:border-white/[0.06] mb-5">
                 <div>
-                  <h2 className="text-base font-semibold text-white flex items-center gap-2">
-                    <Clock className="w-4 h-4 text-blue-400" />
+                  <h2 className="text-base font-semibold text-slate-900 dark:text-white flex items-center gap-2">
+                    <Clock className="w-4 h-4 text-blue-500 dark:text-blue-400" />
                     Proof Revision History
                   </h2>
-                  <p className="text-xs text-slate-400 font-mono mt-0.5">
+                  <p className="text-xs text-slate-500 dark:text-slate-400 font-mono mt-0.5">
                     {proofHistoryCampaign.influencer_name} ({proofHistoryCampaign.influencer_handle})
                   </p>
                 </div>
                 <button 
                   onClick={() => setProofHistoryCampaign(null)}
-                  className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-white/[0.04] transition-colors"
+                  className="p-1.5 text-slate-400 hover:text-slate-700 dark:hover:text-white rounded-lg hover:bg-slate-100 dark:hover:bg-white/[0.04] transition-colors"
                   aria-label="Close drawer"
                 >
                   <X className="w-4 h-4" />
@@ -826,18 +826,18 @@ export default function CampaignTable({
 
               {/* Latest Active Proof */}
               {proofHistoryCampaign.proof_url && (
-                <div className="mb-5 p-3.5 bg-emerald-500/[0.06] border border-emerald-500/20 rounded-xl">
+                <div className="mb-5 p-3.5 bg-emerald-500/10 dark:bg-emerald-500/[0.06] border border-emerald-500/20 rounded-xl">
                   <div className="flex items-center justify-between mb-1.5">
-                    <span className="text-[10px] font-mono uppercase tracking-wider text-emerald-400 font-bold">
+                    <span className="text-[10px] font-mono uppercase tracking-wider text-emerald-600 dark:text-emerald-400 font-bold">
                       Latest Submission
                     </span>
-                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                    <span className="w-2 h-2 rounded-full bg-emerald-500 dark:bg-emerald-400 animate-pulse" />
                   </div>
                   <a
                     href={proofHistoryCampaign.proof_url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-xs font-mono text-emerald-300 hover:underline flex items-center gap-1.5 break-all"
+                    className="text-xs font-mono text-emerald-600 dark:text-emerald-300 hover:underline flex items-center gap-1.5 break-all"
                   >
                     <span>{proofHistoryCampaign.proof_url}</span>
                     <ExternalLink className="w-3 h-3 shrink-0" />
@@ -847,17 +847,17 @@ export default function CampaignTable({
 
               {/* Previous Iterations */}
               <div className="space-y-3">
-                <p className="text-xs font-medium text-slate-400 uppercase tracking-wider font-mono">
+                <p className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider font-mono">
                   Iteration Log ({proofHistoryCampaign.proof_history?.length || 0})
                 </p>
                 {proofHistoryCampaign.proof_history && proofHistoryCampaign.proof_history.length > 0 ? (
                   proofHistoryCampaign.proof_history.map((item, idx) => (
                     <div
                       key={idx}
-                      className="p-3 bg-white/[0.02] border border-white/[0.06] rounded-xl hover:border-white/[0.12] transition-colors"
+                      className="p-3 bg-slate-50 dark:bg-white/[0.02] border border-slate-200 dark:border-white/[0.06] rounded-xl hover:border-slate-300 dark:hover:border-white/[0.12] transition-colors"
                     >
                       <div className="flex items-center justify-between mb-1">
-                        <span className="font-mono text-xs font-semibold text-slate-200">
+                        <span className="font-mono text-xs font-semibold text-slate-900 dark:text-slate-200">
                           Version {idx + 1}
                         </span>
                         <span className="font-mono text-[11px] text-slate-500">
@@ -874,7 +874,7 @@ export default function CampaignTable({
                         href={item.url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-xs font-mono text-blue-400 hover:underline flex items-center gap-1.5 break-all mt-1.5"
+                        className="text-xs font-mono text-blue-500 dark:text-blue-400 hover:underline flex items-center gap-1.5 break-all mt-1.5"
                       >
                         <span className="truncate">{item.url}</span>
                         <ExternalLink className="w-3 h-3 shrink-0" />
@@ -889,10 +889,10 @@ export default function CampaignTable({
               </div>
             </div>
 
-            <div className="pt-6 border-t border-white/[0.06] mt-6">
+            <div className="pt-6 border-t border-slate-200 dark:border-white/[0.06] mt-6">
               <button
                 onClick={() => setProofHistoryCampaign(null)}
-                className="w-full py-2.5 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] text-slate-300 hover:text-white text-xs font-semibold transition-colors border border-white/[0.06]"
+                className="w-full py-2.5 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-white/[0.04] dark:hover:bg-white/[0.08] text-slate-700 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white text-xs font-semibold transition-colors border border-slate-200 dark:border-white/[0.06]"
               >
                 Close Drawer
               </button>
@@ -905,49 +905,49 @@ export default function CampaignTable({
       {trackingModalCampaign && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-fade-in">
           <div 
-            className="w-full max-w-md bg-[#0A0E17] rounded-2xl shadow-2xl overflow-hidden border border-white/[0.08] animate-slide-up"
+            className="w-full max-w-md bg-white dark:bg-[#0A0E17] rounded-2xl shadow-2xl overflow-hidden border border-slate-200 dark:border-white/[0.08] animate-slide-up"
             onClick={e => e.stopPropagation()}
           >
-            <div className="p-5 border-b border-white/[0.06] flex items-center justify-between">
+            <div className="p-5 border-b border-slate-100 dark:border-white/[0.06] flex items-center justify-between">
               <div>
-                <h2 className="text-base font-semibold text-white flex items-center gap-2">
-                  <TrendingUp className="w-4 h-4 text-emerald-400" />
+                <h2 className="text-base font-semibold text-slate-900 dark:text-white flex items-center gap-2">
+                  <TrendingUp className="w-4 h-4 text-emerald-500 dark:text-emerald-400" />
                   Link Analytics
                 </h2>
-                <p className="text-xs text-slate-400 font-mono mt-0.5">{trackingModalCampaign.influencer_name}</p>
+                <p className="text-xs text-slate-500 dark:text-slate-400 font-mono mt-0.5">{trackingModalCampaign.influencer_name}</p>
               </div>
               <button 
                 onClick={() => setTrackingModalCampaign(null)}
-                className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-white/[0.04] transition-colors"
+                className="p-1.5 text-slate-400 hover:text-slate-700 dark:hover:text-white rounded-lg hover:bg-slate-100 dark:hover:bg-white/[0.04] transition-colors"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
             
             <div className="p-5">
-              <div className="bg-white/[0.02] border border-emerald-500/20 rounded-xl p-5 text-center mb-4">
-                <p className="text-xs font-mono uppercase tracking-wider text-emerald-400 mb-1">Total Verified Clicks</p>
-                <p className="font-mono text-5xl font-semibold text-white tracking-tight">
+              <div className="bg-slate-50 dark:bg-white/[0.02] border border-emerald-500/20 rounded-xl p-5 text-center mb-4">
+                <p className="text-xs font-mono uppercase tracking-wider text-emerald-600 dark:text-emerald-400 mb-1">Total Verified Clicks</p>
+                <p className="font-mono text-5xl font-semibold text-slate-900 dark:text-white tracking-tight">
                   {trackingModalCampaign.clicks}
                 </p>
               </div>
 
               <div className="space-y-2.5">
-                <div className="flex justify-between items-center p-2.5 bg-white/[0.02] rounded-lg border border-white/[0.06]">
-                  <span className="text-xs text-slate-400">Cost Per Click (CPC)</span>
-                  <span className="text-xs font-mono font-semibold text-white">
+                <div className="flex justify-between items-center p-2.5 bg-slate-50 dark:bg-white/[0.02] rounded-lg border border-slate-200 dark:border-white/[0.06]">
+                  <span className="text-xs text-slate-500 dark:text-slate-400">Cost Per Click (CPC)</span>
+                  <span className="text-xs font-mono font-semibold text-slate-900 dark:text-white">
                     {trackingModalCampaign.clicks > 0 
                       ? `₹${((trackingModalCampaign.payment_amount || 0) / trackingModalCampaign.clicks).toFixed(2)}` 
                       : '—'}
                   </span>
                 </div>
-                <div className="flex justify-between items-center p-2.5 bg-white/[0.02] rounded-lg border border-white/[0.06]">
-                  <span className="text-xs text-slate-400">Destination</span>
+                <div className="flex justify-between items-center p-2.5 bg-slate-50 dark:bg-white/[0.02] rounded-lg border border-slate-200 dark:border-white/[0.06]">
+                  <span className="text-xs text-slate-500 dark:text-slate-400">Destination</span>
                   <a 
                     href={trackingModalCampaign.destination_url || '#'} 
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-xs font-mono text-emerald-400 hover:underline max-w-[200px] truncate"
+                    className="text-xs font-mono text-emerald-600 dark:text-emerald-400 hover:underline max-w-[200px] truncate"
                   >
                     {trackingModalCampaign.destination_url || 'None'}
                   </a>
@@ -958,7 +958,7 @@ export default function CampaignTable({
             <div className="p-5 pt-0">
               <button
                 onClick={() => setTrackingModalCampaign(null)}
-                className="w-full bg-white/[0.04] hover:bg-white/[0.08] text-slate-300 hover:text-white text-xs font-semibold rounded-lg px-4 py-2.5 transition-colors border border-white/[0.06]"
+                className="w-full bg-slate-100 hover:bg-slate-200 dark:bg-white/[0.04] dark:hover:bg-white/[0.08] text-slate-700 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white text-xs font-semibold rounded-lg px-4 py-2.5 transition-colors border border-slate-200 dark:border-white/[0.06]"
               >
                 Close Analytics
               </button>
@@ -971,16 +971,16 @@ export default function CampaignTable({
       {feedbackModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-fade-in">
           <div 
-            className="w-full max-w-md bg-[#0A0E17] rounded-2xl shadow-2xl overflow-hidden border border-white/[0.08] animate-slide-up"
+            className="w-full max-w-md bg-white dark:bg-[#0A0E17] rounded-2xl shadow-2xl overflow-hidden border border-slate-200 dark:border-white/[0.08] animate-slide-up"
             onClick={e => e.stopPropagation()}
           >
-            <div className="p-5 border-b border-white/[0.06] flex items-center justify-between">
-              <h2 className="text-base font-semibold text-white flex items-center gap-2">
+            <div className="p-5 border-b border-slate-100 dark:border-white/[0.06] flex items-center justify-between">
+              <h2 className="text-base font-semibold text-slate-900 dark:text-white flex items-center gap-2">
                 {feedbackModal.step === 'input' ? 'Request Deliverable Revision' : 'Notify Influencer'}
               </h2>
               <button 
                 onClick={() => setFeedbackModal(null)}
-                className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-white/[0.04] transition-colors"
+                className="p-1.5 text-slate-400 hover:text-slate-700 dark:hover:text-white rounded-lg hover:bg-slate-100 dark:hover:bg-white/[0.04] transition-colors"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -989,7 +989,7 @@ export default function CampaignTable({
             <div className="p-5">
               {feedbackModal.step === 'input' ? (
                 <>
-                  <p className="text-xs text-slate-400 mb-3">
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mb-3">
                     Specify required edits. This will mark the campaign as "Needs Revision" and generate a WhatsApp template.
                   </p>
                   <textarea
@@ -997,12 +997,12 @@ export default function CampaignTable({
                     value={feedbackModal.feedback}
                     onChange={e => setFeedbackModal({ ...feedbackModal, feedback: e.target.value })}
                     placeholder="E.g., The product packaging is partially obscured during seconds 0:04–0:08..."
-                    className="w-full h-28 bg-[#05070B] border border-white/[0.08] rounded-lg p-3 text-white text-xs focus:outline-none focus:border-emerald-500/50 resize-none font-sans"
+                    className="w-full h-28 bg-slate-50 dark:bg-[#05070B] border border-slate-200 dark:border-white/[0.08] rounded-lg p-3 text-slate-900 dark:text-white text-xs focus:outline-none focus:border-emerald-500/50 resize-none font-sans"
                   />
                   <div className="mt-4 flex gap-2">
                     <button
                       onClick={() => setFeedbackModal(null)}
-                      className="flex-1 px-3 py-2 text-xs font-medium text-slate-400 hover:text-white hover:bg-white/[0.04] rounded-lg transition-colors border border-white/[0.06]"
+                      className="flex-1 px-3 py-2 text-xs font-medium text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/[0.04] rounded-lg transition-colors border border-slate-200 dark:border-white/[0.06]"
                     >
                       Cancel
                     </button>
@@ -1026,7 +1026,7 @@ export default function CampaignTable({
                 </>
               ) : (
                 <>
-                  <p className="text-xs text-slate-400 mb-3">
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mb-3">
                     Copy or dispatch this revision notice directly via WhatsApp.
                   </p>
                   {(() => {
@@ -1039,7 +1039,7 @@ export default function CampaignTable({
                         <textarea
                           readOnly
                           value={message}
-                          className="w-full h-40 bg-[#05070B] border border-white/[0.08] rounded-lg p-3 text-slate-200 text-xs font-mono focus:outline-none resize-none"
+                          className="w-full h-40 bg-slate-50 dark:bg-[#05070B] border border-slate-200 dark:border-white/[0.08] rounded-lg p-3 text-slate-800 dark:text-slate-200 text-xs font-mono focus:outline-none resize-none"
                         />
                         <div className="mt-4 flex gap-2">
                           <button
@@ -1047,7 +1047,7 @@ export default function CampaignTable({
                               navigator.clipboard.writeText(message);
                               toast.success('Notice copied to clipboard!');
                             }}
-                            className="flex-1 px-3 py-2 bg-white/[0.04] hover:bg-white/[0.08] text-slate-200 text-xs font-medium rounded-lg transition-colors border border-white/[0.06]"
+                            className="flex-1 px-3 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-white/[0.04] dark:hover:bg-white/[0.08] text-slate-700 dark:text-slate-200 text-xs font-medium rounded-lg transition-colors border border-slate-200 dark:border-white/[0.06]"
                           >
                             Copy Message
                           </button>
@@ -1074,3 +1074,4 @@ export default function CampaignTable({
     </div>
   );
 }
+

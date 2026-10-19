@@ -33,7 +33,7 @@ function LeftPanel() {
 
       {/* ── 1. Top Bar: Logo + Subtle Home Link ── */}
       <div className="flex items-center justify-between relative z-10 shrink-0 pt-2">
-        <Logo variant="full" size={26} href="/" />
+        <Logo variant="full" size={26} href="/" theme="dark" />
         <Link 
           href="/" 
           className="text-xs font-sans text-slate-400 hover:text-white transition-colors flex items-center gap-1.5 py-1.5 px-3 rounded-lg hover:bg-white/[0.04]"
@@ -203,7 +203,7 @@ export default function LoginPage() {
 
         {/* Mobile Header (Logo + Back Link) */}
         <div className="lg:hidden w-full max-w-[420px] flex items-center justify-between mb-6">
-          <Logo variant="full" size={24} href="/" />
+          <Logo variant="full" size={24} href="/" theme="dark" />
           <Link href="/" className="text-xs font-sans text-slate-400 hover:text-white transition-colors">
             ← Back to Home
           </Link>
