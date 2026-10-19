@@ -36,6 +36,7 @@ class BillingUsageResponse(BaseModel):
     current_plan: str
     trial_ends_at: Optional[datetime]
     campaigns_this_month: int
+    total_campaigns: int = 0
     ai_extractions_used: int
     is_trial: bool = True
     is_paid: bool = False
@@ -66,23 +67,37 @@ async def get_billing_usage(
 
     ai_extractions_used = sub_data.get("ai_extractions_count", 0)
     
-    # Calculate campaigns this month
+    # Calculate campaigns (total active/tracked and this month)
     now = datetime.now(timezone.utc)
     start_of_month = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0).isoformat()
     
-    # Supabase select with count
+    total_campaigns = 0
+    campaigns_this_month = 0
     try:
-        campaigns_response = await client.table("campaigns").select("id", count="exact").eq("user_id", user.user.id).gte("created_at", start_of_month).execute()
-        campaigns_this_month = campaigns_response.count if campaigns_response and hasattr(campaigns_response, 'count') and campaigns_response.count is not None else 0
+        total_resp = await client.table("campaigns").select("id", count="exact").eq("user_id", user.user.id).execute()
+        if total_resp:
+            total_campaigns = total_resp.count if getattr(total_resp, 'count', None) is not None else len(total_resp.data or [])
     except Exception as e:
-        import structlog
-        structlog.get_logger(__name__).error("billing_campaigns_fetch_failed", error=str(e))
+        try:
+            service_client = await get_service_client()
+            total_resp = await service_client.table("campaigns").select("id", count="exact").eq("user_id", user.user.id).execute()
+            if total_resp:
+                total_campaigns = total_resp.count if getattr(total_resp, 'count', None) is not None else len(total_resp.data or [])
+        except Exception:
+            total_campaigns = 0
+
+    try:
+        month_resp = await client.table("campaigns").select("id", count="exact").eq("user_id", user.user.id).gte("created_at", start_of_month).execute()
+        if month_resp:
+            campaigns_this_month = month_resp.count if getattr(month_resp, 'count', None) is not None else len(month_resp.data or [])
+    except Exception as e:
         campaigns_this_month = 0
 
     return BillingUsageResponse(
         current_plan=current_plan,
         trial_ends_at=parsed_trial_ends_at,
         campaigns_this_month=campaigns_this_month,
+        total_campaigns=total_campaigns,
         ai_extractions_used=ai_extractions_used,
         is_trial=is_trial,
         is_paid=is_paid,

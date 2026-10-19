@@ -10,7 +10,7 @@ class Settings(BaseSettings):
     GEMINI_API_KEY_1: Optional[str] = None
     GEMINI_API_KEY_2: Optional[str] = None
     BASE_URL: str = "https://mycollabo.online"
-    ALLOWED_ORIGINS: str = "https://mycollabo.online,http://localhost:3000"
+    ALLOWED_ORIGINS: str = "https://mycollabo.online,http://localhost:3000,http://127.0.0.1:3000"
     SENTRY_DSN: Optional[str] = None
     
     # Redis Integration for rate limiting and distributed locks

@@ -5,9 +5,21 @@ import {
   Settings, MessageSquare, Phone, AlertCircle, 
   Bell, Mail, Copy, Check, Info, ShieldCheck, Send, Smartphone, Sparkles, CreditCard, ArrowRight
 } from 'lucide-react';
-import Image from 'next/image';
 import { toast } from 'sonner';
-import { saveWhatsAppNumber, getWhatsAppNumber, verifyWhatsAppConnection, getApiErrorMessage, getBillingUsage, BillingUsage, createRazorpayOrder, verifyRazorpayPayment, generateWhatsAppCode, unlinkWhatsApp, generateTelegramCode, unlinkTelegram } from '@/lib/api';
+import { 
+  saveWhatsAppNumber, 
+  getWhatsAppNumber, 
+  verifyWhatsAppConnection, 
+  getApiErrorMessage, 
+  getBillingUsage, 
+  BillingUsage, 
+  createRazorpayOrder, 
+  verifyRazorpayPayment, 
+  generateWhatsAppCode, 
+  unlinkWhatsApp, 
+  generateTelegramCode, 
+  unlinkTelegram 
+} from '@/lib/api';
 import { IS_TESTING_PHASE } from '@/lib/config';
 import { createClient } from '@/lib/supabase';
 
@@ -29,14 +41,14 @@ export default function SettingsPage() {
   const [lastVerifiedAt, setLastVerifiedAt] = useState<string | null>(null);
   const [pairingCode, setPairingCode] = useState<string | null>(null);
   const [tgPairingCode, setTgPairingCode] = useState<string | null>(null);
-  // Updated fallback Bot Number as requested
+
   const botNumber = process.env.NEXT_PUBLIC_BOT_NUMBER || "+91 6374771074";
   const telegramBotUsername = process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME || "@collabo_bot";
 
   const handleCopy = () => {
     navigator.clipboard.writeText(botNumber);
     setCopied(true);
-    toast.success('Bot number copied to clipboard!');
+    toast.success('Bot number copied to clipboard');
     setTimeout(() => setCopied(false), 2000);
   };
 
@@ -75,6 +87,8 @@ export default function SettingsPage() {
     loadSettings();
   }, []);
 
+  const isPro = IS_TESTING_PHASE || usage?.current_plan === 'pro' || Boolean(usage?.is_paid);
+
   const handleSaveWA = async () => {
     if (whatsappNumber && !isPro) {
       toast.error('WhatsApp integration is a Pro feature. Please upgrade your subscription.');
@@ -91,7 +105,7 @@ export default function SettingsPage() {
       setWhatsappNumber(response.whatsapp_number || '');
       setWaVerificationStatus('none');
       setLastVerifiedAt(null);
-      toast.success('WhatsApp integration updated successfully!');
+      toast.success('WhatsApp integration updated successfully');
     } catch (error) {
       toast.error(getApiErrorMessage(error, 'Failed to save settings. Please try again.'));
     } finally {
@@ -109,7 +123,7 @@ export default function SettingsPage() {
         whatsapp_reminders_enabled: waEnabled
       });
       setTelegramUsername(response.telegram_username || '');
-      toast.success('Telegram integration updated successfully!');
+      toast.success('Telegram integration updated successfully');
     } catch (error) {
       toast.error(getApiErrorMessage(error, 'Failed to save settings. Please try again.'));
     } finally {
@@ -135,7 +149,7 @@ export default function SettingsPage() {
       await unlinkTelegram();
       setTelegramUsername('');
       setTgPairingCode(null);
-      toast.success('Telegram account unlinked successfully!');
+      toast.success('Telegram account unlinked successfully');
     } catch (error) {
       toast.error(getApiErrorMessage(error, 'Failed to unlink Telegram account.'));
     } finally {
@@ -167,7 +181,7 @@ export default function SettingsPage() {
       setWaVerificationStatus('none');
       setLastVerifiedAt(null);
       setPairingCode(null);
-      toast.success('WhatsApp account unlinked successfully!');
+      toast.success('WhatsApp account unlinked successfully');
     } catch (error) {
       toast.error(getApiErrorMessage(error, 'Failed to unlink WhatsApp account.'));
     } finally {
@@ -206,7 +220,7 @@ export default function SettingsPage() {
       });
       setEmailEnabled(response.email_reminders_enabled);
       setWaEnabled(response.whatsapp_reminders_enabled);
-      toast.success('Reminder preferences updated successfully!');
+      toast.success('Reminder preferences updated successfully');
     } catch (error) {
       toast.error(getApiErrorMessage(error, 'Failed to save settings. Please try again.'));
     } finally {
@@ -214,7 +228,41 @@ export default function SettingsPage() {
     }
   };
 
-  const isPro = IS_TESTING_PHASE || usage?.current_plan === 'pro' || Boolean(usage?.is_paid);
+  // Instant auto-save toggle for Email reminders
+  const handleToggleEmail = async () => {
+    const nextVal = !emailEnabled;
+    setEmailEnabled(nextVal);
+    try {
+      await saveWhatsAppNumber({
+        whatsapp_number: whatsappNumber,
+        telegram_username: telegramUsername,
+        email_reminders_enabled: nextVal,
+        whatsapp_reminders_enabled: waEnabled
+      });
+      toast.success(nextVal ? 'Email reminders enabled' : 'Email reminders disabled');
+    } catch (error) {
+      setEmailEnabled(!nextVal);
+      toast.error(getApiErrorMessage(error, 'Failed to update reminder settings.'));
+    }
+  };
+
+  // Instant auto-save toggle for WhatsApp reminders
+  const handleToggleWA = async () => {
+    const nextVal = !waEnabled;
+    setWaEnabled(nextVal);
+    try {
+      await saveWhatsAppNumber({
+        whatsapp_number: whatsappNumber,
+        telegram_username: telegramUsername,
+        email_reminders_enabled: emailEnabled,
+        whatsapp_reminders_enabled: nextVal
+      });
+      toast.success(nextVal ? 'WhatsApp reminders enabled' : 'WhatsApp reminders disabled');
+    } catch (error) {
+      setWaEnabled(!nextVal);
+      toast.error(getApiErrorMessage(error, 'Failed to update reminder settings.'));
+    }
+  };
 
   const handleUpgrade = async () => {
     if (IS_TESTING_PHASE && !process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID) {
@@ -258,7 +306,6 @@ export default function SettingsPage() {
               razorpay_signature: response.razorpay_signature,
             });
             toast.success("Payment successful! You are now on the Pro plan.");
-            // Refresh usage
             const data = await getBillingUsage();
             setUsage(data);
           } catch (_err) {
@@ -281,338 +328,350 @@ export default function SettingsPage() {
   };
 
   return (
-    <>
-      <div className="max-w-6xl mx-auto pb-16 animate-fade-in px-2 sm:px-4">
-        
-        {/* Premium Page Header */}
-        <div className="mb-10 flex flex-col sm:flex-row sm:items-center gap-4 border-b border-slate-200 dark:border-slate-800/60 pb-8 mt-2">
-          <div className="w-14 h-14 bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-800 dark:to-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-700/50 flex items-center justify-center shadow-inner shrink-0">
-            <Settings className="w-7 h-7 text-slate-700 dark:text-slate-300" />
-          </div>
-          <div>
-            <h1 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight mb-1">Settings</h1>
-            <p className="text-slate-500 font-medium">Manage integrations, notifications, and application preferences.</p>
-          </div>
+    <div className="max-w-5xl mx-auto space-y-6 pb-16 animate-fade-in select-none">
+      
+      {/* ── Compact Architectural Header ── */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-2">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight text-white flex items-center gap-2.5">
+            <Settings className="w-6 h-6 text-emerald-400" />
+            Workspace Settings
+          </h1>
+          <p className="text-xs text-slate-400 font-mono mt-1">
+            Manage your subscription, AI ingestion channels, and deadline notification rules.
+          </p>
         </div>
 
-        {isLoading ? (
-          <div className="space-y-12 animate-pulse">
-            <div className="h-64 w-full bg-slate-100 dark:bg-slate-800/50 rounded-3xl"></div>
-            <div className="h-48 w-full bg-slate-100 dark:bg-slate-800/50 rounded-3xl"></div>
-          </div>
-        ) : (
-        <div className="space-y-16">
+        <div className="flex items-center gap-2">
+          <span className="font-mono text-xs text-slate-400 bg-white/[0.03] border border-white/[0.07] px-3 py-1.5 rounded-lg flex items-center gap-1.5 shadow-sm">
+            <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+            Security: E2E Encrypted
+          </span>
+        </div>
+      </div>
+
+      {isLoading ? (
+        /* ── Skeletons ── */
+        <div className="space-y-6 animate-pulse">
+          {[1, 2, 3, 4].map(i => (
+            <div key={i} className="h-40 bg-[#0A0E17] border border-white/[0.07] rounded-xl" />
+          ))}
+        </div>
+      ) : (
+        <div className="space-y-6">
           
-          {/* ─── SECTION: Subscription ─── */}
-          <section className="flex flex-col xl:flex-row gap-8 xl:gap-12 relative">
-            <div className="xl:w-1/3 flex-shrink-0 space-y-4">
-              <div className="inline-flex items-center justify-center p-3.5 rounded-2xl bg-gradient-to-br from-purple-400/10 to-purple-500/10 border border-purple-500/20 text-purple-500 shadow-inner">
-                <CreditCard className="w-7 h-7" />
-              </div>
-              <div>
-                <h2 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight mb-2">Subscription Plan</h2>
-                <p className="text-sm text-slate-500 leading-relaxed max-w-sm font-medium">
-                  Manage your subscription tier and upgrade to unlock unlimited campaigns and premium features.
-                </p>
-              </div>
-            </div>
-            
-            <div className="xl:w-2/3">
-              <div className="bg-white/70 dark:bg-slate-950/70 backdrop-blur-xl border border-slate-200 dark:border-slate-800/80 rounded-[2rem] overflow-hidden shadow-sm">
-                <div className="p-6 sm:p-10 space-y-6">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between p-5 sm:p-6 bg-slate-50 dark:bg-slate-900/40 rounded-3xl border border-slate-200 dark:border-slate-800/60 shadow-sm gap-5">
-                    <div>
-                      <h3 className="text-base font-bold text-slate-900 dark:text-white mb-1.5 flex items-center gap-2">
-                        Current Plan: {isPro ? <span className="text-emerald-500">Collabo Pro</span> : <span className="text-slate-500">Starter (Free)</span>}
-                      </h3>
-                      {!isPro && (
-                        <p className="text-xs sm:text-sm text-slate-500 leading-relaxed font-medium">
-                          You are currently on the free tier. Upgrade to unlock unlimited campaigns and priority extractions.
-                        </p>
-                      )}
-                    </div>
-                    {!isPro && (
-                      <button
-                        onClick={handleUpgrade}
-                        className="inline-flex items-center justify-center gap-2 shrink-0 bg-emerald-500 hover:bg-emerald-400 shadow-lg shadow-emerald-500/20 active:scale-95 text-white font-bold rounded-2xl px-6 py-3 text-sm transition-all"
-                      >
-                        Upgrade to Pro <ArrowRight className="w-4 h-4" />
-                      </button>
-                    )}
-                  </div>
+          {/* ── 1. SECTION: Subscription Plan ── */}
+          <div className="bg-[#0A0E17] border border-white/[0.07] rounded-xl p-6 shadow-2xl hover:border-white/[0.1] transition-colors">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+              
+              {/* Left Column: Title & Description */}
+              <div className="lg:col-span-4 space-y-1.5">
+                <div className="flex items-center gap-2 text-white">
+                  <CreditCard className="w-4 h-4 text-emerald-400" />
+                  <h2 className="text-sm font-semibold tracking-tight">Subscription Plan</h2>
                 </div>
-              </div>
-            </div>
-          </section>
-
-          <hr className="border-slate-200 dark:border-slate-800/60" />
-
-          {/* ─── SECTION: WhatsApp Integration ─── */}
-
-          <section className="flex flex-col xl:flex-row gap-8 xl:gap-12 relative">
-            <div className="xl:w-1/3 flex-shrink-0 space-y-4">
-              <div className="inline-flex items-center justify-center p-3.5 rounded-2xl bg-gradient-to-br from-emerald-400/10 to-emerald-500/10 border border-emerald-500/20 text-emerald-500 shadow-inner">
-                <MessageSquare className="w-7 h-7" />
-              </div>
-              <div>
-                <h2 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight mb-2">WhatsApp AI Bot</h2>
-                <p className="text-sm text-slate-500 leading-relaxed max-w-sm font-medium">
-                  Connect your WhatsApp to forward negotiation chats, voice notes, and screenshots directly to Collabo. Our AI instantly extracts the data.
+                <p className="text-xs text-slate-400 font-mono leading-relaxed">
+                  Manage your subscription tier, billing status, and unlocked platform quotas.
                 </p>
               </div>
-            </div>
-            
-            <div className="xl:w-2/3">
-              <div className="bg-white/70 dark:bg-slate-950/70 backdrop-blur-xl border border-slate-200 dark:border-slate-800/80 rounded-[2rem] overflow-hidden shadow-xl shadow-slate-200/40 dark:shadow-black/40 relative group transition-all">
-                {/* Glow effect */}
-                <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-emerald-500/10 rounded-full blur-3xl pointer-events-none translate-x-1/3 -translate-y-1/3 group-hover:bg-emerald-500/15 transition-colors duration-500" />
-                
-                <div className="p-6 sm:p-10 relative z-10 space-y-8">
-                  <h3 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2 uppercase tracking-wider">
-                    <ShieldCheck className="w-5 h-5 text-emerald-500" />
-                    Connection Setup
-                  </h3>
 
-                  {whatsappNumber ? (
-                    <div className="mt-8 p-5 bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-800/60 rounded-3xl shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-5 transition-all">
-                      <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 rounded-full flex items-center justify-center shrink-0 shadow-inner bg-emerald-100 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400">
-                          <ShieldCheck className="w-6 h-6" />
-                        </div>
-                        <div>
-                          <h3 className="font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                            Connection Status
-                            <span className="text-[10px] uppercase font-black tracking-wider px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400">
-                              Connected
-                            </span>
-                          </h3>
-                          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 font-medium">
-                            {whatsappNumber.substring(0, whatsappNumber.length - 4) + '****'}
-                          </p>
-                        </div>
-                      </div>
-                      
-                      <div className="w-full md:w-auto flex gap-3">
-                        <button
-                          onClick={handleUnlinkWA}
-                          disabled={isSavingWA || isLoading}
-                          className="flex-1 md:flex-none flex items-center justify-center gap-2 bg-rose-100 hover:bg-rose-200 text-rose-600 dark:bg-rose-900/30 dark:hover:bg-rose-900/50 active:scale-95 font-bold rounded-2xl px-6 py-3 text-sm transition-all"
-                        >
-                          Unlink Number
-                        </button>
-                      </div>
+              {/* Right Column: Controls */}
+              <div className="lg:col-span-8">
+                <div className="bg-[#05070B] border border-white/[0.06] rounded-lg p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div>
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-xs font-mono uppercase tracking-wider text-slate-400">Current Plan</span>
+                      <span className={`text-[10px] font-mono uppercase tracking-wider font-bold px-2 py-0.5 rounded border ${
+                        isPro 
+                          ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' 
+                          : 'bg-white/[0.04] text-slate-400 border-white/[0.08]'
+                      }`}>
+                        {isPro ? 'Pro Active' : 'Starter Tier'}
+                      </span>
                     </div>
+                    <p className="text-base font-semibold text-white font-mono tracking-tight">
+                      {isPro ? 'Collabo Pro' : 'Starter (Free)'}
+                    </p>
+                    <p className="text-xs text-slate-400 font-mono mt-1">
+                      {isPro 
+                        ? 'Unlimited campaign pipelines & priority AI parsing enabled.' 
+                        : 'Free tier includes basic deal tracking. Upgrade for unlimited scale.'}
+                    </p>
+                  </div>
+
+                  {!isPro ? (
+                    <button
+                      onClick={handleUpgrade}
+                      className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-mono font-medium rounded-lg px-4 py-2.5 text-xs transition-all shadow-[0_0_12px_rgba(16,185,129,0.3)] active:scale-95 cursor-pointer flex items-center gap-2 shrink-0"
+                    >
+                      Upgrade to Pro <ArrowRight className="w-3.5 h-3.5" />
+                    </button>
                   ) : (
-                    <div className="space-y-6">
-                      <p className="text-slate-600 dark:text-slate-400 font-medium">
-                        Connect your WhatsApp to forward briefs, voice notes, and screenshots to Collabo AI.
-                        Click below to generate a secure 10-minute pairing code.
-                      </p>
-
-                      {!pairingCode ? (
-                        <button
-                          onClick={handleGenerateCode}
-                          disabled={isSavingWA || isLoading}
-                          className="px-6 py-3.5 bg-emerald-500 hover:bg-emerald-400 text-white rounded-2xl font-bold transition-all shadow-lg shadow-emerald-500/25 disabled:opacity-50"
-                        >
-                          {isSavingWA ? 'Generating...' : 'Generate Pairing Code'}
-                        </button>
-                      ) : (
-                        <div className="space-y-6">
-                          <div className="p-6 bg-slate-50 dark:bg-slate-900/50 rounded-3xl border border-slate-200 dark:border-slate-800 text-center sm:text-left shadow-sm">
-                            <p className="text-sm font-bold text-slate-500 dark:text-slate-400 mb-2 uppercase tracking-wider">Your Pairing Code:</p>
-                            <p className="text-4xl font-mono font-black tracking-widest text-slate-900 dark:text-white">
-                              {pairingCode}
-                            </p>
-                            <p className="text-sm text-slate-500 font-medium mt-3">
-                              This code expires in 10 minutes. Send it to our bot to verify your number.
-                            </p>
-                          </div>
-
-                          <div className="flex flex-col sm:flex-row gap-4 items-center">
-                            <a 
-                              href={`https://wa.me/${botNumber.replace(/[^0-9]/g, '')}?text=${pairingCode}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="w-full sm:w-auto px-8 py-4 bg-[#25D366] hover:bg-[#128C7E] text-white rounded-2xl font-bold flex items-center justify-center gap-2 transition-all shadow-lg shadow-[#25D366]/30 hover:-translate-y-0.5"
-                            >
-                              <Smartphone className="w-5 h-5" />
-                              Open in WhatsApp
-                            </a>
-                          </div>
-                        </div>
-                      )}
+                    <div className="font-mono text-xs text-emerald-400 bg-emerald-500/[0.08] border border-emerald-500/20 px-3 py-1.5 rounded-lg flex items-center gap-1.5 shrink-0">
+                      <Check className="w-3.5 h-3.5" /> Full Enterprise Access
                     </div>
                   )}
-
                 </div>
               </div>
+
             </div>
-          </section>
+          </div>
 
-          <hr className="border-slate-200 dark:border-slate-800/60" />
-
-          {/* ─── SECTION: Notifications ─── */}
-          <section className="flex flex-col xl:flex-row gap-8 xl:gap-12 relative">
-            <div className="xl:w-1/3 flex-shrink-0 space-y-4">
-              <div className="inline-flex items-center justify-center p-3.5 rounded-2xl bg-gradient-to-br from-rose-400/10 to-rose-500/10 border border-rose-500/20 text-rose-500 shadow-inner">
-                <Bell className="w-7 h-7" />
-              </div>
-              <div>
-                <h2 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight mb-2">Notification Settings</h2>
-                <p className="text-sm text-slate-500 leading-relaxed max-w-sm font-medium">
-                  Control how you want to be reminded about upcoming deadlines. We recommend keeping WhatsApp reminders on for the best experience.
+          {/* ── 2. SECTION: WhatsApp AI Bot ── */}
+          <div className="bg-[#0A0E17] border border-white/[0.07] rounded-xl p-6 shadow-2xl hover:border-white/[0.1] transition-colors">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+              
+              {/* Left Column: Title & Description */}
+              <div className="lg:col-span-4 space-y-1.5">
+                <div className="flex items-center gap-2 text-white">
+                  <MessageSquare className="w-4 h-4 text-emerald-400" />
+                  <h2 className="text-sm font-semibold tracking-tight">WhatsApp AI Bot</h2>
+                </div>
+                <p className="text-xs text-slate-400 font-mono leading-relaxed">
+                  Connect your number to forward negotiations, audio notes, and screenshots for zero-touch brief extraction.
                 </p>
+
+                {/* Bot Number Snippet */}
+                <div className="pt-2">
+                  <div className="flex items-center justify-between text-xs font-mono text-slate-400 bg-white/[0.03] border border-white/[0.06] rounded-lg px-3 py-2">
+                    <span className="truncate">Bot: {botNumber}</span>
+                    <button 
+                      onClick={handleCopy} 
+                      className="text-slate-400 hover:text-white transition cursor-pointer p-0.5 ml-2 shrink-0"
+                      title="Copy bot number"
+                    >
+                      {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                    </button>
+                  </div>
+                </div>
               </div>
+
+              {/* Right Column: Controls */}
+              <div className="lg:col-span-8">
+                {whatsappNumber ? (
+                  <div className="bg-[#05070B] border border-white/[0.06] rounded-lg p-5 space-y-4">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                      <div>
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="text-xs font-mono uppercase tracking-wider text-slate-400">Connection Status</span>
+                          <span className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-mono text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded">
+                            Connected
+                          </span>
+                        </div>
+                        <p className="text-base font-semibold text-white font-mono tracking-wide">
+                          {whatsappNumber.substring(0, whatsappNumber.length - 4) + '****'}
+                        </p>
+                        <p className="text-xs text-slate-400 font-mono mt-0.5">
+                          {lastVerifiedAt ? `Last active: ${lastVerifiedAt}` : 'Active encrypted connection'}
+                        </p>
+                      </div>
+
+                      <button
+                        onClick={handleUnlinkWA}
+                        disabled={isSavingWA || isLoading}
+                        className="bg-rose-500/[0.08] hover:bg-rose-500/[0.15] border border-rose-500/25 text-rose-300 font-medium rounded-xl px-4 py-2 text-xs transition active:scale-95 cursor-pointer flex items-center gap-1.5 shrink-0"
+                      >
+                        <AlertCircle className="w-3.5 h-3.5" />
+                        {isSavingWA ? 'Unlinking...' : 'Unlink Number'}
+                      </button>
+                    </div>
+
+                    <div className="pt-3 border-t border-white/[0.06] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                      <span className="text-[11px] font-mono text-slate-400">
+                        Verify real-time bot connectivity by dispatching a test ping:
+                      </span>
+                      <button
+                        onClick={handleVerifyWA}
+                        disabled={isVerifyingWA}
+                        className="font-mono text-xs text-slate-300 hover:text-white bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] px-3.5 py-1.5 rounded-lg flex items-center gap-1.5 transition active:scale-95 cursor-pointer shrink-0"
+                      >
+                        <Send className="w-3.5 h-3.5 text-emerald-400" />
+                        {isVerifyingWA ? 'Pinging...' : 'Send Test Ping'}
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="bg-[#05070B] border border-white/[0.06] rounded-lg p-5 space-y-4">
+                    <div>
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="text-xs font-mono uppercase tracking-wider text-slate-400">Connection Status</span>
+                        <span className="bg-amber-500/10 text-amber-400 border border-amber-500/20 font-mono text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded">
+                          Disconnected
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-300 font-sans leading-relaxed mt-1">
+                        Connect your WhatsApp to forward briefs, voice notes, and agreements directly to Collabo AI.
+                        Generate a secure 10-minute pairing code below to pair your account.
+                      </p>
+                    </div>
+
+                    {!pairingCode ? (
+                      <button
+                        onClick={handleGenerateCode}
+                        disabled={isSavingWA || isLoading}
+                        className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-mono font-medium rounded-lg px-4 py-2 text-xs transition-all shadow-[0_0_12px_rgba(16,185,129,0.3)] active:scale-95 cursor-pointer flex items-center gap-2"
+                      >
+                        <Smartphone className="w-3.5 h-3.5" />
+                        {isSavingWA ? 'Generating...' : 'Generate Pairing Code'}
+                      </button>
+                    ) : (
+                      <div className="p-4 bg-black/40 rounded-xl border border-white/[0.08] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                        <div>
+                          <p className="text-[10px] font-mono font-medium text-slate-400 uppercase tracking-wider">Your Pairing Code</p>
+                          <p className="text-3xl font-mono font-bold tracking-widest text-emerald-400 mt-0.5">{pairingCode}</p>
+                          <p className="text-[11px] font-mono text-slate-400 mt-1">Expires in 10 minutes. Send code to our bot.</p>
+                        </div>
+                        <a 
+                          href={`https://wa.me/${botNumber.replace(/[^0-9]/g, '')}?text=${pairingCode}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="bg-[#25D366] hover:bg-[#20ba59] text-black font-mono text-xs font-semibold rounded-lg px-4 py-2.5 flex items-center gap-2 transition active:scale-95 shrink-0"
+                        >
+                          <Smartphone className="w-4 h-4" /> Open in WhatsApp
+                        </a>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
             </div>
-            
-            <div className="xl:w-2/3">
-              <div className="bg-white/70 dark:bg-slate-950/70 backdrop-blur-xl border border-slate-200 dark:border-slate-800/80 rounded-[2rem] overflow-hidden shadow-xl shadow-slate-200/40 dark:shadow-black/40 group">
-                <div className="absolute top-0 right-0 w-[400px] h-[400px] bg-rose-500/5 rounded-full blur-3xl pointer-events-none translate-x-1/2 -translate-y-1/2 group-hover:bg-rose-500/10 transition-colors duration-500" />
+          </div>
+
+          {/* ── 3. SECTION: Notification Settings ── */}
+          <div className="bg-[#0A0E17] border border-white/[0.07] rounded-xl p-6 shadow-2xl hover:border-white/[0.1] transition-colors">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+              
+              {/* Left Column: Title & Description */}
+              <div className="lg:col-span-4 space-y-1.5">
+                <div className="flex items-center gap-2 text-white">
+                  <Bell className="w-4 h-4 text-emerald-400" />
+                  <h2 className="text-sm font-semibold tracking-tight">Notification Settings</h2>
+                </div>
+                <p className="text-xs text-slate-400 font-mono leading-relaxed">
+                  Configure automated dispatch channels for upcoming delivery deadlines and overdue escalations.
+                </p>
+                <div className="pt-2">
+                  <span className="text-[11px] font-mono text-slate-400 flex items-center gap-1.5">
+                    <Check className="w-3.5 h-3.5 text-emerald-400" /> Toggles auto-save instantly
+                  </span>
+                </div>
+              </div>
+
+              {/* Right Column: Controls */}
+              <div className="lg:col-span-8 space-y-3">
                 
-                <div className="p-6 sm:p-10 relative z-10 space-y-5">
-                  
-                  {/* Email Toggle */}
-                  <div 
-                    onClick={() => setEmailEnabled(!emailEnabled)}
-                    className={`cursor-pointer flex flex-col sm:flex-row sm:items-center justify-between p-5 sm:p-6 rounded-3xl border transition-all duration-300 gap-5 ${
-                      emailEnabled 
-                        ? 'bg-white dark:bg-slate-900 border-rose-200 dark:border-rose-900/50 shadow-lg shadow-rose-100/50 dark:shadow-none ring-1 ring-rose-500/10' 
-                        : 'bg-slate-50 dark:bg-slate-900/40 border-slate-200 dark:border-slate-800/60 hover:border-slate-300 dark:hover:border-slate-700'
-                    }`}
-                  >
-                    <div className="flex items-start gap-4 sm:gap-5">
-                      <div className={`p-3.5 rounded-2xl border transition-colors shrink-0 shadow-inner ${
-                        emailEnabled ? 'bg-rose-50 dark:bg-rose-500/10 border-rose-100 dark:border-rose-500/20 text-rose-500' : 'bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-400'
-                      }`}>
-                        <Mail className="w-5 h-5" />
-                      </div>
-                      <div>
-                        <h3 className={`text-base font-bold mb-1.5 ${emailEnabled ? 'text-slate-900 dark:text-white' : 'text-slate-700 dark:text-slate-300'}`}>Email Reminders</h3>
-                        <p className="text-xs sm:text-sm text-slate-500 leading-relaxed max-w-sm font-medium">
-                          Get an email 48 hours before a deadline, and an alert when a campaign becomes overdue.
-                        </p>
-                      </div>
+                {/* Email Reminders Toggle Card */}
+                <div 
+                  onClick={handleToggleEmail}
+                  className="bg-[#05070B] border border-white/[0.06] hover:border-white/[0.12] rounded-lg p-4 flex items-center justify-between gap-4 transition-colors cursor-pointer select-none"
+                >
+                  <div className="flex items-center gap-3.5">
+                    <div className="w-9 h-9 rounded-lg bg-white/[0.04] border border-white/[0.08] flex items-center justify-center text-slate-300 shrink-0">
+                      <Mail className="w-4 h-4 text-emerald-400" />
                     </div>
-                    {/* iOS style Toggle */}
-                    <div
-                      className={`relative inline-flex h-8 w-14 shrink-0 cursor-pointer items-center rounded-full transition-colors duration-300 ease-in-out shadow-inner border border-black/5 dark:border-white/5 ${
-                        emailEnabled ? 'bg-rose-500' : 'bg-slate-200 dark:bg-slate-800'
-                      }`}
-                    >
-                      <span className={`pointer-events-none inline-block h-6 w-6 transform rounded-full bg-white shadow-md transition duration-300 ease-in-out ${
-                        emailEnabled ? 'translate-x-[26px]' : 'translate-x-1'
-                      }`} />
+                    <div>
+                      <h3 className="text-xs font-semibold text-white">Email Reminders</h3>
+                      <p className="text-[11px] font-mono text-slate-400 mt-0.5">
+                        Receive 48h advance warnings and critical deadline alerts in your inbox.
+                      </p>
                     </div>
                   </div>
 
-                  {/* WA Toggle */}
-                  <div 
-                    onClick={() => setWaEnabled(!waEnabled)}
-                    className={`cursor-pointer flex flex-col sm:flex-row sm:items-center justify-between p-5 sm:p-6 rounded-3xl border transition-all duration-300 gap-5 ${
-                      waEnabled 
-                        ? 'bg-white dark:bg-slate-900 border-emerald-200 dark:border-emerald-900/50 shadow-lg shadow-emerald-100/50 dark:shadow-none ring-1 ring-emerald-500/10' 
-                        : 'bg-slate-50 dark:bg-slate-900/40 border-slate-200 dark:border-slate-800/60 hover:border-slate-300 dark:hover:border-slate-700'
-                    }`}
-                  >
-                    <div className="flex items-start gap-4 sm:gap-5">
-                      <div className={`p-3.5 rounded-2xl border transition-colors shrink-0 shadow-inner ${
-                        waEnabled ? 'bg-emerald-50 dark:bg-emerald-500/10 border-emerald-100 dark:border-emerald-500/20 text-emerald-500' : 'bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-400'
-                      }`}>
-                        <MessageSquare className="w-5 h-5" />
-                      </div>
-                      <div>
-                        <h3 className={`text-base font-bold mb-1.5 ${waEnabled ? 'text-slate-900 dark:text-white' : 'text-slate-700 dark:text-slate-300'}`}>WhatsApp Reminders</h3>
-                        <p className="text-xs sm:text-sm text-slate-500 leading-relaxed max-w-sm font-medium">
-                          Receive instant pings from our bot to your linked number for critical deadlines.
-                        </p>
-                      </div>
-                    </div>
-                    {/* iOS style Toggle */}
-                    <div
-                      className={`relative inline-flex h-8 w-14 shrink-0 cursor-pointer items-center rounded-full transition-colors duration-300 ease-in-out shadow-inner border border-black/5 dark:border-white/5 ${
-                        waEnabled ? 'bg-emerald-500' : 'bg-slate-200 dark:bg-slate-800'
-                      }`}
-                    >
-                      <span className={`pointer-events-none inline-block h-6 w-6 transform rounded-full bg-white shadow-md transition duration-300 ease-in-out ${
-                        waEnabled ? 'translate-x-[26px]' : 'translate-x-1'
-                      }`} />
-                    </div>
-                  </div>
-
-                  <div className="pt-6 border-t border-slate-200/60 dark:border-slate-800/60 flex justify-end mt-4">
-                    <button
-                      onClick={handleSaveReminders}
-                      disabled={isSavingReminders || isLoading}
-                      className="inline-flex items-center gap-2 bg-slate-900 hover:bg-slate-800 dark:bg-white dark:hover:bg-slate-200 dark:text-slate-900 text-white active:scale-95 font-bold rounded-2xl px-8 py-3.5 text-sm transition-all shadow-lg shadow-slate-900/20 dark:shadow-white/10 hover:shadow-xl disabled:opacity-70 disabled:pointer-events-none"
-                    >
-                      {isSavingReminders ? (
-                        <div className="w-5 h-5 border-2 border-slate-500 border-t-transparent rounded-full animate-spin" />
-                      ) : (
-                        'Save Preferences'
-                      )}
-                    </button>
+                  {/* Tactile Linear Switch */}
+                  <div className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors duration-200 ease-in-out ${
+                    emailEnabled ? 'bg-emerald-500' : 'bg-white/[0.1]'
+                  }`}>
+                    <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow-sm transition-transform duration-200 ease-in-out ${
+                      emailEnabled ? 'translate-x-4' : 'translate-x-0.5'
+                    }`} />
                   </div>
                 </div>
+
+                {/* WhatsApp Reminders Toggle Card */}
+                <div 
+                  onClick={handleToggleWA}
+                  className="bg-[#05070B] border border-white/[0.06] hover:border-white/[0.12] rounded-lg p-4 flex items-center justify-between gap-4 transition-colors cursor-pointer select-none"
+                >
+                  <div className="flex items-center gap-3.5">
+                    <div className="w-9 h-9 rounded-lg bg-white/[0.04] border border-white/[0.08] flex items-center justify-center text-slate-300 shrink-0">
+                      <MessageSquare className="w-4 h-4 text-emerald-400" />
+                    </div>
+                    <div>
+                      <h3 className="text-xs font-semibold text-white">WhatsApp Reminders</h3>
+                      <p className="text-[11px] font-mono text-slate-400 mt-0.5">
+                        Direct ping from our bot to your verified WhatsApp number for priority milestones.
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Tactile Linear Switch */}
+                  <div className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors duration-200 ease-in-out ${
+                    waEnabled ? 'bg-emerald-500' : 'bg-white/[0.1]'
+                  }`}>
+                    <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow-sm transition-transform duration-200 ease-in-out ${
+                      waEnabled ? 'translate-x-4' : 'translate-x-0.5'
+                    }`} />
+                  </div>
+                </div>
+
               </div>
+
             </div>
-          </section>
+          </div>
 
-
-
-          <hr className="border-slate-200 dark:border-slate-800/60" />
-
-          {/* ─── SECTION: App Preferences ─── */}
-          <section className="flex flex-col xl:flex-row gap-8 xl:gap-12 relative pb-12">
-            <div className="xl:w-1/3 flex-shrink-0 space-y-4">
-              <div className="inline-flex items-center justify-center p-3.5 rounded-2xl bg-gradient-to-br from-slate-200 to-slate-300 dark:from-slate-700 dark:to-slate-800 border border-slate-300 dark:border-slate-700 shadow-inner">
-                <Settings className="w-7 h-7 text-slate-700 dark:text-slate-300" />
-              </div>
-              <div>
-                <h2 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight mb-2">App Preferences</h2>
-                <p className="text-sm text-slate-500 leading-relaxed max-w-sm font-medium">
-                  Manage your general application settings and experiences.
+          {/* ── 4. SECTION: App Preferences ── */}
+          <div className="bg-[#0A0E17] border border-white/[0.07] rounded-xl p-6 shadow-2xl hover:border-white/[0.1] transition-colors">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+              
+              {/* Left Column: Title & Description */}
+              <div className="lg:col-span-4 space-y-1.5">
+                <div className="flex items-center gap-2 text-white">
+                  <Settings className="w-4 h-4 text-emerald-400" />
+                  <h2 className="text-sm font-semibold tracking-tight">App Preferences</h2>
+                </div>
+                <p className="text-xs text-slate-400 font-mono leading-relaxed">
+                  Manage application experience, guided product tours, and interface preferences.
                 </p>
               </div>
-            </div>
-            
-            <div className="xl:w-2/3">
-              <div className="bg-white/70 dark:bg-slate-950/70 backdrop-blur-xl border border-slate-200 dark:border-slate-800/80 rounded-[2rem] overflow-hidden shadow-sm">
-                <div className="p-6 sm:p-10">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between p-5 sm:p-6 bg-slate-50 dark:bg-slate-900/40 rounded-3xl border border-slate-200 dark:border-slate-800/60 shadow-sm gap-5">
-                    <div className="flex items-start gap-5">
-                      <div className="p-3.5 bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700/50 shadow-inner shrink-0">
-                        <Info className="w-5 h-5 text-slate-600 dark:text-slate-400" />
-                      </div>
-                      <div>
-                        <h3 className="text-base font-bold text-slate-900 dark:text-white mb-1.5">Onboarding Tour</h3>
-                        <p className="text-xs sm:text-sm text-slate-500 leading-relaxed max-w-sm font-medium">
-                          Replay the interactive welcome tour to learn about the dashboard features.
-                        </p>
-                      </div>
+
+              {/* Right Column: Controls */}
+              <div className="lg:col-span-8">
+                <div className="bg-[#05070B] border border-white/[0.06] rounded-lg p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div className="flex items-start gap-3.5">
+                    <div className="w-9 h-9 rounded-lg bg-white/[0.04] border border-white/[0.08] flex items-center justify-center text-slate-300 shrink-0">
+                      <Info className="w-4 h-4 text-slate-400" />
                     </div>
-                    <button
-                      onClick={() => {
-                        Object.keys(localStorage).forEach(key => {
-                          if (key.startsWith('collabo_tour_completed')) {
-                            localStorage.removeItem(key);
-                          }
-                        });
-                        window.location.href = '/dashboard';
-                      }}
-                      className="inline-flex items-center justify-center shrink-0 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm hover:shadow-md hover:bg-slate-50 dark:hover:bg-slate-700 active:scale-95 text-slate-900 dark:text-white font-bold rounded-2xl px-6 py-3 text-sm transition-all"
-                    >
-                      Restart Tour
-                    </button>
+                    <div>
+                      <h3 className="text-xs font-semibold text-white">Onboarding Tour</h3>
+                      <p className="text-[11px] font-mono text-slate-400 mt-0.5">
+                        Replay the interactive welcome tour to explore the Campaign Command Center features.
+                      </p>
+                    </div>
                   </div>
+
+                  <button
+                    onClick={() => {
+                      Object.keys(localStorage).forEach(key => {
+                        if (key.startsWith('collabo_tour_completed')) {
+                          localStorage.removeItem(key);
+                        }
+                      });
+                      window.location.href = '/dashboard';
+                    }}
+                    className="bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] text-slate-200 text-xs font-medium rounded-xl px-4 py-2 transition font-mono active:scale-95 cursor-pointer shrink-0 flex items-center gap-1.5"
+                  >
+                    Restart Tour
+                  </button>
                 </div>
               </div>
+
             </div>
-          </section>
+          </div>
 
         </div>
-        )}
-      </div>
-    </>
+      )}
+
+    </div>
   );
 }

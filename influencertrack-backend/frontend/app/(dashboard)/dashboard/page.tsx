@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import CampaignTable from '@/components/CampaignTable';
 import CreateCampaignModal from '@/components/CreateCampaignModal';
 import EditCampaignModal from '@/components/EditCampaignModal';
@@ -10,150 +10,74 @@ import { getCampaigns, computeDashboardStats, getApiErrorMessage, loadSampleData
 
 import type { Campaign, DashboardStats } from '@/lib/types';
 import {
-  Plus, RefreshCw, TrendingUp, Users, Clock,
-  DollarSign, AlertCircle, Calendar,
-  Zap, CheckCircle2, BarChart2,
+  Plus, RefreshCw, Clock,
+  AlertCircle, Calendar,
+  Zap, CheckCircle2,
   FileText, Table as TableIcon, Download, ChevronDown
 } from 'lucide-react';
 import { toast } from 'sonner';
 
-// ─── Stat Card ────────────────────────────────────────────────────────────────
-function StatCard({
-  label, value, sub, icon: Icon, accent, trend, id,
+// ─── Linear / Attio Architectural Metric Card ────────────────────────────────
+function ArchitecturalMetricCard({
+  id,
+  label,
+  value,
+  sub,
+  statusDot,
 }: {
+  id?: string;
   label: string;
   value: string;
   sub?: string;
-  icon: React.ElementType;
-  accent: 'emerald' | 'amber' | 'rose' | 'slate' | 'blue';
-  trend?: { value: string; positive: boolean };
-  id?: string;
+  statusDot?: 'emerald' | 'amber' | 'rose' | 'slate' | 'pulse-emerald';
 }) {
-  const accentMap = {
-    emerald: {
-      bg: 'bg-emerald-500/12', text: 'text-emerald-400',
-      border: 'border-emerald-500/20', hover: 'hover:border-emerald-500/35 hover:shadow-emerald-500/12',
-      iconBg: 'bg-emerald-500/12 border-emerald-500/20',
-      blob: 'bg-emerald-400/20',
-    },
-    amber: {
-      bg: 'bg-amber-500/12', text: 'text-amber-400',
-      border: 'border-amber-500/20', hover: 'hover:border-amber-500/35 hover:shadow-amber-500/12',
-      iconBg: 'bg-amber-500/12 border-amber-500/20',
-      blob: 'bg-amber-400/18',
-    },
-    rose: {
-      bg: 'bg-rose-500/12', text: 'text-rose-400',
-      border: 'border-rose-500/20', hover: 'hover:border-rose-500/35 hover:shadow-rose-500/12',
-      iconBg: 'bg-rose-500/12 border-rose-500/20',
-      blob: 'bg-rose-400/18',
-    },
-    slate: {
-      bg: 'bg-slate-700/40', text: 'text-slate-300',
-      border: 'border-slate-700/40', hover: 'hover:border-slate-600/50 hover:shadow-slate-500/8',
-      iconBg: 'bg-slate-700/40 border-slate-700/40',
-      blob: 'bg-slate-500/15',
-    },
-    blue: {
-      bg: 'bg-blue-500/12', text: 'text-blue-400',
-      border: 'border-blue-500/20', hover: 'hover:border-blue-500/35 hover:shadow-blue-500/12',
-      iconBg: 'bg-blue-500/12 border-blue-500/20',
-      blob: 'bg-blue-400/18',
-    },
+  const dotClasses = {
+    'emerald': 'bg-emerald-400',
+    'pulse-emerald': 'bg-emerald-400 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.5)]',
+    'amber': 'bg-amber-400',
+    'rose': 'bg-rose-400',
+    'slate': 'bg-slate-500',
   };
-  const a = accentMap[accent];
+
   return (
     <div
       id={id}
-      className={`
-        relative bg-white dark:bg-slate-900/60 border ${a.border} ${a.hover}
-        rounded-2xl p-5 overflow-hidden transition-all duration-250
-        hover:shadow-xl hover:-translate-y-0.5 group
-        shadow-sm dark:shadow-none
-      `}
+      className="bg-[#0A0E17] border border-white/[0.07] rounded-xl p-5 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.06)] hover:border-white/[0.12] transition-colors flex flex-col justify-between"
     >
-      {/* Glow blob */}
-      <div
-        className={`absolute -top-6 -right-6 w-28 h-28 ${a.blob} rounded-full blur-2xl pointer-events-none opacity-70 group-hover:opacity-100 transition-opacity duration-300`}
-      />
-
-      <div className="relative flex items-start justify-between gap-3">
-        <div className="flex-1 min-w-0">
-          <p className="text-[10px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-3 leading-none">
-            {label}
-          </p>
-          <p className={`text-2xl sm:text-3xl font-extrabold ${a.text} leading-none mb-2`}>{value}</p>
-          {sub && (
-            <p className="text-[11px] text-slate-400 dark:text-slate-600 leading-relaxed mt-1 truncate">{sub}</p>
-          )}
-          {trend && (
-            <div className={`flex items-center gap-1 mt-2.5 text-xs font-bold ${trend.positive ? 'text-emerald-500 dark:text-emerald-400' : 'text-rose-500 dark:text-rose-400'}`}>
-              <TrendingUp className={`w-3 h-3 ${!trend.positive ? 'rotate-180' : ''}`} />
-              {trend.value}
-            </div>
-          )}
-        </div>
-        <div className={`p-2.5 sm:p-3 rounded-xl border flex-shrink-0 ${a.iconBg} group-hover:scale-110 transition-transform duration-200`}>
-          <Icon className={`w-4 h-4 sm:w-5 sm:h-5 ${a.text}`} />
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ─── Skeleton Stat Card ───────────────────────────────────────────────────────
-function StatCardSkeleton() {
-  return (
-    <div className="bg-white dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800/50 rounded-2xl p-5 shadow-sm dark:shadow-none">
-      <div className="skeleton h-2.5 w-20 rounded mb-4" />
-      <div className="skeleton h-8 w-16 rounded mb-2" />
-      <div className="skeleton h-2.5 w-24 rounded" />
-    </div>
-  );
-}
-
-// ─── Upcoming Deadline Item ───────────────────────────────────────────────────
-function DeadlineItem({ campaign }: { campaign: Campaign }) {
-  const deadline = new Date(campaign.deadline!);
-  const now = new Date();
-  const daysLeft = Math.ceil((deadline.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-  const overdue = daysLeft < 0;
-  const urgent  = daysLeft >= 0 && daysLeft <= 2;
-  const today   = daysLeft === 0;
-
-  const badgeClass = overdue
-    ? 'bg-rose-500 text-white'
-    : urgent
-    ? 'bg-rose-500/15 text-rose-400 border border-rose-500/25'
-    : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400';
-
-  return (
-    <div className={`flex items-center gap-3 p-3 rounded-xl border transition-all hover:bg-slate-50 dark:hover:bg-slate-800/30 group cursor-default ${
-      overdue ? 'border-rose-500/25 bg-rose-500/5' :
-      urgent  ? 'border-amber-500/20 bg-amber-500/4' :
-                'border-slate-200 dark:border-slate-800/40 bg-transparent'
-    }`}>
-      <div className={`flex-shrink-0 p-2 rounded-lg ${
-        overdue ? 'bg-rose-500/15' : urgent ? 'bg-amber-500/12' : 'bg-slate-100 dark:bg-slate-800/60'
-      }`}>
-        <Calendar className={`w-3.5 h-3.5 ${
-          overdue ? 'text-rose-400' : urgent ? 'text-amber-400' : 'text-slate-400'
-        }`} />
-      </div>
-      <div className="flex-1 min-w-0">
-        <p className="text-sm font-semibold text-slate-900 dark:text-white truncate">
-          {campaign.influencer_name ?? campaign.influencer_handle}
-        </p>
-        <p className="text-xs text-slate-500 truncate">{campaign.deliverables ?? 'No deliverables set'}</p>
-      </div>
-      <div className="flex-shrink-0 text-right space-y-1">
-        <span className={`inline-block text-[10px] font-bold px-2 py-0.5 rounded-full ${badgeClass}`}>
-          {overdue ? `${Math.abs(daysLeft)}d overdue` : today ? 'Today!' : daysLeft === 1 ? 'Tomorrow' : `${daysLeft}d left`}
+      <div className="flex items-center justify-between gap-2 mb-3">
+        <span className="text-[11px] font-medium tracking-wider text-slate-400 uppercase font-sans">
+          {label}
         </span>
-        <p className="text-[10px] text-slate-500 text-right">
-          {deadline.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}
-        </p>
+        {statusDot && (
+          <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${dotClasses[statusDot]}`} />
+        )}
       </div>
+
+      <div className="my-1">
+        <span className="font-mono tabular-nums text-3xl font-semibold text-white tracking-tight leading-none block">
+          {value}
+        </span>
+      </div>
+
+      {sub && (
+        <p className="text-xs text-slate-400 font-mono mt-2 truncate">
+          {sub}
+        </p>
+      )}
+    </div>
+  );
+}
+
+// ─── Skeleton Metric Card ─────────────────────────────────────────────────────
+function MetricCardSkeleton() {
+  return (
+    <div className="bg-[#0A0E17] border border-white/[0.07] rounded-xl p-5 animate-pulse flex flex-col justify-between">
+      <div className="flex items-center justify-between mb-4">
+        <div className="h-3 w-20 rounded bg-white/[0.06]" />
+        <div className="w-1.5 h-1.5 rounded-full bg-white/[0.06]" />
+      </div>
+      <div className="h-8 w-24 rounded bg-white/[0.06] mb-3" />
+      <div className="h-3 w-32 rounded bg-white/[0.06]" />
     </div>
   );
 }
@@ -224,7 +148,6 @@ export default function DashboardPage() {
     try {
       setIsDownloading(true);
       setShowDownloadMenu(false);
-      // Format current month as YYYY-MM
       const now = new Date();
       const monthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
       
@@ -240,20 +163,34 @@ export default function DashboardPage() {
 
   const isFirstTime = !isLoading && campaigns.length === 0 && !error;
 
+  // Compute urgent & upcoming deadlines (Next 7 days + overdue)
+  const urgentDeadlines = useMemo(() => {
+    const now = new Date();
+    const sevenDays = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+    return campaigns
+      .filter(c => {
+        if (!c.deadline || c.status === 'paid' || c.status === 'cancelled') return false;
+        const d = new Date(c.deadline);
+        return d <= sevenDays;
+      })
+      .sort((a, b) => new Date(a.deadline!).getTime() - new Date(b.deadline!).getTime());
+  }, [campaigns]);
+
   return (
-    <>
-      {/* ── Page header ── */}
+    <div className="w-full max-w-[1500px] mx-auto select-none">
+      {/* ── Page Header ── */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
         <div>
-          <h1 className="text-xl font-extrabold text-slate-900 dark:text-white tracking-tight">Campaign Dashboard</h1>
-          <p className="text-slate-500 dark:text-slate-500 text-sm mt-0.5">
+          <h1 className="text-xl font-semibold text-white tracking-tight">Campaign Command Center</h1>
+          <p className="text-xs text-slate-400 font-mono mt-0.5">
             {isLoading
-              ? 'Loading your campaigns...'
+              ? 'Synchronizing campaign data...'
               : totalCount === 0
-              ? 'No campaigns yet — create your first one!'
-              : `${totalCount} campaign${totalCount !== 1 ? 's' : ''} tracked`}
+              ? 'Zero campaigns active — start your first pipeline'
+              : `${totalCount} active deal${totalCount !== 1 ? 's' : ''} in pipeline`}
           </p>
         </div>
+
         <div className="flex items-center gap-2">
           {/* Download Report Button */}
           {!isFirstTime && (
@@ -261,31 +198,31 @@ export default function DashboardPage() {
               <button
                 onClick={() => setShowDownloadMenu(!showDownloadMenu)}
                 disabled={isDownloading || isLoading}
-                className="flex items-center gap-1.5 bg-slate-800/80 hover:bg-slate-800 border border-slate-700/50 text-slate-300 hover:text-white font-semibold rounded-xl px-3.5 py-2.5 text-sm transition-all disabled:opacity-50"
+                className="flex items-center gap-1.5 bg-[#0A0E17] hover:bg-white/[0.04] border border-white/[0.08] text-slate-300 hover:text-white font-medium rounded-lg px-3 py-2 text-xs transition-colors disabled:opacity-50"
               >
                 {isDownloading ? (
-                  <RefreshCw className="w-4 h-4 animate-spin text-emerald-400" />
+                  <RefreshCw className="w-3.5 h-3.5 animate-spin text-emerald-400" />
                 ) : (
-                  <Download className="w-4 h-4 text-emerald-400" />
+                  <Download className="w-3.5 h-3.5 text-emerald-400" />
                 )}
-                <span className="hidden sm:inline">Report</span>
-                <ChevronDown className="w-3.5 h-3.5 opacity-50" />
+                <span>Report</span>
+                <ChevronDown className="w-3 h-3 opacity-50" />
               </button>
               
               {showDownloadMenu && (
-                <div className="absolute right-0 mt-2 w-48 bg-slate-800 border border-slate-700 rounded-xl shadow-xl py-1 z-50 animate-fade-in">
+                <div className="absolute right-0 mt-1.5 w-44 bg-[#0A0E17] border border-white/[0.08] rounded-xl shadow-2xl py-1 z-50 animate-fade-in">
                   <button
                     onClick={() => handleDownload('pdf')}
-                    className="w-full text-left px-4 py-2.5 text-sm text-slate-300 hover:text-white hover:bg-slate-700/50 flex items-center gap-2"
+                    className="w-full text-left px-3.5 py-2 text-xs text-slate-300 hover:text-white hover:bg-white/[0.04] flex items-center gap-2 transition-colors"
                   >
-                    <FileText className="w-4 h-4 text-rose-400" />
+                    <FileText className="w-3.5 h-3.5 text-rose-400" />
                     Download PDF
                   </button>
                   <button
                     onClick={() => handleDownload('excel')}
-                    className="w-full text-left px-4 py-2.5 text-sm text-slate-300 hover:text-white hover:bg-slate-700/50 flex items-center gap-2"
+                    className="w-full text-left px-3.5 py-2 text-xs text-slate-300 hover:text-white hover:bg-white/[0.04] flex items-center gap-2 transition-colors"
                   >
-                    <TableIcon className="w-4 h-4 text-emerald-400" />
+                    <TableIcon className="w-3.5 h-3.5 text-emerald-400" />
                     Download Excel
                   </button>
                 </div>
@@ -297,17 +234,20 @@ export default function DashboardPage() {
             id="refresh-btn"
             onClick={() => fetchCampaigns(true)}
             disabled={isRefreshing || isLoading}
-            className="flex items-center gap-1.5 bg-slate-800/80 hover:bg-slate-800 border border-slate-700/50 text-slate-300 hover:text-white font-semibold rounded-xl px-3.5 py-2.5 text-sm transition-all disabled:opacity-50"
+            className="flex items-center gap-1.5 bg-[#0A0E17] hover:bg-white/[0.04] border border-white/[0.08] text-slate-300 hover:text-white font-medium rounded-lg px-3 py-2 text-xs transition-colors disabled:opacity-50"
+            title="Refresh dashboard data"
           >
-            <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
+            <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin text-emerald-400' : ''}`} />
             <span className="hidden sm:inline">Refresh</span>
           </button>
+
+          {/* Primary Header CTA */}
           <button
             id="new-campaign-header-btn"
             onClick={openModal}
-            className="flex items-center gap-2 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 active:scale-[0.98] text-white font-bold rounded-xl px-4 py-2.5 text-sm transition-all shadow-lg shadow-emerald-500/25 hover:shadow-emerald-500/40"
+            className="flex items-center gap-1.5 bg-emerald-500 hover:bg-emerald-400 active:scale-[0.98] text-[#05070B] font-semibold rounded-lg px-3.5 py-2 text-xs transition-all shadow-[0_1px_8px_rgba(16,185,129,0.25)]"
           >
-            <Plus className="w-4 h-4" />
+            <Plus className="w-3.5 h-3.5" />
             New Campaign
           </button>
         </div>
@@ -315,11 +255,11 @@ export default function DashboardPage() {
 
       {/* ── Error state ── */}
       {error && (
-        <div className="flex items-center gap-3 p-4 bg-rose-500/8 border border-rose-500/20 rounded-xl mb-6 animate-slide-down">
-          <AlertCircle className="w-5 h-5 text-rose-400 flex-shrink-0" />
+        <div className="flex items-center gap-3 p-3.5 bg-rose-500/[0.08] border border-rose-500/20 rounded-xl mb-6 animate-slide-down">
+          <AlertCircle className="w-4 h-4 text-rose-400 flex-shrink-0" />
           <div className="flex-1">
-            <p className="text-sm font-semibold text-rose-400">{error}</p>
-            <p className="text-xs text-slate-500 mt-0.5">Check your internet connection or try refreshing.</p>
+            <p className="text-xs font-medium text-rose-400">{error}</p>
+            <p className="text-[11px] text-slate-400 mt-0.5">Check network connectivity or retry synchronization.</p>
           </div>
           <button
             onClick={() => fetchCampaigns()}
@@ -330,265 +270,239 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* ── First-time welcome ── */}
+      {/* ── First-time Welcome Banner ── */}
       {isFirstTime && (
-        <div className="mb-6 relative overflow-hidden rounded-3xl border border-emerald-500/20 animate-fade-in">
-          {/* Background gradient */}
-          <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/8 via-teal-500/4 to-transparent" />
-          <div className="absolute top-0 right-0 w-80 h-80 bg-emerald-500/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/4 pointer-events-none" />
-          <div className="absolute bottom-0 left-0 w-60 h-60 bg-teal-500/6 rounded-full blur-2xl translate-y-1/2 -translate-x-1/4 pointer-events-none" />
-          
-          <div className="relative p-6 sm:p-8">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
-              <div className="flex items-start gap-4 sm:gap-5">
-                <div className="p-3.5 bg-gradient-to-br from-emerald-500/25 to-teal-500/15 rounded-2xl border border-emerald-500/30 flex-shrink-0 animate-float shadow-lg shadow-emerald-500/15">
-                  <Zap className="w-7 h-7 text-emerald-400" />
-                </div>
-                <div>
-                  <h2 className="text-lg sm:text-xl font-black text-slate-900 dark:text-white mb-1.5 tracking-tight">Welcome to Collabo! 👋</h2>
-                  <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed max-w-lg">
-                    Track every influencer deal in one place. Create campaigns, upload DMs,
-                    and build your ultimate creator CRM. Let's make influencer marketing effortless.
-                  </p>
-                  {/* Quick tips */}
-                  <div className="flex flex-wrap gap-2 mt-3">
-                    {['Set deadlines', 'Track payments', 'Auto-reminders'].map(tip => (
-                      <span key={tip} className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded-full">
-                        <CheckCircle2 className="w-3 h-3" />
-                        {tip}
-                      </span>
-                    ))}
-                  </div>
+        <div className="mb-6 relative overflow-hidden rounded-2xl border border-white/[0.08] bg-[#0A0E17] p-6 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.06)] animate-fade-in">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-5">
+            <div className="flex items-start gap-4">
+              <div className="p-2.5 bg-emerald-500/10 rounded-xl border border-emerald-500/20 text-emerald-400 flex-shrink-0">
+                <Zap className="w-5 h-5" />
+              </div>
+              <div>
+                <h2 className="text-base font-semibold text-white mb-1 tracking-tight">Welcome to Collabo Engine</h2>
+                <p className="text-xs text-slate-400 max-w-lg leading-relaxed">
+                  Track every creator deliverable, deadline, and payout in one unified command center.
+                  Forward negotiation chats or voice notes to auto-extract campaigns instantly.
+                </p>
+                <div className="flex flex-wrap gap-2 mt-3">
+                  {['Automated reminders', 'Monospace financial audit', '1-click creator magic links'].map(tip => (
+                    <span key={tip} className="inline-flex items-center gap-1.5 text-[10px] font-mono text-emerald-400 bg-emerald-500/[0.08] border border-emerald-500/20 px-2 py-0.5 rounded-md">
+                      <CheckCircle2 className="w-3 h-3 text-emerald-400" />
+                      {tip}
+                    </span>
+                  ))}
                 </div>
               </div>
-              <button
-                id="tour-first-campaign-btn"
-                onClick={openModal}
-                className="flex items-center gap-2 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-white font-bold rounded-xl px-5 sm:px-6 py-3 sm:py-3.5 text-sm transition-all shadow-xl shadow-emerald-500/25 active:scale-[0.98] whitespace-nowrap hover:shadow-emerald-500/40"
-              >
-                <Plus className="w-4 h-4" />
-                Create First Campaign
-              </button>
             </div>
+            <button
+              id="tour-first-campaign-btn"
+              onClick={openModal}
+              className="flex items-center gap-1.5 bg-emerald-500 hover:bg-emerald-400 text-[#05070B] font-semibold rounded-lg px-4 py-2.5 text-xs transition-all shadow-[0_1px_8px_rgba(16,185,129,0.25)] active:scale-[0.98] whitespace-nowrap"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              Create First Campaign
+            </button>
           </div>
         </div>
       )}
 
-      {/* ── Stats Grid ── */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+      {/* ── Architectural 4-Metric Strip ── */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
         {isLoading ? (
-          Array.from({ length: 4 }).map((_, i) => <StatCardSkeleton key={i} />)
+          Array.from({ length: 4 }).map((_, i) => <MetricCardSkeleton key={i} />)
         ) : stats ? (
           <>
-            <StatCard
+            <ArchitecturalMetricCard
               id="stat-total"
               label="Total Campaigns"
               value={String(stats.total)}
               sub={`${stats.completed} paid · ${stats.cancelled} cancelled`}
-              icon={Users}
-              accent="slate"
+              statusDot="slate"
             />
-            <StatCard
+            <ArchitecturalMetricCard
               id="stat-active"
-              label="Active Now"
+              label="Active Pipeline"
               value={String(stats.active)}
               sub={stats.upcomingDeadlines.length > 0 ? `${stats.upcomingDeadlines.length} due this week` : 'No upcoming deadlines'}
-              icon={TrendingUp}
-              accent="emerald"
-              trend={stats.active > 0 ? { value: 'In progress', positive: true } : undefined}
+              statusDot={stats.active > 0 ? 'pulse-emerald' : 'slate'}
             />
-            <StatCard
+            <ArchitecturalMetricCard
               id="stat-overdue"
-              label="Overdue"
+              label="Overdue / Due Soon"
               value={String(stats.overdue)}
-              sub={stats.overdue > 0 ? 'Action required' : 'All on track 🎉'}
-              icon={stats.overdue > 0 ? AlertCircle : CheckCircle2}
-              accent={stats.overdue > 0 ? 'rose' : 'emerald'}
+              sub={stats.overdue > 0 ? `${stats.overdue} require immediate action` : 'All deadlines on track'}
+              statusDot={stats.overdue > 0 ? 'rose' : 'emerald'}
             />
-            <StatCard
+            <ArchitecturalMetricCard
               id="stat-spend"
               label="Pending Spend"
-              value={`₹${(stats.pendingSpend / 1000).toFixed(0)}K`}
-              sub={`₹${(stats.totalSpend / 1000).toFixed(0)}K total budget`}
-              icon={DollarSign}
-              accent="amber"
+              value={`₹${stats.pendingSpend.toLocaleString('en-IN')}`}
+              sub={`₹${stats.totalSpend.toLocaleString('en-IN')} total committed`}
+              statusDot="amber"
             />
           </>
         ) : null}
       </div>
 
-      {/* ── Main Content: Table + Sidebar ── */}
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-5">
-        {/* Campaign Table */}
-        <div className="xl:col-span-2 bg-slate-900/40 border border-slate-800/50 rounded-2xl overflow-hidden">
-          <div className="flex items-center justify-between px-5 py-4 border-b border-slate-800/40">
-            <div className="flex items-center gap-2">
-              <h2 className="text-sm font-bold text-white">All Campaigns</h2>
-              {!isLoading && (
-                <span className="text-xs text-slate-600 font-medium">({campaigns.length})</span>
+      {/* ── 2-Card Horizontal Command Strip (Deadlines + Pipeline Health) ── */}
+      {!isLoading && stats && stats.total > 0 && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 mb-5">
+          {/* Card A: Urgent & Upcoming Deadlines (Next 7 Days) */}
+          <div className="bg-[#0A0E17] border border-white/[0.07] rounded-xl p-3.5 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.06)] flex flex-col justify-between">
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-1.5">
+                <Clock className="w-3.5 h-3.5 text-amber-400" />
+                <span className="text-[11px] font-medium tracking-wider text-slate-400 uppercase font-sans">
+                  Upcoming Deadlines (Next 7 Days)
+                </span>
+              </div>
+              <span className="text-[10px] font-mono text-amber-400 bg-amber-500/10 border border-amber-500/20 px-1.5 py-0.5 rounded">
+                {urgentDeadlines.length} scheduled
+              </span>
+            </div>
+
+            <div className="min-h-[46px] flex items-center">
+              {urgentDeadlines.length > 0 ? (
+                <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-1 w-full">
+                  {urgentDeadlines.map(c => {
+                    const deadline = new Date(c.deadline!);
+                    const now = new Date();
+                    const daysLeft = Math.ceil((deadline.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+                    const isOverdue = daysLeft < 0;
+                    const isToday = daysLeft === 0;
+
+                    return (
+                      <div
+                        key={c.id}
+                        className="shrink-0 flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-white/[0.02] border border-white/[0.07] text-xs hover:border-white/[0.14] transition-colors"
+                      >
+                        <span className="font-medium text-slate-200">
+                          {c.influencer_name || c.influencer_handle}
+                        </span>
+                        <span className="text-white/20 text-[10px]">•</span>
+                        <span className="text-slate-400 text-[11px] truncate max-w-[120px]">
+                          {c.deliverables || 'Deliverable'}
+                        </span>
+                        <span className="text-white/20 text-[10px]">•</span>
+                        <span className="font-mono text-slate-400 text-[11px]">
+                          {deadline.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}
+                        </span>
+                        <span
+                          className={`font-mono text-[10px] font-medium px-1.5 py-0.5 rounded ${
+                            isOverdue
+                              ? 'bg-rose-500/15 text-rose-400 border border-rose-500/30'
+                              : isToday
+                              ? 'bg-amber-500/15 text-amber-400 border border-amber-500/30'
+                              : 'bg-white/[0.04] text-slate-300 border border-white/[0.08]'
+                          }`}
+                        >
+                          {isOverdue ? `${Math.abs(daysLeft)}d overdue` : isToday ? 'Today' : `${daysLeft}d left`}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="flex items-center gap-2 text-xs text-slate-400 font-sans py-1">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                  <span>All deadlines on track — no urgent deliverables pending.</span>
+                </div>
               )}
             </div>
-            {!isLoading && campaigns.length > 0 && (
-              <button
-                id="table-add-btn"
-                onClick={openModal}
-                className="flex items-center gap-1 text-xs text-emerald-400 hover:text-emerald-300 font-semibold transition-colors hover:bg-emerald-500/10 px-2 py-1 rounded-lg"
-              >
-                <Plus className="w-3.5 h-3.5" />
-                Add
-              </button>
-            )}
           </div>
-          <div className="p-4">
-            <CampaignTable
-              campaigns={campaigns}
-              isLoading={isLoading}
-              onRefresh={() => fetchCampaigns(true, 1)}
-              onCreateNew={openModal}
-              onEdit={setEditingCampaign}
-              onLoadSampleData={loadSampleData}
-              onOptimisticUpdate={(id, updates) => setCampaigns(prev => prev.map(c => c.id === id ? { ...c, ...updates } : c))}
-              onOptimisticDelete={(id) => setCampaigns(prev => prev.filter(c => c.id !== id))}
-            />
-            {hasMore && !isLoading && (
-              <div className="mt-4 flex justify-center">
-                <button
-                  onClick={loadMore}
-                  disabled={isRefreshing}
-                  className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
-                >
-                  {isRefreshing && <RefreshCw className="w-4 h-4 animate-spin" />}
-                  {isRefreshing ? 'Loading...' : 'Load More'}
-                </button>
+
+          {/* Card B: Pipeline Health & Quick Breakdown */}
+          <div className="bg-[#0A0E17] border border-white/[0.07] rounded-xl p-3.5 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.06)] flex flex-col justify-between">
+            <div className="flex items-center justify-between mb-1.5">
+              <span className="text-[11px] font-medium tracking-wider text-slate-400 uppercase font-sans">
+                Pipeline Health
+              </span>
+              <div className="flex items-center gap-3 text-xs font-mono">
+                <span className="text-slate-400">
+                  Success: <span className="text-emerald-400 font-semibold">{stats.successRate}%</span>
+                </span>
+                {stats.avgPayment > 0 && (
+                  <span className="text-slate-400">
+                    Avg: <span className="text-slate-200 font-semibold">₹{stats.avgPayment.toLocaleString('en-IN')}</span>
+                  </span>
+                )}
               </div>
+            </div>
+
+            {/* Micro Progress Bar */}
+            <div className="h-1.5 w-full bg-white/[0.06] rounded-full overflow-hidden my-2">
+              <div
+                className="h-full bg-emerald-400 rounded-full transition-all duration-500"
+                style={{ width: `${stats.successRate}%` }}
+              />
+            </div>
+
+            {/* Mini Horizontal Status Breakdown */}
+            <div className="flex items-center gap-3 text-[11px] font-mono text-slate-400 overflow-x-auto no-scrollbar pt-0.5">
+              <span className="flex items-center gap-1.5 shrink-0">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                <span className="text-slate-200">{stats.completed}</span> Paid
+              </span>
+              <span className="text-white/20">•</span>
+              <span className="flex items-center gap-1.5 shrink-0">
+                <span className="w-1.5 h-1.5 rounded-full bg-blue-400" />
+                <span className="text-slate-200">{campaigns.filter(c => c.status === 'approved').length}</span> Approved
+              </span>
+              <span className="text-white/20">•</span>
+              <span className="flex items-center gap-1.5 shrink-0">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                <span className="text-slate-200">{stats.active}</span> Active
+              </span>
+              <span className="text-white/20">•</span>
+              <span className="flex items-center gap-1.5 shrink-0">
+                <span className="w-1.5 h-1.5 rounded-full bg-purple-400" />
+                <span className="text-slate-200">{campaigns.filter(c => c.status === 'content_received').length}</span> In Review
+              </span>
+              <span className="text-white/20">•</span>
+              <span className="flex items-center gap-1.5 shrink-0">
+                <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
+                <span className="text-slate-200">{campaigns.filter(c => c.status === 'draft').length}</span> Draft
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── 100% Full-Width Campaign Table Card Container ── */}
+      <div className="w-full bg-[#0A0E17] border border-white/[0.07] rounded-xl overflow-hidden shadow-[inset_0_1px_0_0_rgba(255,255,255,0.06)]">
+        {/* Table Card Header (Zero redundant "+ Add" button) */}
+        <div className="flex items-center justify-between px-5 py-3.5 border-b border-white/[0.06]">
+          <div className="flex items-center gap-2">
+            <h2 className="text-sm font-semibold text-white tracking-tight">All Campaigns</h2>
+            {!isLoading && (
+              <span className="text-xs text-slate-400 font-mono">({campaigns.length})</span>
             )}
           </div>
         </div>
 
-        {/* Sidebar Widgets */}
-        <div className="space-y-4">
-          {/* Upcoming Deadlines */}
-          <div className="bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-800/50 rounded-2xl overflow-hidden shadow-sm">
-            <div className="flex items-center gap-2 px-4 py-3.5 border-b border-slate-100 dark:border-slate-800/40">
-              <Clock className="w-4 h-4 text-amber-500 dark:text-amber-400" />
-              <h3 className="text-sm font-bold text-slate-900 dark:text-white">Upcoming Deadlines</h3>
-              {stats && stats.upcomingDeadlines.length > 0 && (
-                <span className="ml-auto text-xs font-bold bg-amber-50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-500/20 px-2 py-0.5 rounded-md">
-                  {stats.upcomingDeadlines.length}
-                </span>
-              )}
-            </div>
-            <div className="p-3 space-y-2">
-              {isLoading ? (
-                Array.from({ length: 3 }).map((_, i) => (
-                  <div key={i} className="flex items-center gap-3 p-3">
-                    <div className="skeleton w-8 h-8 rounded-lg flex-shrink-0" />
-                    <div className="flex-1 space-y-1.5">
-                      <div className="skeleton h-3 rounded w-3/4" />
-                      <div className="skeleton h-2.5 rounded w-1/2" />
-                    </div>
-                  </div>
-                ))
-              ) : stats && stats.upcomingDeadlines.length > 0 ? (
-                stats.upcomingDeadlines.map(c => (
-                  <DeadlineItem key={c.id} campaign={c} />
-                ))
-              ) : (
-                <div className="flex flex-col items-center py-10 text-center">
-                  <div className="p-3 bg-slate-50 dark:bg-slate-800/40 rounded-xl mb-3 border border-slate-100 dark:border-slate-700/30">
-                    <Calendar className="w-6 h-6 text-slate-400" />
-                  </div>
-                  <p className="text-sm text-slate-600 dark:text-slate-500 font-semibold">No deadlines this week</p>
-                  <p className="text-xs text-slate-500 dark:text-slate-600 mt-0.5">You're all clear 🎉</p>
-                </div>
-              )}
-            </div>
-          </div>
+        {/* Full-width table */}
+        <div className="p-4">
+          <CampaignTable
+            campaigns={campaigns}
+            isLoading={isLoading}
+            onRefresh={() => fetchCampaigns(true, 1)}
+            onCreateNew={openModal}
+            onEdit={setEditingCampaign}
+            onLoadSampleData={loadSampleData}
+            onOptimisticUpdate={(id, updates) => setCampaigns(prev => prev.map(c => c.id === id ? { ...c, ...updates } : c))}
+            onOptimisticDelete={(id) => setCampaigns(prev => prev.filter(c => c.id !== id))}
+          />
 
-          {/* Performance Card */}
-          {!isLoading && stats && stats.total > 0 && (
-            <div className="bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-800/50 rounded-2xl overflow-hidden shadow-sm">
-              <div className="flex items-center gap-2 px-4 py-3.5 border-b border-slate-100 dark:border-slate-800/40">
-                <BarChart2 className="w-4 h-4 text-blue-500 dark:text-blue-400" />
-                <h3 className="text-sm font-bold text-slate-900 dark:text-white">Performance</h3>
-              </div>
-              <div className="p-4 space-y-4">
-                {/* Success Rate */}
-                <div>
-                  <div className="flex justify-between items-center mb-2">
-                    <span className="text-xs text-slate-500 font-medium">Success Rate</span>
-                    <span className={`text-sm font-extrabold ${
-                      stats.successRate >= 70 ? 'text-emerald-600 dark:text-emerald-400'
-                      : stats.successRate >= 40 ? 'text-amber-600 dark:text-amber-400'
-                      : 'text-rose-600 dark:text-rose-400'}`}>
-                      {stats.successRate}%
-                    </span>
-                  </div>
-                  <div className="h-2 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
-                    <div
-                      className={`h-full rounded-full transition-all duration-700 ease-out ${
-                        stats.successRate >= 70 ? 'bg-gradient-to-r from-emerald-500 to-teal-400'
-                        : stats.successRate >= 40 ? 'bg-amber-500'
-                        : 'bg-rose-500'}`}
-                      style={{ width: `${stats.successRate}%` }}
-                    />
-                  </div>
-                </div>
-
-                {/* Status Breakdown */}
-                <div className="grid grid-cols-2 gap-2">
-                  {[
-                    { label: 'Draft',     value: campaigns.filter(c => c.status === 'draft').length,     color: 'text-amber-600 dark:text-amber-400',   dot: 'bg-amber-400' },
-                    { label: 'Active',    value: stats.active,                                            color: 'text-emerald-600 dark:text-emerald-400', dot: 'bg-emerald-400' },
-                    { label: 'In Review', value: campaigns.filter(c => c.status === 'content_received').length, color: 'text-purple-600 dark:text-purple-400', dot: 'bg-purple-400' },
-                    { label: 'Approved',  value: campaigns.filter(c => c.status === 'approved').length, color: 'text-blue-600 dark:text-blue-400', dot: 'bg-blue-400' },
-                    { label: 'Paid',      value: stats.completed,                                         color: 'text-slate-600 dark:text-slate-400',   dot: 'bg-slate-400' },
-                    { label: 'Cancelled', value: stats.cancelled,                                         color: 'text-rose-600 dark:text-rose-400',    dot: 'bg-rose-400' },
-                  ].map(({ label, value, color, dot }) => (
-                    <div key={label} className="flex items-center justify-between p-2.5 bg-slate-50 dark:bg-slate-800/30 rounded-xl border border-slate-100 dark:border-slate-700/20">
-                      <div className="flex items-center gap-1.5">
-                        <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${dot}`} />
-                        <span className="text-xs text-slate-500 dark:text-slate-500">{label}</span>
-                      </div>
-                      <span className={`text-sm font-extrabold ${color}`}>{value}</span>
-                    </div>
-                  ))}
-                </div>
-
-                {/* Average payment */}
-                {stats.avgPayment > 0 && (
-                  <div className="flex items-center justify-between p-3 bg-amber-50 dark:bg-amber-500/5 border border-amber-100 dark:border-amber-500/15 rounded-xl">
-                    <div className="flex items-center gap-2">
-                      <DollarSign className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
-                      <span className="text-xs text-slate-500 dark:text-slate-500">Avg. Payment</span>
-                    </div>
-                    <span className="text-sm font-extrabold text-amber-600 dark:text-amber-400">
-                      ₹{stats.avgPayment.toLocaleString('en-IN')}
-                    </span>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* Tips card for new users */}
-          {!isLoading && campaigns.length === 0 && (
-            <div className="bg-white dark:bg-gradient-to-br dark:from-slate-900/60 dark:to-slate-800/40 border border-slate-200 dark:border-slate-700/40 rounded-2xl p-4 shadow-sm">
-              <h3 className="text-sm font-bold text-slate-900 dark:text-white mb-3">💡 Quick Tips</h3>
-              <ul className="space-y-2.5">
-                {[
-                  'Set deadlines to track overdue campaigns instantly',
-                  'Use the status dropdown to track campaign progress',
-                  'Toggle "Launch immediately" to skip Draft and go Active',
-                ].map((tip, i) => (
-                  <li key={i} className="flex items-start gap-2.5">
-                    <span className="w-4 h-4 rounded-full bg-emerald-50 dark:bg-emerald-500/15 border border-emerald-100 dark:border-emerald-500/25 text-emerald-600 dark:text-emerald-400 text-[10px] font-bold flex items-center justify-center flex-shrink-0 mt-0.5">
-                      {i + 1}
-                    </span>
-                    <span className="text-xs text-slate-700 dark:text-slate-300 leading-relaxed font-medium">{tip}</span>
-                  </li>
-                ))}
-              </ul>
+          {hasMore && !isLoading && (
+            <div className="mt-4 flex justify-center">
+              <button
+                onClick={loadMore}
+                disabled={isRefreshing}
+                className="px-4 py-2 bg-white/[0.04] hover:bg-white/[0.08] text-slate-300 hover:text-white rounded-lg text-xs font-mono transition-colors flex items-center gap-2 border border-white/[0.08]"
+              >
+                {isRefreshing && <RefreshCw className="w-3.5 h-3.5 animate-spin text-emerald-400" />}
+                <span>{isRefreshing ? 'Loading batch...' : 'Load More Campaigns'}</span>
+              </button>
             </div>
           )}
         </div>
@@ -611,6 +525,6 @@ export default function DashboardPage() {
           setEditingCampaign(null);
         }}
       />
-    </>
+    </div>
   );
 }

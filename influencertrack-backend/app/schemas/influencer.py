@@ -12,5 +12,6 @@ class InfluencerProfileUpdate(InfluencerProfileBase):
 class InfluencerResponse(InfluencerProfileBase):
     handle: str
     total_campaigns: int = 0
+    total_spend: float = 0.0
     success_rate: float = 0.0
     last_collaboration: Optional[str] = None

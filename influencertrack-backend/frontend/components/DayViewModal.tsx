@@ -1,8 +1,8 @@
 'use client';
 
 import { Campaign } from '@/lib/types';
-import { X, Calendar as CalendarIcon, CheckCircle2, User } from 'lucide-react';
-import { PlatformIcon } from '@/components/PlatformIcon';
+import { X, Calendar as CalendarIcon, CheckCircle2, ArrowRight } from 'lucide-react';
+import { PlatformBadge, StatusBadge } from '@/components/CampaignTableUtils';
 
 interface DayViewModalProps {
   isOpen: boolean;
@@ -11,17 +11,6 @@ interface DayViewModalProps {
   campaigns: Campaign[];
   onSelectCampaign: (campaign: Campaign) => void;
 }
-
-const STATUS_COLORS: Record<string, string> = {
-  draft: 'bg-amber-100 text-amber-800 border-amber-200 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-800',
-  active: 'bg-emerald-100 text-emerald-800 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-400 dark:border-emerald-800',
-  content_received: 'bg-purple-100 text-purple-800 border-purple-200 dark:bg-purple-900/30 dark:text-purple-400 dark:border-purple-800',
-  approved: 'bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-900/30 dark:text-blue-400 dark:border-blue-800',
-  paid: 'bg-slate-100 text-slate-800 border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700',
-  cancelled: 'bg-rose-100 text-rose-800 border-rose-200 dark:bg-rose-900/30 dark:text-rose-400 dark:border-rose-800',
-};
-
-
 
 export default function DayViewModal({ isOpen, onClose, dateStr, campaigns, onSelectCampaign }: DayViewModalProps) {
   if (!isOpen) return null;
@@ -32,45 +21,57 @@ export default function DayViewModal({ isOpen, onClose, dateStr, campaigns, onSe
     return new Date(parseInt(y, 10), parseInt(m, 10) - 1, parseInt(d, 10));
   };
 
-  // Format date like "October 24, 2024"
-  const formattedDate = parseLocalDate(dateStr).toLocaleDateString('default', { 
+  const localDate = parseLocalDate(dateStr);
+  const formattedDate = localDate.toLocaleDateString('en-IN', { 
     weekday: 'long', 
+    day: 'numeric',
     month: 'long', 
-    day: 'numeric' 
+    year: 'numeric'
   });
 
   return (
     <div 
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-fade-in"
       onClick={onClose}
     >
       <div 
-        className="bg-white dark:bg-slate-900 rounded-2xl shadow-xl w-full max-w-lg border border-slate-200 dark:border-slate-800 overflow-hidden animate-in zoom-in-95 duration-200"
+        className="bg-[#0A0E17] border border-white/[0.08] rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden animate-slide-up"
         onClick={e => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between p-5 border-b border-slate-100 dark:border-slate-800">
-          <div>
-            <h2 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
-              <CalendarIcon className="w-5 h-5 text-emerald-500" />
-              Daily Agenda
-            </h2>
-            <p className="text-sm text-slate-500 mt-1">{formattedDate}</p>
+        {/* Header */}
+        <div className="flex items-center justify-between p-5 border-b border-white/[0.06] bg-white/[0.02]">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
+              <CalendarIcon className="w-4 h-4" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h2 className="text-base font-semibold text-white">Daily Deliverables</h2>
+                <span className="font-mono text-[10px] text-slate-400 bg-white/[0.04] border border-white/[0.06] px-2 py-0.5 rounded-md">
+                  {campaigns.length} {campaigns.length === 1 ? 'Deliverable' : 'Deliverables'}
+                </span>
+              </div>
+              <p className="text-xs font-mono text-slate-400 mt-0.5">{formattedDate}</p>
+            </div>
           </div>
           <button
             onClick={onClose}
-            className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors"
+            className="p-1.5 text-slate-400 hover:text-white hover:bg-white/[0.04] rounded-lg transition-colors"
+            aria-label="Close dialog"
           >
-            <X className="w-5 h-5" />
+            <X className="w-4 h-4" />
           </button>
         </div>
 
-        <div className="p-5 max-h-[60vh] overflow-y-auto space-y-3">
+        {/* Campaign List */}
+        <div className="p-5 max-h-[60vh] overflow-y-auto space-y-3 custom-scrollbar">
           {campaigns.length === 0 ? (
-            <div className="text-center py-8">
-              <div className="w-12 h-12 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-3">
-                <CheckCircle2 className="w-6 h-6 text-slate-400" />
+            <div className="text-center py-10">
+              <div className="w-12 h-12 bg-white/[0.02] border border-white/[0.06] rounded-full flex items-center justify-center mx-auto mb-3">
+                <CheckCircle2 className="w-5 h-5 text-slate-500" />
               </div>
-              <p className="text-slate-500 text-sm">No campaigns due on this date.</p>
+              <p className="text-sm font-medium text-slate-300">No campaigns due on this date</p>
+              <p className="text-xs text-slate-500 mt-1 font-mono">All influencer commitments on schedule.</p>
             </div>
           ) : (
             campaigns.map((campaign) => (
@@ -80,37 +81,55 @@ export default function DayViewModal({ isOpen, onClose, dateStr, campaigns, onSe
                   onClose();
                   onSelectCampaign(campaign);
                 }}
-                className="group p-4 rounded-xl border border-slate-200 dark:border-slate-700/60 bg-white dark:bg-slate-800/40 hover:border-emerald-500/50 hover:shadow-sm transition-all cursor-pointer"
+                className="group p-4 rounded-xl border border-white/[0.07] bg-[#05070B] hover:bg-white/[0.02] hover:border-white/[0.12] transition-all cursor-pointer flex items-center justify-between gap-4"
               >
-                <div className="flex justify-between items-start gap-4">
-                  <div className="flex items-start gap-3">
-                    <div className="w-10 h-10 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center flex-shrink-0 text-slate-500 group-hover:text-emerald-500 transition-colors">
-                      <User className="w-5 h-5" />
-                    </div>
-                    <div>
-                      <h3 className="font-semibold text-slate-900 dark:text-white group-hover:text-emerald-500 transition-colors">
-                        {campaign.influencer_name || campaign.influencer_handle || 'Unknown Influencer'}
-                      </h3>
-                      <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3 mt-1">
-                        <p className="text-xs text-slate-500 flex items-center gap-1.5">
-                          <PlatformIcon platform={campaign.platform} className="w-4 h-4" fallbackToImage={true} />
-                          {campaign.deliverables || 'TBD deliverables'}
-                        </p>
-                        {campaign.payment_amount != null && campaign.payment_amount > 0 && (
-                          <p className="text-xs font-medium text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-500/10 px-1.5 py-0.5 rounded">
-                            ₹{campaign.payment_amount.toLocaleString('en-IN')}
-                          </p>
-                        )}
-                      </div>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2 mb-1">
+                    <h3 className="font-medium text-sm text-slate-100 group-hover:text-emerald-400 transition-colors truncate">
+                      {campaign.influencer_name || campaign.influencer_handle || 'Unknown Influencer'}
+                    </h3>
+                    <span className="font-mono text-xs text-slate-400 truncate">
+                      {campaign.influencer_handle?.startsWith('@') ? campaign.influencer_handle : `@${campaign.influencer_handle || 'creator'}`}
+                    </span>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-2 text-xs text-slate-400">
+                    <PlatformBadge platform={campaign.platform} />
+                    <span className="text-slate-600">•</span>
+                    <span className="text-xs text-slate-300 truncate max-w-[200px]">
+                      {campaign.deliverables || 'Brief in progress'}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3 shrink-0">
+                  <div className="text-right">
+                    {campaign.payment_amount != null && campaign.payment_amount > 0 ? (
+                      <p className="font-mono text-sm font-semibold text-emerald-400">
+                        ₹{campaign.payment_amount.toLocaleString('en-IN')}
+                      </p>
+                    ) : (
+                      <p className="font-mono text-xs text-slate-500">—</p>
+                    )}
+                    <div className="mt-1">
+                      <StatusBadge status={campaign.status} />
                     </div>
                   </div>
-                  <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded-md border ${STATUS_COLORS[campaign.status] || STATUS_COLORS.draft}`}>
-                    {campaign.status.replace('_', ' ')}
-                  </span>
+                  <ArrowRight className="w-4 h-4 text-slate-600 group-hover:text-white group-hover:translate-x-0.5 transition-all" />
                 </div>
               </div>
             ))
           )}
+        </div>
+
+        {/* Footer */}
+        <div className="p-4 border-t border-white/[0.06] bg-white/[0.02] flex justify-end">
+          <button
+            onClick={onClose}
+            className="px-4 py-2 bg-white/[0.04] hover:bg-white/[0.08] text-slate-300 hover:text-white text-xs font-semibold rounded-lg transition-colors border border-white/[0.06]"
+          >
+            Close
+          </button>
         </div>
       </div>
     </div>

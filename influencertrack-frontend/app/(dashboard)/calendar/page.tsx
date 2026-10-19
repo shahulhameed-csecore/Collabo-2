@@ -2,15 +2,14 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { Campaign, PaginatedCampaigns } from '@/lib/types';
-import api from '@/lib/api';
+import api, { getApiErrorMessage } from '@/lib/api';
 import { toast } from 'sonner';
-import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, AlertCircle, Sparkles, Plus, Flag } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Plus } from 'lucide-react';
 import Link from 'next/link';
 import { PlatformIcon } from '@/components/PlatformIcon';
 import EditCampaignModal from '@/components/EditCampaignModal';
 import DayViewModal from '@/components/DayViewModal';
 import { useCalendarStats } from '@/hooks/useCalendarStats';
-import { getApiErrorMessage } from '@/lib/api';
 
 export default function CalendarPage() {
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
@@ -60,8 +59,13 @@ export default function CalendarPage() {
     setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1));
   };
 
+  const handleJumpToToday = () => {
+    setCurrentDate(new Date());
+  };
+
   const daysInMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0).getDate();
   const firstDayOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1).getDay();
+  const prevMonthDaysCount = new Date(currentDate.getFullYear(), currentDate.getMonth(), 0).getDate();
   const monthName = currentDate.toLocaleString('default', { month: 'long', year: 'numeric' });
 
   // Format YYYY-MM-DD
@@ -88,191 +92,359 @@ export default function CalendarPage() {
   
   const { stats } = useCalendarStats(campaigns, currentDate);
 
-  const STATUS_COLORS: Record<string, string> = {
-    draft: 'bg-amber-100 text-amber-800 border-amber-200 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-800',
-    active: 'bg-emerald-100 text-emerald-800 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-400 dark:border-emerald-800',
-    content_received: 'bg-purple-100 text-purple-800 border-purple-200 dark:bg-purple-900/30 dark:text-purple-400 dark:border-purple-800',
-    approved: 'bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-900/30 dark:text-blue-400 dark:border-blue-800',
-    paid: 'bg-slate-100 text-slate-800 border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700',
-    cancelled: 'bg-rose-100 text-rose-800 border-rose-200 dark:bg-rose-900/30 dark:text-rose-400 dark:border-rose-800',
+  // Month-scoped Completed count
+  const completedThisMonth = useMemo(() => {
+    const y = currentDate.getFullYear();
+    const m = currentDate.getMonth() + 1;
+    const prefix = `${y}-${String(m).padStart(2, '0')}`;
+    return campaigns.filter(c => 
+      ['approved', 'paid'].includes(c.status) && c.deadline?.startsWith(prefix)
+    ).length;
+  }, [campaigns, currentDate]);
+
+  // Check if an event is overdue
+  const isEventOverdue = (c: Campaign) => {
+    if (!c.deadline) return false;
+    const isClosed = ['approved', 'paid', 'cancelled'].includes(c.status);
+    if (isClosed) return false;
+    const [y, m, d] = c.deadline.split('-');
+    const deadlineDate = new Date(parseInt(y, 10), parseInt(m, 10) - 1, parseInt(d, 10));
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return deadlineDate < today;
   };
+
+  // Compact currency formatter (e.g. ₹35k, ₹1.5L)
+  const formatCompactCurrency = (amount?: number | null) => {
+    if (amount == null || amount <= 0) return '';
+    if (amount >= 100000) {
+      const val = amount / 100000;
+      return `₹${val % 1 === 0 ? val.toFixed(0) : val.toFixed(1)}L`;
+    }
+    if (amount >= 1000) {
+      const val = amount / 1000;
+      return `₹${val % 1 === 0 ? val.toFixed(0) : val.toFixed(1)}k`;
+    }
+    return `₹${amount}`;
+  };
+
+  // Trailing previous month days
+  const prevMonthDays = useMemo(() => {
+    return Array.from({ length: firstDayOfMonth }, (_, i) => {
+      const day = prevMonthDaysCount - firstDayOfMonth + 1 + i;
+      const prevDate = new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, day);
+      const dateStr = formatDateStr(prevDate.getFullYear(), prevDate.getMonth() + 1, day);
+      const events = eventsByDate[dateStr] || [];
+      return { day, dateStr, events };
+    });
+  }, [firstDayOfMonth, prevMonthDaysCount, currentDate, eventsByDate]);
+
+  // Leading next month days to complete the 7-column grid
+  const nextMonthDays = useMemo(() => {
+    const totalFilled = firstDayOfMonth + daysInMonth;
+    const remainingCells = (7 - (totalFilled % 7)) % 7;
+    return Array.from({ length: remainingCells }, (_, i) => {
+      const day = i + 1;
+      const nextDate = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, day);
+      const dateStr = formatDateStr(nextDate.getFullYear(), nextDate.getMonth() + 1, day);
+      const events = eventsByDate[dateStr] || [];
+      return { day, dateStr, events };
+    });
+  }, [firstDayOfMonth, daysInMonth, currentDate, eventsByDate]);
 
   const isCalendarEmpty = !isLoading && campaigns.length === 0;
 
+  const today = new Date();
+
   return (
-    <div className="max-w-6xl mx-auto space-y-6 animate-fade-in pb-12">
-      {/* Header & Controls */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white dark:bg-slate-900/60 p-6 rounded-2xl border border-slate-200 dark:border-slate-800/60 shadow-sm">
+    <div className="w-full max-w-7xl mx-auto space-y-3.5 animate-fade-in pb-4">
+      {/* ── Top Calendar Command Bar ── */}
+      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+        {/* Left: Title & Subtitle */}
         <div>
-          <h1 className="text-2xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
-            <CalendarIcon className="w-6 h-6 text-emerald-500" />
+          <h1 className="text-2xl font-semibold tracking-tight text-white flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
+              <CalendarIcon className="w-4 h-4" />
+            </div>
             Content Calendar
           </h1>
-          <p className="text-slate-500 mt-1">Plan and track your influencer deadlines.</p>
+          <p className="text-xs text-slate-400 mt-1">
+            Schedule deliverables and track influencer deadline commitments.
+          </p>
         </div>
-        
-        <div className="flex items-center gap-2 sm:gap-4 bg-slate-50 dark:bg-slate-800/50 p-1.5 rounded-xl border border-slate-200 dark:border-slate-700">
+
+        {/* Center / Right: Inline Architectural KPI Pills */}
+        {!isCalendarEmpty && (
+          <div className="bg-[#0A0E17] border border-white/[0.07] rounded-xl px-4 py-2 flex flex-wrap items-center gap-4 sm:gap-6 divide-y sm:divide-y-0 sm:divide-x divide-white/[0.06] shadow-sm">
+            <div className="flex items-center gap-2">
+              <span className="text-[11px] font-mono uppercase tracking-wider text-slate-400">Due Next 7d</span>
+              <span className="font-mono text-sm font-semibold text-emerald-400 tabular-nums">
+                {stats.thisWeek}
+              </span>
+            </div>
+
+            <div className="flex items-center gap-2 pt-2 sm:pt-0 sm:pl-6">
+              <span className="text-[11px] font-mono uppercase tracking-wider text-slate-400">Overdue</span>
+              <span className={`font-mono text-sm font-semibold tabular-nums ${stats.overdue > 0 ? 'text-rose-400' : 'text-slate-400'}`}>
+                {stats.overdue}
+              </span>
+            </div>
+
+            <div className="flex items-center gap-2 pt-2 sm:pt-0 sm:pl-6">
+              <span className="text-[11px] font-mono uppercase tracking-wider text-slate-400">This Month</span>
+              <span className="font-mono text-sm font-semibold text-white tabular-nums">
+                {stats.thisMonth}
+              </span>
+            </div>
+
+            <div className="flex items-center gap-2 pt-2 sm:pt-0 sm:pl-6">
+              <span className="text-[11px] font-mono uppercase tracking-wider text-slate-400">Completed</span>
+              <span className="font-mono text-sm font-semibold text-slate-300 tabular-nums">
+                {completedThisMonth}
+              </span>
+            </div>
+          </div>
+        )}
+
+        {/* Right: Month Navigation & Today Jump Button */}
+        <div className="flex items-center gap-2 shrink-0">
           <button
-            onClick={handlePrevMonth}
-            className="p-2 hover:bg-white dark:hover:bg-slate-700 rounded-lg transition-colors shadow-sm"
+            onClick={handleJumpToToday}
+            className="px-3 py-1.5 text-xs font-medium bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] rounded-lg text-slate-200 hover:text-white transition shadow-sm font-mono"
           >
-            <ChevronLeft className="w-5 h-5 text-slate-700 dark:text-slate-300" />
+            Today
           </button>
-          <span className="text-base sm:text-lg font-bold w-32 sm:w-40 text-center text-slate-900 dark:text-white">
-            {monthName}
-          </span>
-          <button
-            onClick={handleNextMonth}
-            className="p-2 hover:bg-white dark:hover:bg-slate-700 rounded-lg transition-colors shadow-sm"
-          >
-            <ChevronRight className="w-5 h-5 text-slate-700 dark:text-slate-300" />
-          </button>
+
+          <div className="flex items-center bg-[#0A0E17] border border-white/[0.07] p-1 rounded-xl shadow-sm">
+            <button
+              onClick={handlePrevMonth}
+              className="p-1.5 text-slate-400 hover:text-white hover:bg-white/[0.04] rounded-lg transition-colors"
+              aria-label="Previous month"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+
+            <span className="font-sans text-sm font-medium text-white min-w-[130px] text-center select-none">
+              {monthName}
+            </span>
+
+            <button
+              onClick={handleNextMonth}
+              className="p-1.5 text-slate-400 hover:text-white hover:bg-white/[0.04] rounded-lg transition-colors"
+              aria-label="Next month"
+            >
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          </div>
         </div>
       </div>
 
-      {/* Stats Dashboard */}
-      {!isCalendarEmpty && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-emerald-950/30 dark:to-teal-950/30 border border-emerald-100 dark:border-emerald-900/50 p-5 rounded-2xl shadow-sm">
-            <div className="flex items-center gap-3 mb-2">
-              <div className="p-2 bg-emerald-100 dark:bg-emerald-900/50 rounded-lg">
-                <Flag className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
-              </div>
-              <h3 className="font-semibold text-emerald-900 dark:text-emerald-400">Due Next 7 Days</h3>
-            </div>
-            <p className="text-3xl font-black text-emerald-700 dark:text-emerald-300 ml-12">{stats.thisWeek}</p>
-          </div>
-
-          <div className="bg-gradient-to-br from-rose-50 to-red-50 dark:from-rose-950/30 dark:to-red-950/30 border border-rose-100 dark:border-rose-900/50 p-5 rounded-2xl shadow-sm relative overflow-hidden">
-            <div className="flex items-center gap-3 mb-2">
-              <div className="p-2 bg-rose-100 dark:bg-rose-900/50 rounded-lg">
-                <AlertCircle className="w-5 h-5 text-rose-600 dark:text-rose-400" />
-              </div>
-              <h3 className="font-semibold text-rose-900 dark:text-rose-400">Overdue</h3>
-            </div>
-            <p className="text-3xl font-black text-rose-700 dark:text-rose-300 ml-12">{stats.overdue}</p>
-            {stats.overdue > 0 && (
-              <div className="absolute top-0 right-0 w-2 h-full bg-rose-500 animate-pulse" />
-            )}
-          </div>
-
-          <div className="bg-gradient-to-br from-slate-50 to-gray-50 dark:from-slate-800/40 dark:to-slate-800/20 border border-slate-200 dark:border-slate-700/50 p-5 rounded-2xl shadow-sm">
-            <div className="flex items-center gap-3 mb-2">
-              <div className="p-2 bg-slate-200 dark:bg-slate-700/50 rounded-lg">
-                <CalendarIcon className="w-5 h-5 text-slate-600 dark:text-slate-400" />
-              </div>
-              <h3 className="font-semibold text-slate-900 dark:text-slate-300">Total This Month</h3>
-            </div>
-            <p className="text-3xl font-black text-slate-700 dark:text-slate-200 ml-12">{stats.thisMonth}</p>
-          </div>
-        </div>
-      )}
-
-      {/* Global Empty State */}
+      {/* ── Global Empty State ── */}
       {isCalendarEmpty ? (
-        <div className="bg-white dark:bg-slate-900/60 rounded-3xl border border-slate-200 dark:border-slate-800/60 shadow-xl overflow-hidden text-center py-24 relative">
-          <div className="absolute inset-0 bg-gradient-to-b from-emerald-500/5 to-transparent dark:from-emerald-500/10" />
-          <div className="relative z-10 max-w-md mx-auto space-y-6 px-4">
-            <div className="w-20 h-20 bg-emerald-100 dark:bg-emerald-900/30 rounded-2xl flex items-center justify-center mx-auto transform -rotate-6 shadow-inner">
-              <Sparkles className="w-10 h-10 text-emerald-500" />
+        <div className="bg-[#0A0E17] rounded-2xl border border-white/[0.07] shadow-xl overflow-hidden text-center py-20 px-4 relative">
+          <div className="max-w-md mx-auto space-y-4">
+            <div className="w-14 h-14 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl flex items-center justify-center mx-auto text-emerald-400">
+              <CalendarIcon className="w-7 h-7" />
             </div>
-            <h2 className="text-3xl font-black text-slate-900 dark:text-white">Your Calendar is Clear!</h2>
-            <p className="text-slate-500 dark:text-slate-400 text-lg">
-              Start tracking your influencer deadlines to see them beautifully organized here.
+            <h2 className="text-xl font-semibold text-white">Your Calendar is Clear</h2>
+            <p className="text-slate-400 text-xs">
+              Plan influencer deadlines and track delivery commitments in real-time.
             </p>
             <Link
               href="/dashboard"
-              className="inline-flex items-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white px-6 py-3 rounded-xl font-bold transition-all hover:scale-105 hover:shadow-lg hover:shadow-emerald-500/25"
+              className="inline-flex items-center gap-2 bg-emerald-500 hover:bg-emerald-400 text-[#05070B] px-4 py-2 rounded-lg text-xs font-semibold transition-all shadow-[0_1px_8px_rgba(16,185,129,0.25)]"
             >
-              <Plus className="w-5 h-5" />
-              Create First Campaign
+              <Plus className="w-4 h-4" />
+              Create Campaign
             </Link>
           </div>
         </div>
       ) : (
-        /* The Calendar Grid */
-        <div className="bg-white dark:bg-slate-900/60 rounded-2xl border border-slate-200 dark:border-slate-800/60 shadow-sm overflow-hidden">
-          <div className="grid grid-cols-7 border-b border-slate-200 dark:border-slate-800/60">
+        /* ── Architectural Calendar Grid ── */
+        <div className="bg-[#0A0E17] border border-white/[0.07] rounded-xl overflow-hidden shadow-2xl">
+          {/* Day-of-Week Header */}
+          <div className="grid grid-cols-7 border-b border-white/[0.07] bg-[#070A10]">
             {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
-              <div key={day} className="py-2 sm:py-3 text-center text-[10px] sm:text-xs font-bold text-slate-500 uppercase tracking-wider bg-slate-50 dark:bg-slate-800/50">
-                <span className="hidden sm:inline">{day}</span>
-                <span className="sm:hidden">{day.charAt(0)}</span>
+              <div 
+                key={day} 
+                className="py-2.5 text-center font-mono text-[11px] font-medium tracking-widest uppercase text-slate-400"
+              >
+                {day}
               </div>
             ))}
           </div>
           
-          <div className="w-full">
-            <div className="grid grid-cols-7 auto-rows-fr">
-              {Array.from({ length: firstDayOfMonth }).map((_, i) => (
-                <div key={`empty-${i}`} className="min-h-[70px] sm:min-h-[140px] p-1 sm:p-2 border-b border-r border-slate-100 dark:border-slate-800/40 bg-slate-50/50 dark:bg-slate-900/20" />
-              ))}
-              
-              {Array.from({ length: daysInMonth }).map((_, i) => {
-                const day = i + 1;
-                const isToday = new Date().toDateString() === new Date(currentDate.getFullYear(), currentDate.getMonth(), day).toDateString();
-                const events = getEventsForDay(day);
-                const hasEvents = events.length > 0;
-                
-                return (
-                  <div 
-                    key={day} 
-                    onClick={() => hasEvents && setSelectedDayStr(formatDateStr(currentDate.getFullYear(), currentDate.getMonth() + 1, day))}
-                    className={`
-                      min-h-[70px] sm:min-h-[140px] p-1 sm:p-2 border-b border-r border-slate-100 dark:border-slate-800/40 transition-all
-                      ${isToday ? 'bg-emerald-50/30 dark:bg-emerald-500/5 relative overflow-hidden' : 'hover:bg-slate-50 dark:hover:bg-slate-800/20'}
-                      ${hasEvents ? 'cursor-pointer hover:shadow-inner' : ''}
-                    `}
-                  >
-                    {isToday && <div className="absolute top-0 left-0 w-full h-1 bg-emerald-500" />}
+          {/* Calendar Day Grid */}
+          <div className="grid grid-cols-7 divide-x divide-y divide-white/[0.06]">
+            {/* Trailing Days (Previous Month) */}
+            {prevMonthDays.map(item => (
+              <div 
+                key={`prev-${item.dateStr}`}
+                onClick={() => setSelectedDayStr(item.dateStr)}
+                className="min-h-[96px] lg:min-h-[104px] p-1.5 lg:p-2 bg-[#05070B]/60 transition-colors relative group cursor-pointer hover:bg-white/[0.02]"
+              >
+                <div className="flex items-start justify-between mb-1.5">
+                  <span className="font-mono tabular-nums text-xs font-medium text-slate-700">
+                    {item.day}
+                  </span>
+                  {item.events.length > 0 && (
+                    <span className="font-mono text-[9px] text-slate-600 bg-white/[0.02] border border-white/[0.04] px-1 py-0.5 rounded">
+                      {item.events.length}
+                    </span>
+                  )}
+                </div>
 
-                    <div className="flex items-start justify-between mb-1 sm:mb-2">
-                      <span className={`text-[10px] sm:text-sm font-bold w-5 h-5 sm:w-7 sm:h-7 flex items-center justify-center flex-shrink-0 rounded-full ${isToday ? 'bg-emerald-500 text-white shadow-md shadow-emerald-500/30' : 'text-slate-700 dark:text-slate-300'}`}>
+                <div className="space-y-1">
+                  {item.events.slice(0, 2).map(event => (
+                    <button
+                      key={event.id}
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedCampaign(event);
+                      }}
+                      className="w-full text-left px-1.5 py-0.5 rounded text-[11px] flex items-center justify-between gap-1 border border-white/[0.04] bg-white/[0.02] text-slate-600 hover:text-slate-400 truncate cursor-pointer transition-colors"
+                    >
+                      <span className="truncate">{event.influencer_name || event.influencer_handle}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ))}
+            
+            {/* Current Month Days */}
+            {Array.from({ length: daysInMonth }).map((_, i) => {
+              const day = i + 1;
+              const dateStr = formatDateStr(currentDate.getFullYear(), currentDate.getMonth() + 1, day);
+              const isToday = today.getFullYear() === currentDate.getFullYear() &&
+                              today.getMonth() === currentDate.getMonth() &&
+                              today.getDate() === day;
+              const events = getEventsForDay(day);
+
+              return (
+                <div 
+                  key={`cur-${day}`} 
+                  onClick={() => setSelectedDayStr(dateStr)}
+                  className={`
+                    min-h-[96px] lg:min-h-[104px] p-1.5 lg:p-2 transition-colors relative group cursor-pointer hover:bg-white/[0.02]
+                    ${isToday ? 'bg-emerald-500/[0.03] border-t-2 border-t-emerald-500' : ''}
+                  `}
+                >
+                  <div className="flex items-start justify-between mb-1.5">
+                    {isToday ? (
+                      <span className="bg-[#10B981] text-[#05070B] font-mono text-xs font-bold px-1.5 py-0.5 rounded-md shadow-sm">
                         {day}
                       </span>
-                      {events.length > 0 && (
-                        <span className="text-[9px] sm:text-[10px] font-bold text-slate-400 dark:text-slate-500 bg-slate-100 dark:bg-slate-800/50 px-1 py-0.5 rounded-full flex-shrink-0">
-                          {events.length}
-                        </span>
-                      )}
-                    </div>
+                    ) : (
+                      <span className="font-mono tabular-nums text-xs font-medium text-slate-400 group-hover:text-white transition-colors">
+                        {day}
+                      </span>
+                    )}
 
-                    <div className="flex flex-wrap sm:flex-col gap-1 sm:gap-1.5 items-start justify-start">
-                      {isLoading ? (
-                        Array.from({ length: 2 }).map((_, i) => (
-                          <div key={`skel-${i}`} className="h-1.5 w-1.5 sm:h-6 bg-slate-200 dark:bg-slate-700 rounded-full sm:rounded animate-pulse sm:w-full" />
-                        ))
-                      ) : (
-                        <>
-                          {events.slice(0, 3).map(event => (
-                            <div key={event.id}>
-                              <div 
-                                className={`sm:hidden w-1.5 h-1.5 rounded-full bg-current ${STATUS_COLORS[event.status]?.split(' ').filter(c => c.startsWith('text-')).join(' ')}`}
-                              />
-                              <div
-                                className={`hidden sm:flex items-center gap-1.5 text-[10px] font-bold px-2 py-1.5 rounded-lg truncate border shadow-sm ${STATUS_COLORS[event.status] || STATUS_COLORS.draft}`}
-                                title={`${event.influencer_name || event.influencer_handle} - ${event.status}`}
-                              >
-                                <PlatformIcon platform={event.platform} className="w-3 h-3 flex-shrink-0" fallbackToImage={false} />
-                                <span className="truncate">{event.influencer_name || event.influencer_handle}</span>
-                              </div>
-                            </div>
-                          ))}
-                          {events.length > 3 && (
-                            <div className="w-1.5 h-1.5 sm:w-auto sm:h-auto rounded-full bg-slate-300 dark:bg-slate-600 sm:bg-slate-50 sm:dark:bg-slate-800/50 sm:text-[10px] font-semibold text-slate-500 dark:text-slate-400 text-center sm:py-0.5 sm:rounded border border-transparent sm:border-slate-100 sm:dark:border-slate-800/60 flex items-center justify-center">
-                              <span className="hidden sm:inline">+{events.length - 3} more</span>
-                            </div>
-                          )}
-                        </>
-                      )}
-                    </div>
+                    {events.length > 0 && (
+                      <span className="font-mono text-[10px] text-slate-400 bg-white/[0.04] border border-white/[0.06] px-1.5 py-0.5 rounded">
+                        {events.length}
+                      </span>
+                    )}
                   </div>
-                );
-              })}
-            </div>
+
+                  {/* Campaign Chips */}
+                  <div className="space-y-1">
+                    {isLoading ? (
+                      <div className="space-y-1 animate-pulse">
+                        <div className="h-5 bg-white/[0.03] rounded" />
+                      </div>
+                    ) : (
+                      <>
+                        {events.slice(0, 3).map(event => {
+                          const overdue = isEventOverdue(event);
+                          let chipStyle = 'bg-white/[0.04] border-white/[0.08] text-slate-300 hover:bg-white/[0.08]';
+                          if (overdue) {
+                            chipStyle = 'bg-rose-500/[0.10] border-rose-500/30 text-rose-300 hover:bg-rose-500/[0.16]';
+                          } else if (event.status === 'active') {
+                            chipStyle = 'bg-emerald-500/[0.08] border-emerald-500/25 text-emerald-300 hover:bg-emerald-500/[0.14]';
+                          } else if (event.status === 'content_received') {
+                            chipStyle = 'bg-amber-500/[0.08] border-amber-500/25 text-amber-300 hover:bg-amber-500/[0.14]';
+                          }
+
+                          return (
+                            <button
+                              key={event.id}
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedCampaign(event);
+                              }}
+                              className={`w-full text-left px-2 py-1 rounded-md text-xs flex items-center justify-between gap-1.5 border transition-all truncate ${chipStyle}`}
+                              title={`${event.influencer_name || event.influencer_handle} • ${event.deliverables || event.status} • ₹${(event.payment_amount || 0).toLocaleString('en-IN')}`}
+                            >
+                              <div className="flex items-center gap-1.5 min-w-0 truncate">
+                                <PlatformIcon platform={event.platform} className="w-3 h-3 flex-shrink-0 opacity-80" fallbackToImage={false} />
+                                <span className="font-medium truncate text-[11px]">
+                                  {event.influencer_name || event.influencer_handle}
+                                </span>
+                              </div>
+                              {event.payment_amount != null && event.payment_amount > 0 && (
+                                <span className="font-mono text-[10px] opacity-75 shrink-0">
+                                  {formatCompactCurrency(event.payment_amount)}
+                                </span>
+                              )}
+                            </button>
+                          );
+                        })}
+
+                        {events.length > 3 && (
+                          <div className="font-mono text-[10px] text-slate-400 bg-white/[0.04] border border-white/[0.06] px-1.5 py-0.5 rounded text-center hover:text-white transition-colors">
+                            +{events.length - 3} more
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+
+            {/* Leading Days (Next Month) */}
+            {nextMonthDays.map(item => (
+              <div 
+                key={`next-${item.dateStr}`}
+                onClick={() => setSelectedDayStr(item.dateStr)}
+                className="min-h-[96px] lg:min-h-[104px] p-1.5 lg:p-2 bg-[#05070B]/60 transition-colors relative group cursor-pointer hover:bg-white/[0.02]"
+              >
+                <div className="flex items-start justify-between mb-1.5">
+                  <span className="font-mono tabular-nums text-xs font-medium text-slate-700">
+                    {item.day}
+                  </span>
+                  {item.events.length > 0 && (
+                    <span className="font-mono text-[9px] text-slate-600 bg-white/[0.02] border border-white/[0.04] px-1 py-0.5 rounded">
+                      {item.events.length}
+                    </span>
+                  )}
+                </div>
+
+                <div className="space-y-1">
+                  {item.events.slice(0, 2).map(event => (
+                    <button
+                      key={event.id}
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedCampaign(event);
+                      }}
+                      className="w-full text-left px-1.5 py-0.5 rounded text-[11px] flex items-center justify-between gap-1 border border-white/[0.04] bg-white/[0.02] text-slate-600 hover:text-slate-400 truncate cursor-pointer transition-colors"
+                    >
+                      <span className="truncate">{event.influencer_name || event.influencer_handle}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       )}
 
+      {/* ── Edit Campaign Modal ── */}
       {selectedCampaign && (
         <EditCampaignModal
           campaign={selectedCampaign}
@@ -282,6 +454,7 @@ export default function CalendarPage() {
         />
       )}
 
+      {/* ── Day View Modal ── */}
       {selectedDayStr && (
         <DayViewModal
           isOpen={true}

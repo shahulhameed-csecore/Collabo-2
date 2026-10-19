@@ -1,11 +1,11 @@
-import logging
+import structlog
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from supabase import create_async_client, AsyncClient, ClientOptions
 from app.services.supabase import get_supabase_admin
 from app.core.config import settings
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 security = HTTPBearer()
 
@@ -59,7 +59,7 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
         
     # Fallback to Supabase Auth API
     try:
-        service_client = await get_service_client()
+        service_client = await get_supabase_admin()
         user_response = await service_client.auth.get_user(token)
         if user_response and user_response.user:
             return AuthenticatedUser(user_response.user, token)

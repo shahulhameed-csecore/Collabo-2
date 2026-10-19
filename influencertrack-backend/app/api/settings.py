@@ -104,7 +104,7 @@ async def save_settings(
         # Trigger notification if WhatsApp number was newly linked or updated
         if clean_number and clean_number != old_number:
             try:
-                from app.api.dependencies import get_service_client
+                # get_service_client already imported at module level
                 from app.services.notifications import create_notification
                 service_client = await get_service_client()
                 await create_notification(
@@ -282,6 +282,7 @@ async def unlink_whatsapp_endpoint(
         "whatsapp_verified_at": None,
         "verification_status": "not_connected"
     }).eq("user_id", user_id).execute()
+    return {"message": "WhatsApp unlinked successfully"}
     
 @router.post("/telegram/generate-code")
 async def generate_tg_pairing_code(

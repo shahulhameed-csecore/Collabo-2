@@ -140,26 +140,26 @@ export function NotificationDropdown() {
       <button
         id="notification-bell-btn"
         onClick={() => setIsOpen(!isOpen)}
-        className="relative p-2 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-all focus:outline-none"
+        className="relative p-2 text-slate-400 hover:text-white rounded-xl hover:bg-white/[0.04] transition-all focus:outline-none"
         aria-label="Notifications"
         aria-expanded={isOpen}
       >
         <Bell className="w-5 h-5" />
         {unreadCount > 0 && (
-          <span className="absolute top-1 right-1 flex h-4 w-4 items-center justify-center rounded-full bg-rose-500 text-[9px] font-bold text-white shadow-sm ring-2 ring-white dark:ring-slate-950 animate-fade-in">
+          <span className="absolute top-1 right-1 flex h-4 w-4 items-center justify-center rounded-full bg-emerald-500 text-[9px] font-bold text-[#05070B] shadow-sm animate-fade-in">
             {unreadCount > 9 ? '9+' : unreadCount}
           </span>
         )}
       </button>
 
       {isOpen && (
-        <div className="absolute top-[calc(100%+12px)] right-[-44px] sm:-right-4 w-[calc(100vw-32px)] max-w-[320px] sm:w-96 sm:max-w-none bg-white/95 dark:bg-slate-900/95 backdrop-blur-3xl border border-slate-200 dark:border-slate-800/80 rounded-2xl shadow-2xl shadow-slate-900/10 dark:shadow-black/40 z-[60] overflow-hidden animate-slide-down origin-top-right">
+        <div className="absolute top-[calc(100%+12px)] right-[-44px] sm:-right-4 w-[calc(100vw-32px)] max-w-[320px] sm:w-96 sm:max-w-none bg-[#0A0E17] border border-white/[0.08] rounded-2xl shadow-2xl shadow-black/80 z-[60] overflow-hidden animate-slide-down origin-top-right">
           {/* Header */}
-          <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 dark:border-slate-800/80 bg-slate-50/50 dark:bg-slate-800/20">
-            <h3 className="font-bold text-slate-900 dark:text-white flex items-center gap-2">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-white/[0.06] bg-white/[0.02]">
+            <h3 className="font-semibold text-white flex items-center gap-2 text-sm">
               Notifications
               {unreadCount > 0 && (
-                <span className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 px-2 py-0.5 rounded-full text-[10px] font-black tracking-wider uppercase">
+                <span className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2 py-0.5 rounded-full text-[10px] font-mono uppercase">
                   {unreadCount} New
                 </span>
               )}
@@ -167,7 +167,7 @@ export function NotificationDropdown() {
             {unreadCount > 0 && (
               <button 
                 onClick={markAllAsRead}
-                className="text-xs font-semibold text-slate-500 hover:text-emerald-500 transition-colors"
+                className="text-xs font-medium text-slate-400 hover:text-emerald-400 transition-colors"
               >
                 Mark all as read
               </button>
@@ -178,20 +178,20 @@ export function NotificationDropdown() {
           <div className="max-h-[60vh] sm:max-h-[400px] overflow-y-auto custom-scrollbar">
             {notifications.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-12 px-4 text-center">
-                <div className="w-12 h-12 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center mb-3 border border-slate-200 dark:border-slate-700/50">
-                  <Bell className="w-5 h-5 text-slate-400" />
+                <div className="w-12 h-12 rounded-full bg-white/[0.02] flex items-center justify-center mb-3 border border-white/[0.06]">
+                  <Bell className="w-5 h-5 text-slate-500" />
                 </div>
-                <p className="text-sm font-semibold text-slate-900 dark:text-white">You're all caught up!</p>
-                <p className="text-xs text-slate-500 mt-1 max-w-[200px]">No new notifications in the last 30 days.</p>
+                <p className="text-sm font-semibold text-white">You're all caught up!</p>
+                <p className="text-xs text-slate-400 mt-1 max-w-[200px]">No new notifications in the last 30 days.</p>
               </div>
             ) : (
-              <div className="divide-y divide-slate-100 dark:divide-slate-800/60">
+              <div className="divide-y divide-white/[0.06]">
                 {notifications.map((notif) => (
                   <div 
                     key={notif.id}
                     onClick={() => markAsRead(notif.id, notif.is_read)}
-                    className={`flex gap-3 p-4 transition-colors cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/30 ${
-                      !notif.is_read ? 'bg-emerald-50/30 dark:bg-emerald-500/5' : ''
+                    className={`flex gap-3 p-4 transition-colors cursor-pointer hover:bg-white/[0.02] ${
+                      !notif.is_read ? 'bg-emerald-500/[0.03]' : ''
                     }`}
                   >
                     {/* Icon */}
@@ -201,22 +201,22 @@ export function NotificationDropdown() {
                     
                     {/* Content */}
                     <div className="flex-1 min-w-0">
-                      <p className={`text-sm font-semibold mb-0.5 ${!notif.is_read ? 'text-slate-900 dark:text-white' : 'text-slate-700 dark:text-slate-300'}`}>
+                      <p className={`text-sm font-semibold mb-0.5 ${!notif.is_read ? 'text-white' : 'text-slate-300'}`}>
                         {notif.title}
                       </p>
-                      <p className="text-xs text-slate-500 leading-relaxed dark:text-slate-400 line-clamp-2">
+                      <p className="text-xs text-slate-400 leading-relaxed line-clamp-2">
                         {notif.message}
                       </p>
                       
                       <div className="flex items-center gap-3 mt-2">
-                        <span className="text-[10px] font-medium text-slate-400">
+                        <span className="text-[10px] font-mono text-slate-500">
                           {formatTime(notif.created_at)}
                         </span>
                         {notif.link_url && (
                           <Link 
                             href={notif.link_url} 
                             onClick={(e) => { e.stopPropagation(); markAsRead(notif.id, notif.is_read); }}
-                            className="flex items-center gap-1 text-[10px] font-bold text-emerald-500 hover:text-emerald-400 uppercase tracking-wider"
+                            className="flex items-center gap-1 text-[10px] font-mono text-emerald-400 hover:underline uppercase tracking-wider"
                           >
                             View details <ExternalLink className="w-3 h-3" />
                           </Link>
@@ -227,7 +227,7 @@ export function NotificationDropdown() {
                     {/* Unread Dot */}
                     {!notif.is_read && (
                       <div className="flex-shrink-0 flex items-center">
-                        <div className="w-2 h-2 rounded-full bg-emerald-500 shadow-sm shadow-emerald-500/50" />
+                        <div className="w-2 h-2 rounded-full bg-emerald-400 shadow-sm shadow-emerald-400/50" />
                       </div>
                     )}
                   </div>
@@ -238,11 +238,11 @@ export function NotificationDropdown() {
 
           {/* Footer */}
           {notifications.length > 0 && (
-            <div className="p-2 border-t border-slate-100 dark:border-slate-800/80 bg-slate-50/50 dark:bg-slate-800/20 text-center">
+            <div className="p-2 border-t border-white/[0.06] bg-white/[0.02] text-center">
               <Link 
                 href="/dashboard"
                 onClick={() => setIsOpen(false)}
-                className="inline-block text-xs font-semibold text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 py-1"
+                className="inline-block text-xs font-medium text-slate-400 hover:text-white py-1"
               >
                 View all notifications
               </Link>

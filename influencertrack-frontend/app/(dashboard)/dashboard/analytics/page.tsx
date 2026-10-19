@@ -2,23 +2,73 @@
 
 import { 
   BarChart3, Target, Plus, Smartphone, 
-  Zap, ArrowUpRight, ArrowDownRight, Lightbulb, Calendar as CalendarIcon, MousePointerClick, Download
+  Zap, ArrowUpRight, ArrowDownRight, Calendar as CalendarIcon, MousePointerClick, Download,
+  Sparkles, Award
 } from 'lucide-react';
 import Link from 'next/link';
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { getCampaigns, getApiErrorMessage } from '@/lib/api';
 import type { Campaign } from '@/lib/types';
+import { PlatformIcon } from '@/components/PlatformIcon';
 import { toast } from 'sonner';
 import dynamic from 'next/dynamic';
 
 const AnalyticsChart = dynamic(() => import('@/components/AnalyticsChart'), { 
   ssr: false, 
-  loading: () => <div className="h-full w-full bg-slate-100 dark:bg-slate-800/50 rounded-xl animate-pulse flex items-center justify-center text-slate-400">Loading chart...</div>
+  loading: () => (
+    <div className="h-full w-full bg-[#05070B] rounded-xl border border-white/[0.06] animate-pulse flex items-center justify-center text-slate-500 font-mono text-xs">
+      Loading attribution timeline...
+    </div>
+  )
 });
+
+type Timeframe = '30D' | '90D' | 'All Time';
+
+// ── Currency and Date Formatting Helpers ─────────────────────────────────────
+function formatINR(val: number): string {
+  if (isNaN(val) || val === 0) return '₹0';
+  if (val < 100) {
+    return `₹${val.toFixed(2)}`;
+  }
+  return `₹${Math.round(val).toLocaleString('en-IN')}`;
+}
+
+function formatDateKey(d: Date): string {
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function formatDateLabel(d: Date): string {
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+
+function getCampaignDate(c: Campaign): Date | null {
+  const dStr = c.deadline || c.created_at;
+  if (!dStr) return null;
+  const d = new Date(dStr);
+  return isNaN(d.getTime()) ? null : d;
+}
+
+function normalizePlatformName(raw?: string | null): string {
+  if (!raw) return 'Other';
+  const trimmed = raw.trim();
+  const lower = trimmed.toLowerCase();
+  if (lower.includes('youtube') || lower === 'yt') return 'YouTube';
+  if (lower.includes('instagram') || lower === 'ig' || lower.includes('reel')) return 'Instagram';
+  if (lower.includes('tiktok')) return 'TikTok';
+  if (lower.includes('twitter') || lower.includes('x.com')) return 'Twitter/X';
+  if (lower.includes('linkedin')) return 'LinkedIn';
+  if (lower.includes('pinterest')) return 'Pinterest';
+  if (lower.includes('snapchat')) return 'Snapchat';
+  return trimmed.charAt(0).toUpperCase() + trimmed.slice(1);
+}
 
 export default function AnalyticsPage() {
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [selectedTimeframe, setSelectedTimeframe] = useState<Timeframe | null>(null);
 
   useEffect(() => {
     async function fetchAll() {
@@ -34,287 +84,672 @@ export default function AnalyticsPage() {
     fetchAll();
   }, []);
 
-  // --- Real Data Processing & Insights ---
+  // ─── Real Data Processing & Insights ───────────────────────────────────────
   const { 
     totalSpend, 
     totalClicks, 
-    costPerClick, 
-    hasGoodROI, 
+    costPerClickNum,
+    activeOrPaidCount,
     topPlatform, 
     topPlatformPercent,
     chartData,
     peakDay,
-    avgROI
+    velocitySnippet,
+    insightBannerText,
+    activeTimeframe,
+    platformStats,
+    topCampaigns
   } = useMemo(() => {
     if (campaigns.length === 0) {
       return { 
-        totalSpend: 0, totalClicks: 0, costPerClick: '0.00', hasGoodROI: false, 
-        topPlatform: 'None yet', topPlatformPercent: 0, chartData: [], peakDay: 'N/A', avgROI: '0' 
+        totalSpend: 0, 
+        totalClicks: 0, 
+        costPerClickNum: 0, 
+        activeOrPaidCount: 0,
+        topPlatform: 'None yet', 
+        topPlatformPercent: 0, 
+        chartData: [], 
+        peakDay: null, 
+        velocitySnippet: '0 clicks per ₹1,000 spent',
+        insightBannerText: 'No campaign analytics available yet. Launch campaigns with creator shortlinks to track real-time velocity.',
+        activeTimeframe: 'All Time' as Timeframe,
+        platformStats: [],
+        topCampaigns: []
       };
     }
 
-    
-    // [FIX] Only count spend for campaigns that are actually live/completed and have clicks
-    const launchedCampaigns = campaigns.filter(c => (c.clicks || 0) > 0 || c.status === 'paid');
-    
+    // 1. Spend & Clicks Accounting
+    const launchedCampaigns = campaigns.filter(c => (c.clicks || 0) > 0 || c.status === 'paid' || c.status === 'active');
     const tSpend = launchedCampaigns.reduce((sum, c) => sum + (c.payment_amount || 0), 0);
     const tClicks = campaigns.reduce((sum, c) => sum + (c.clicks || 0), 0);
-    
-    const cpc = tClicks > 0 ? (tSpend / tClicks).toFixed(2) : '0.00';
-    const goodROI = tClicks > 0 && (tSpend / tClicks) <= 15; // Defining < ₹15 as "Good"
+    const numCpc = tClicks > 0 ? (tSpend / tClicks) : 0;
+    const actOrPaid = campaigns.filter(c => c.status === 'active' || c.status === 'paid' || (c.clicks || 0) > 0).length;
 
-    // Top Platform
-    const platforms = campaigns.map(c => c.platform).filter(Boolean) as string[];
-    const platformCounts = platforms.reduce((acc, p) => {
-      acc[p] = (acc[p] || 0) + 1;
-      return acc;
-    }, {} as Record<string, number>);
+    // 2. Top Platform
+    const platformMap: Record<string, number> = {};
+    campaigns.forEach(c => {
+      const p = normalizePlatformName(c.platform);
+      platformMap[p] = (platformMap[p] || 0) + 1;
+    });
     
     let tPlatform = 'None yet';
     let tPlatformPercent = 0;
-    if (platforms.length > 0) {
-      const top = Object.entries(platformCounts).sort((a, b) => b[1] - a[1])[0];
-      tPlatform = top[0];
-      tPlatformPercent = Math.round((top[1] / platforms.length) * 100);
+    const pEntries = Object.entries(platformMap).sort((a, b) => b[1] - a[1]);
+    if (pEntries.length > 0) {
+      tPlatform = pEntries[0][0];
+      tPlatformPercent = Math.round((pEntries[0][1] / campaigns.length) * 100);
     }
 
-    // Generate Chart Data for the last 30 days
-    const daysMap: Record<string, { clicks: number; spend: number; weekday: number }> = {};
-    const now = new Date();
-    
-    // Initialize last 30 days to 0 to ensure continuous graph
-    for (let i = 29; i >= 0; i--) {
-      const d = new Date(now);
-      d.setDate(d.getDate() - i);
-      const dateStr = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-      daysMap[dateStr] = { clicks: 0, spend: 0, weekday: d.getDay() };
-    }
+    // 3. Peak Day Calculation across all campaigns with clicks
+    const daysOfWeek = ['Sundays', 'Mondays', 'Tuesdays', 'Wednesdays', 'Thursdays', 'Fridays', 'Saturdays'];
+    const weekdayClicks = new Array(7).fill(0);
+    let hasAnyClicks = false;
 
-    // Populate with real data based on created_at (or updated_at if clicks happen later)
     campaigns.forEach(c => {
-      if (!c.created_at) return;
-      const d = new Date(c.created_at);
-      
-      // Only include if it happened within the last 30 days
-      const diffTime = Math.abs(now.getTime() - d.getTime());
-      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
-      
-      if (diffDays <= 30) {
-        const dateStr = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-        if (daysMap[dateStr]) {
-          daysMap[dateStr].clicks += (c.clicks || 0);
-          daysMap[dateStr].spend += (c.payment_amount || 0);
+      const clicks = c.clicks || 0;
+      if (clicks > 0) {
+        const d = getCampaignDate(c);
+        if (d) {
+          weekdayClicks[d.getDay()] += clicks;
+          hasAnyClicks = true;
         }
       }
     });
 
-    const cData = Object.entries(daysMap).map(([date, data]) => ({
-      date,
-      clicks: data.clicks,
-      spend: data.spend,
-      weekday: data.weekday
-    }));
-
-    // Find Peak Day of the week for clicks
-    const weekdayClicks = new Array(7).fill(0);
-    cData.forEach(d => {
-      weekdayClicks[d.weekday] += d.clicks;
-    });
-    
-    let maxClicks = 0;
+    let maxWeekdayClicks = 0;
     let peakDayIdx = -1;
-    weekdayClicks.forEach((clicks, idx) => {
-      if (clicks > maxClicks) {
-        maxClicks = clicks;
-        peakDayIdx = idx;
+    if (hasAnyClicks) {
+      weekdayClicks.forEach((clicks, idx) => {
+        if (clicks > maxWeekdayClicks) {
+          maxWeekdayClicks = clicks;
+          peakDayIdx = idx;
+        }
+      });
+    }
+
+    const pDay = (peakDayIdx !== -1 && maxWeekdayClicks > 0) ? daysOfWeek[peakDayIdx] : null;
+
+    // 4. Click Velocity & Smart Banner Insight Text (Never "N/A" or "0 clicks")
+    const clicksPer1k = tSpend > 0 ? (tClicks / tSpend) * 1000 : 0;
+    let vSnippet = '';
+    if (tClicks === 0) {
+      vSnippet = '0 clicks per ₹1,000 spent';
+    } else if (clicksPer1k >= 1) {
+      vSnippet = `${clicksPer1k >= 10 ? Math.round(clicksPer1k).toLocaleString('en-IN') : clicksPer1k.toFixed(1)} clicks per ₹1,000 spent`;
+    } else {
+      const cpcFormatted = formatINR(Math.round(tSpend / tClicks));
+      vSnippet = `${clicksPer1k.toFixed(2)} clicks per ₹1,000 spent (1 click per ${cpcFormatted})`;
+    }
+
+    let bannerText = '';
+    if (pDay && tClicks > 0) {
+      bannerText = `Your campaigns generate an average of ${vSnippet}. Historically, you see peak engagement on ${pDay}. Align future campaign deadlines with this velocity window for maximum creator reach.`;
+    } else {
+      bannerText = `Your top channel is ${tPlatform} (${tPlatformPercent}% of volume) across ${campaigns.length} campaigns. Share creator tracking shortlinks (/t/...) to unlock day-of-week click velocity.`;
+    }
+
+    // 5. Intelligent Timeframe Detection (Avoid dead flat-zero 30D charts)
+    const now = new Date();
+    const thirtyDaysAgo = new Date(now.getTime() - 30 * 86400000);
+    const spendLast30 = campaigns.filter(c => {
+      const d = getCampaignDate(c);
+      return d && d >= thirtyDaysAgo && d <= now;
+    }).reduce((sum, c) => sum + (c.payment_amount || 0), 0);
+
+    const spendLast90 = campaigns.filter(c => {
+      const d = getCampaignDate(c);
+      return d && d >= new Date(now.getTime() - 90 * 86400000) && d <= now;
+    }).reduce((sum, c) => sum + (c.payment_amount || 0), 0);
+
+    let defaultTf: Timeframe = '30D';
+    if (spendLast30 === 0) {
+      defaultTf = spendLast90 > 0 ? '90D' : 'All Time';
+    }
+    const curTimeframe = selectedTimeframe ?? defaultTf;
+
+    // 6. Generate Timeline Data Buckets using (deadline || created_at)
+    let startDate: Date;
+    let endDate: Date;
+
+    if (curTimeframe === '30D') {
+      startDate = new Date(now.getTime() - 29 * 86400000);
+      endDate = new Date(now.getTime() + 7 * 86400000); // include next 7 days for scheduled deadlines
+    } else if (curTimeframe === '90D') {
+      startDate = new Date(now.getTime() - 89 * 86400000);
+      endDate = new Date(now.getTime() + 7 * 86400000);
+    } else {
+      // All Time
+      const validDates = campaigns.map(c => getCampaignDate(c)).filter(Boolean) as Date[];
+      if (validDates.length === 0) {
+        startDate = new Date(now.getTime() - 29 * 86400000);
+        endDate = new Date(now);
+      } else {
+        const times = validDates.map(d => d.getTime());
+        const minCampTime = Math.min(...times);
+        const maxCampTime = Math.max(...times);
+        const oneYearAgo = now.getTime() - 365 * 86400000;
+        const ninetyDaysFuture = now.getTime() + 90 * 86400000;
+
+        startDate = new Date(Math.max(minCampTime - 86400000, oneYearAgo));
+        endDate = new Date(Math.min(maxCampTime + 86400000, ninetyDaysFuture));
+      }
+    }
+
+    const daysMap = new Map<string, { date: string; isoDate: string; clicks: number; spend: number; weekday: number }>();
+    const cur = new Date(startDate);
+    cur.setHours(0, 0, 0, 0);
+    const end = new Date(endDate);
+    end.setHours(23, 59, 59, 999);
+
+    while (cur <= end) {
+      const key = formatDateKey(cur);
+      daysMap.set(key, {
+        date: formatDateLabel(cur),
+        isoDate: key,
+        clicks: 0,
+        spend: 0,
+        weekday: cur.getDay()
+      });
+      cur.setDate(cur.getDate() + 1);
+    }
+
+    campaigns.forEach(c => {
+      const d = getCampaignDate(c);
+      if (!d) return;
+      const key = formatDateKey(d);
+      if (daysMap.has(key)) {
+        const b = daysMap.get(key)!;
+        b.clicks += (c.clicks || 0);
+        b.spend += (c.payment_amount || 0);
       }
     });
-    const daysOfWeek = ['Sundays', 'Mondays', 'Tuesdays', 'Wednesdays', 'Thursdays', 'Fridays', 'Saturdays'];
-    const pDay = peakDayIdx !== -1 ? daysOfWeek[peakDayIdx] : 'N/A';
 
-    // Average ROI (Clicks per ₹1000 spent)
-    const aROI = tSpend > 0 ? Math.round((tClicks / tSpend) * 1000).toLocaleString('en-IN') : '0';
+    const cData = Array.from(daysMap.values());
+
+    // 7. Platform Spend & Click Share Breakdown
+    const pMap: Record<string, { count: number; spend: number; clicks: number }> = {};
+    campaigns.forEach(c => {
+      const p = normalizePlatformName(c.platform);
+      if (!pMap[p]) pMap[p] = { count: 0, spend: 0, clicks: 0 };
+      pMap[p].count += 1;
+      pMap[p].spend += (c.payment_amount || 0);
+      pMap[p].clicks += (c.clicks || 0);
+    });
+
+    const totalSpendAll = Object.values(pMap).reduce((sum, item) => sum + item.spend, 0) || 1;
+    const totalClicksAll = Object.values(pMap).reduce((sum, item) => sum + item.clicks, 0);
+
+    const pStats = Object.entries(pMap)
+      .map(([platform, data]) => ({
+        platform,
+        count: data.count,
+        spend: data.spend,
+        clicks: data.clicks,
+        spendShare: Math.round((data.spend / totalSpendAll) * 100),
+        clickShare: totalClicksAll > 0 ? Math.round((data.clicks / totalClicksAll) * 100) : 0,
+      }))
+      .sort((a, b) => b.spend - a.spend);
+
+    // 8. Top Performing Campaigns Leaderboard (Ranked by Clicks then Spend efficiency)
+    const topCamps = [...campaigns]
+      .sort((a, b) => {
+        const clicksA = a.clicks || 0;
+        const clicksB = b.clicks || 0;
+        if (clicksB !== clicksA) return clicksB - clicksA;
+        return (b.payment_amount || 0) - (a.payment_amount || 0);
+      })
+      .slice(0, 5);
 
     return { 
       totalSpend: tSpend, 
       totalClicks: tClicks, 
-      costPerClick: cpc, 
-      hasGoodROI: goodROI, 
+      costPerClickNum: numCpc, 
+      activeOrPaidCount: actOrPaid,
       topPlatform: tPlatform, 
       topPlatformPercent: tPlatformPercent,
       chartData: cData,
       peakDay: pDay,
-      avgROI: aROI
+      velocitySnippet: vSnippet,
+      insightBannerText: bannerText,
+      activeTimeframe: curTimeframe,
+      platformStats: pStats,
+      topCampaigns: topCamps
     };
-  }, [campaigns]);
+  }, [campaigns, selectedTimeframe]);
 
-  const handleExportCSV = () => {
-    if (!chartData || chartData.length === 0) return;
-    const headers = ['Date', 'Clicks', 'Spend (INR)', 'Daily ROI (Clicks per 1000 INR)'];
+  // ── CSV Export ─────────────────────────────────────────────────────────────
+  const handleExportCSV = useCallback(() => {
+    if (campaigns.length === 0) return;
+    const headers = ['Influencer Name', 'Handle', 'Platform', 'Status', 'Deadline', 'Payment Amount (INR)', 'Verified Clicks', 'Cost Per Click (INR)'];
     const csvRows = [headers.join(',')];
-    chartData.forEach(row => {
-      const dailyROI = row.spend > 0 ? (row.clicks / row.spend) * 1000 : 0;
-      csvRows.push([row.date, row.clicks, row.spend, dailyROI.toFixed(2)].join(','));
+
+    campaigns.forEach(c => {
+      const cpc = (c.clicks || 0) > 0 ? Math.round((c.payment_amount || 0) / c.clicks).toString() : 'N/A';
+      const row = [
+        `"${(c.influencer_name || '').replace(/"/g, '""')}"`,
+        `"${(c.influencer_handle || '').replace(/"/g, '""')}"`,
+        `"${(c.platform || 'Other').replace(/"/g, '""')}"`,
+        c.status || '',
+        c.deadline || '',
+        c.payment_amount || 0,
+        c.clicks || 0,
+        cpc
+      ];
+      csvRows.push(row.join(','));
     });
-    const blob = new Blob([csvRows.join('\n')], { type: 'text/csv' });
+
+    const blob = new Blob([csvRows.join('\n')], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
     a.download = `collabo_analytics_${new Date().toISOString().split('T')[0]}.csv`;
     a.click();
     URL.revokeObjectURL(url);
-    toast.success('Analytics exported to CSV');
-  };
+    toast.success('Analytics CSV export complete');
+  }, [campaigns]);
 
   const isEmpty = !isLoading && campaigns.length === 0;
 
   return (
-    <>
-      <div className="max-w-6xl mx-auto space-y-6 animate-fade-in pb-12">
-        
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white dark:bg-slate-900/60 p-6 rounded-2xl border border-slate-200 dark:border-slate-800/60 shadow-sm relative overflow-hidden group">
-          <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/5 rounded-full blur-3xl group-hover:bg-emerald-500/10 transition-colors pointer-events-none" />
-          <div className="relative">
-            <h1 className="text-2xl font-bold text-slate-900 dark:text-white flex items-center gap-2 tracking-tight">
-              <BarChart3 className="w-6 h-6 text-emerald-500" />
-              Campaign Analytics
-            </h1>
-            <p className="text-slate-500 mt-1">Track your ROI and measure creator performance in real-time.</p>
-          </div>
-          {!isEmpty && (
-            <div className="hidden sm:flex items-center gap-3 relative">
-              <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-100 dark:border-emerald-500/20 text-emerald-700 dark:text-emerald-400 text-xs font-bold">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                Live Tracking Active
-              </span>
-              <button
-                onClick={handleExportCSV}
-                className="flex items-center gap-2 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-semibold rounded-lg px-4 py-1.5 text-xs transition-all border border-slate-200 dark:border-slate-700 shadow-sm"
-              >
-                <Download className="w-4 h-4" /> Export CSV
-              </button>
-            </div>
-          )}
+    <div className="w-full max-w-[1500px] mx-auto space-y-6 select-none animate-fade-in pb-16">
+      
+      {/* ── 1. Compact Architectural Header ── */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight text-white flex items-center gap-2.5">
+            <BarChart3 className="w-6 h-6 text-emerald-400" />
+            Campaign Analytics
+          </h1>
+          <p className="text-xs text-slate-400 font-mono mt-1">
+            Track creator ROI, click velocity, and spend attribution across all channels.
+          </p>
         </div>
 
-        {isLoading ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6">
-            {[1,2,3,4].map(i => (
-              <div key={i} className="h-32 bg-slate-100 dark:bg-slate-800/50 rounded-2xl animate-pulse" />
-            ))}
-            <div className="h-96 md:col-span-4 bg-slate-100 dark:bg-slate-800/50 rounded-2xl animate-pulse" />
+        {!isEmpty && (
+          <div className="flex items-center gap-3">
+            <div className="font-mono text-xs text-emerald-400 bg-emerald-500/[0.08] border border-emerald-500/20 px-3 py-1.5 rounded-lg flex items-center gap-1.5 shadow-[inset_0_1px_0_0_rgba(16,185,129,0.1)]">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
+              Live Attribution Active
+            </div>
+
+            <button
+              onClick={handleExportCSV}
+              className="font-mono text-xs text-slate-300 hover:text-white bg-[#0A0E17] hover:bg-white/[0.06] border border-white/[0.08] hover:border-white/[0.15] px-3.5 py-1.5 rounded-lg transition-all flex items-center gap-2 shadow-sm active:scale-[0.98] cursor-pointer"
+            >
+              <Download className="w-3.5 h-3.5 text-slate-400" />
+              Export CSV
+            </button>
           </div>
-        ) : isEmpty ? (
-          /* Empty State */
-          <div className="flex flex-col items-center justify-center py-20 px-4 bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-800/50 rounded-3xl text-center shadow-sm relative overflow-hidden">
-            <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-emerald-500/5 via-transparent to-transparent" />
-            <div className="relative z-10">
-              <div className="w-20 h-20 bg-emerald-50 dark:bg-emerald-500/10 rounded-2xl flex items-center justify-center mx-auto mb-6 border border-emerald-100 dark:border-emerald-500/20 shadow-inner rotate-3">
-                <BarChart3 className="w-10 h-10 text-emerald-500 -rotate-3" />
-              </div>
-              <h2 className="text-2xl font-black text-slate-900 dark:text-white mb-3 tracking-tight">Unlock Your Data</h2>
-              <p className="text-slate-500 max-w-md mx-auto mb-8 text-sm leading-relaxed">
-                Stop guessing what works. Create a campaign, add a tracking link, and watch your clicks, spend, and ROI update in beautiful, real-time charts.
-              </p>
-              <Link href="/dashboard" className="inline-flex items-center gap-2 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-white font-bold rounded-xl px-6 py-3 text-sm transition-all shadow-xl shadow-emerald-500/25 active:scale-95 group">
-                <Plus className="w-4 h-4 transition-transform group-hover:rotate-90" /> 
-                Create First Campaign
-              </Link>
-            </div>
-          </div>
-        ) : (
-          <>
-            {/* AI Insights Bar */}
-            {totalClicks > 0 && (
-              <div className="bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-950/20 dark:to-teal-950/20 border border-emerald-100 dark:border-emerald-900/30 p-4 sm:p-5 rounded-2xl shadow-sm flex flex-col sm:flex-row items-start sm:items-center gap-4">
-                <div className="p-2 bg-emerald-100 dark:bg-emerald-900/50 rounded-xl flex-shrink-0">
-                  <Lightbulb className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
-                </div>
-                <div className="flex-1">
-                  <h3 className="text-sm font-bold text-emerald-900 dark:text-emerald-400 mb-1">AI Performance Insights</h3>
-                  <p className="text-sm text-emerald-700 dark:text-emerald-500/80">
-                    Your campaigns generate an average of <strong>{avgROI} clicks per ₹1,000 spent</strong>. 
-                    Historically, you see peak engagement on <strong>{peakDay}</strong>. Consider aligning future deadlines with this trend.
-                  </p>
-                </div>
-              </div>
-            )}
-
-            {/* Stat Cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
-              <div className="bg-white dark:bg-slate-900/60 p-5 rounded-2xl border border-slate-200 dark:border-slate-800/60 shadow-sm hover:border-slate-300 dark:hover:border-slate-700/60 transition-colors">
-                <h3 className="text-sm font-semibold text-slate-500 dark:text-slate-400 mb-3 flex items-center gap-2 uppercase tracking-wide">
-                  <Target className="w-4 h-4 text-slate-400 dark:text-slate-500" /> Total Spend
-                </h3>
-                <p className="text-3xl font-black text-slate-900 dark:text-white tracking-tight">₹{totalSpend.toLocaleString('en-IN')}</p>
-              </div>
-
-              <div className="bg-white dark:bg-slate-900/60 p-5 rounded-2xl border border-slate-200 dark:border-slate-800/60 shadow-sm hover:border-slate-300 dark:hover:border-slate-700/60 transition-colors relative overflow-hidden group">
-                <div className="absolute top-0 right-0 w-24 h-24 bg-purple-500/10 rounded-full blur-2xl group-hover:bg-purple-500/20 transition-colors pointer-events-none translate-x-8 -translate-y-8" />
-                <h3 className="text-sm font-semibold text-slate-500 dark:text-slate-400 mb-3 flex items-center gap-2 uppercase tracking-wide relative">
-                  <MousePointerClick className="w-4 h-4 text-purple-500" /> Total Clicks
-                </h3>
-                <p className="text-3xl font-black text-slate-900 dark:text-white tracking-tight relative">{totalClicks.toLocaleString('en-IN')}</p>
-                {totalClicks > 0 && (
-                  <div className="mt-3 flex items-center gap-1.5 text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-500/10 w-fit px-2 py-1 rounded-md relative uppercase tracking-wider">
-                    <ArrowUpRight className="w-3.5 h-3.5" /> High Engagement
-                  </div>
-                )}
-              </div>
-
-              <div className="bg-white dark:bg-slate-900/60 p-5 rounded-2xl border border-slate-200 dark:border-slate-800/60 shadow-sm hover:border-slate-300 dark:hover:border-slate-700/60 transition-colors">
-                <h3 className="text-sm font-semibold text-slate-500 dark:text-slate-400 mb-3 flex items-center gap-2 uppercase tracking-wide">
-                  <Zap className="w-4 h-4 text-amber-500" /> Cost Per Click
-                </h3>
-                <p className="text-3xl font-black text-slate-900 dark:text-white tracking-tight">₹{costPerClick}</p>
-                {totalClicks > 0 && (
-                  <div className={`mt-3 flex items-center gap-1.5 text-[10px] font-bold w-fit px-2 py-1 rounded-md uppercase tracking-wider ${hasGoodROI ? 'text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-500/10' : 'text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-500/10'}`}>
-                    {hasGoodROI ? <ArrowDownRight className="w-3.5 h-3.5" /> : <ArrowUpRight className="w-3.5 h-3.5" />} 
-                    {hasGoodROI ? 'Excellent ROI' : 'Needs Optimization'}
-                  </div>
-                )}
-              </div>
-              
-              <div className="bg-white dark:bg-slate-900/60 p-5 rounded-2xl border border-slate-200 dark:border-slate-800/60 shadow-sm hover:border-slate-300 dark:hover:border-slate-700/60 transition-colors">
-                <h3 className="text-sm font-semibold text-slate-500 dark:text-slate-400 mb-3 flex items-center gap-2 uppercase tracking-wide">
-                  <Smartphone className="w-4 h-4 text-blue-500" /> Top Platform
-                </h3>
-                <p className="text-3xl font-black text-slate-900 dark:text-white truncate capitalize tracking-tight">{topPlatform}</p>
-                <div className="mt-3 flex items-center gap-1.5 text-[10px] font-bold text-slate-600 dark:text-slate-400 bg-slate-100 dark:bg-slate-800/80 w-fit px-2 py-1 rounded-md uppercase tracking-wider">
-                  {topPlatformPercent}% of volume
-                </div>
-              </div>
-            </div>
-
-            {/* Recharts Area Chart */}
-            <div className="bg-white dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800/60 rounded-3xl p-5 sm:p-8 shadow-sm">
-              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
-                <div>
-                  <h2 className="text-lg font-bold text-slate-900 dark:text-white tracking-tight flex items-center gap-2">
-                    <CalendarIcon className="w-5 h-5 text-emerald-500" /> Performance Over Time
-                  </h2>
-                  <p className="text-sm text-slate-500 mt-1">30-day view of clicks vs spend based on campaign creation dates.</p>
-                </div>
-                <div className="flex items-center gap-4 text-sm font-medium bg-slate-50 dark:bg-slate-800/50 px-4 py-2 rounded-xl border border-slate-100 dark:border-slate-700">
-                  <div className="flex items-center gap-2">
-                    <span className="w-3 h-3 rounded-full bg-emerald-500 shadow-sm shadow-emerald-500/50" />
-                    <span className="text-slate-700 dark:text-slate-300">Clicks</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="w-3 h-3 rounded-full bg-blue-500 shadow-sm shadow-blue-500/50" />
-                    <span className="text-slate-700 dark:text-slate-300">Spend (₹)</span>
-                  </div>
-                </div>
-              </div>
-              
-              <div className="h-[300px] sm:h-[400px] w-full">
-                <AnalyticsChart data={chartData} />
-              </div>
-            </div>
-          </>
         )}
       </div>
-    </>
+
+      {isLoading ? (
+        /* ── Loading Skeletons ── */
+        <div className="space-y-6">
+          <div className="h-14 bg-[#0A0E17] border border-white/[0.07] rounded-xl animate-pulse" />
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {[1, 2, 3, 4].map(i => (
+              <div key={i} className="h-32 bg-[#0A0E17] border border-white/[0.07] rounded-xl animate-pulse p-5" />
+            ))}
+          </div>
+          <div className="h-96 bg-[#0A0E17] border border-white/[0.07] rounded-xl animate-pulse" />
+        </div>
+      ) : isEmpty ? (
+        /* ── Architectural Empty State ── */
+        <div className="flex flex-col items-center justify-center py-20 px-4 bg-[#0A0E17] border border-white/[0.07] rounded-2xl text-center shadow-[inset_0_1px_0_0_rgba(255,255,255,0.06)] relative overflow-hidden">
+          <div className="w-14 h-14 bg-white/[0.04] border border-white/[0.08] rounded-xl flex items-center justify-center mx-auto mb-4">
+            <BarChart3 className="w-7 h-7 text-emerald-400" />
+          </div>
+          <h2 className="text-xl font-semibold text-white mb-2 tracking-tight">Unlock Campaign Intelligence</h2>
+          <p className="text-slate-400 max-w-md mx-auto mb-6 text-xs font-mono leading-relaxed">
+            Create deals, generate deterministic shortlinks (`/t/...`), and monitor live click velocity and creator cost per click.
+          </p>
+          <Link 
+            href="/dashboard" 
+            className="inline-flex items-center gap-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-mono font-medium rounded-lg px-4 py-2 text-xs transition-all shadow-[0_0_16px_rgba(16,185,129,0.3)] active:scale-95"
+          >
+            <Plus className="w-3.5 h-3.5" /> 
+            Create First Campaign
+          </Link>
+        </div>
+      ) : (
+        <>
+          {/* ── 2. Refined AI Performance Insights Strip (Sharp Architectural Callout) ── */}
+          <div className="bg-[#0A0E17] border border-white/[0.07] border-l-2 border-l-emerald-500 rounded-xl px-4 py-3 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.06)]">
+            <div className="space-y-0.5">
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-mono tracking-wider uppercase text-emerald-400 font-semibold flex items-center gap-1.5">
+                  <Sparkles className="w-3 h-3 text-emerald-400" />
+                  AI Performance Insight
+                </span>
+                {peakDay && (
+                  <span className="text-[10px] font-mono text-emerald-400/80 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.2 rounded">
+                    Peak: {peakDay}
+                  </span>
+                )}
+              </div>
+              <p className="text-xs text-slate-300 leading-relaxed font-sans">
+                {insightBannerText}
+              </p>
+            </div>
+
+            <div className="font-mono text-[10px] text-slate-400 bg-white/[0.03] border border-white/[0.06] px-2.5 py-1 rounded-md flex items-center gap-1.5 flex-shrink-0">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+              Attribution Engine: Deterministic Shortlinks
+            </div>
+          </div>
+
+          {/* ── 3. 4-Column Architectural KPI Strip ── */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            
+            {/* KPI 1: TOTAL SPEND */}
+            <div className="bg-[#0A0E17] border border-white/[0.07] rounded-xl p-5 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.06)] hover:border-white/[0.12] transition-colors flex flex-col justify-between">
+              <div className="flex items-center justify-between gap-2 mb-3">
+                <span className="text-[11px] font-medium tracking-wider text-slate-400 uppercase font-sans flex items-center gap-1.5">
+                  <Target className="w-3.5 h-3.5 text-slate-400" /> Total Spend
+                </span>
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shadow-[0_0_6px_rgba(16,185,129,0.5)] flex-shrink-0" />
+              </div>
+              <div className="my-1">
+                <span className="font-mono tabular-nums text-3xl font-semibold text-white tracking-tight leading-none block">
+                  {formatINR(totalSpend)}
+                </span>
+              </div>
+              <p className="text-xs text-slate-400 font-mono mt-2 truncate">
+                {activeOrPaidCount} active/paid deal{activeOrPaidCount !== 1 ? 's' : ''}
+              </p>
+            </div>
+
+            {/* KPI 2: TOTAL CLICKS */}
+            <div className="bg-[#0A0E17] border border-white/[0.07] rounded-xl p-5 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.06)] hover:border-white/[0.12] transition-colors flex flex-col justify-between">
+              <div className="flex items-center justify-between gap-2 mb-3">
+                <span className="text-[11px] font-medium tracking-wider text-slate-400 uppercase font-sans flex items-center gap-1.5">
+                  <MousePointerClick className="w-3.5 h-3.5 text-slate-400" /> Total Clicks
+                </span>
+                <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${totalClicks > 0 ? 'bg-emerald-400 shadow-[0_0_6px_rgba(16,185,129,0.5)]' : 'bg-slate-500'}`} />
+              </div>
+              <div className="my-1">
+                <span className="font-mono tabular-nums text-3xl font-semibold text-white tracking-tight leading-none block">
+                  {totalClicks.toLocaleString('en-IN')}
+                </span>
+              </div>
+              <div className="mt-2">
+                {totalClicks === 0 ? (
+                  <span className="text-xs text-slate-400 font-mono">Awaiting traffic</span>
+                ) : totalClicks < 20 ? (
+                  <span className="text-xs text-amber-400/90 font-mono flex items-center gap-1">
+                    <ArrowUpRight className="w-3.5 h-3.5" /> Early traction ({totalClicks} clicks)
+                  </span>
+                ) : (
+                  <span className="text-xs text-emerald-400 font-mono flex items-center gap-1">
+                    <ArrowUpRight className="w-3.5 h-3.5" /> High velocity
+                  </span>
+                )}
+              </div>
+            </div>
+
+            {/* KPI 3: COST PER CLICK */}
+            <div className="bg-[#0A0E17] border border-white/[0.07] rounded-xl p-5 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.06)] hover:border-white/[0.12] transition-colors flex flex-col justify-between">
+              <div className="flex items-center justify-between gap-2 mb-3">
+                <span className="text-[11px] font-medium tracking-wider text-slate-400 uppercase font-sans flex items-center gap-1.5">
+                  <Zap className="w-3.5 h-3.5 text-slate-400" /> Cost Per Click
+                </span>
+                <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${totalClicks > 0 && costPerClickNum <= 50 ? 'bg-emerald-400' : costPerClickNum > 50 ? 'bg-amber-400' : 'bg-slate-500'}`} />
+              </div>
+              <div className="my-1">
+                <span className="font-mono tabular-nums text-3xl font-semibold text-white tracking-tight leading-none block">
+                  {formatINR(costPerClickNum)}
+                </span>
+              </div>
+              <div className="mt-2">
+                {costPerClickNum === 0 ? (
+                  <span className="text-xs text-slate-400 font-mono">No click spend yet</span>
+                ) : costPerClickNum <= 50 ? (
+                  <span className="text-xs text-emerald-400 font-mono flex items-center gap-1">
+                    <ArrowDownRight className="w-3.5 h-3.5" /> Optimal CPC
+                  </span>
+                ) : (
+                  <span className="text-xs text-amber-400/90 font-mono flex items-center gap-1">
+                    <ArrowUpRight className="w-3.5 h-3.5" /> Avg. {formatINR(costPerClickNum)}/click
+                  </span>
+                )}
+              </div>
+            </div>
+
+            {/* KPI 4: TOP PLATFORM */}
+            <div className="bg-[#0A0E17] border border-white/[0.07] rounded-xl p-5 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.06)] hover:border-white/[0.12] transition-colors flex flex-col justify-between">
+              <div className="flex items-center justify-between gap-2 mb-3">
+                <span className="text-[11px] font-medium tracking-wider text-slate-400 uppercase font-sans flex items-center gap-1.5">
+                  <Smartphone className="w-3.5 h-3.5 text-slate-400" /> Top Platform
+                </span>
+                <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${topPlatform !== 'None yet' ? 'bg-emerald-400' : 'bg-slate-500'}`} />
+              </div>
+              <div className="my-1 flex items-center gap-2.5 truncate">
+                <PlatformIcon platform={topPlatform} className="w-6 h-6 text-emerald-400 flex-shrink-0" />
+                <span className="font-mono text-3xl font-semibold text-white tracking-tight capitalize truncate leading-none">
+                  {topPlatform}
+                </span>
+              </div>
+              <p className="text-xs text-slate-400 font-mono mt-2 truncate">
+                {topPlatformPercent}% of volume
+              </p>
+            </div>
+
+          </div>
+
+          {/* ── 4. Performance Over Time Chart Card ── */}
+          <div className="bg-[#0A0E17] border border-white/[0.07] rounded-xl p-5 sm:p-6 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.06)]">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
+              <div>
+                <h2 className="text-base font-semibold text-white tracking-tight flex items-center gap-2">
+                  <CalendarIcon className="w-4 h-4 text-emerald-400" /> Performance Over Time
+                </h2>
+                <p className="text-xs text-slate-400 font-mono mt-0.5">
+                  Clicks velocity and spend attribution timeline.
+                </p>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-3">
+                {/* Timeframe Filter Segmented Control */}
+                <div className="flex items-center bg-white/[0.04] p-0.5 rounded-lg border border-white/[0.08]">
+                  {(['30D', '90D', 'All Time'] as Timeframe[]).map((tf) => (
+                    <button
+                      key={tf}
+                      onClick={() => setSelectedTimeframe(tf)}
+                      className={`font-mono text-xs px-3 py-1 rounded-md transition-all cursor-pointer ${
+                        activeTimeframe === tf
+                          ? 'bg-white/[0.1] text-white shadow-sm font-semibold'
+                          : 'text-slate-400 hover:text-slate-200 font-medium'
+                      }`}
+                    >
+                      {tf}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Legend */}
+                <div className="flex items-center gap-3 bg-white/[0.03] border border-white/[0.06] px-3 py-1 rounded-lg">
+                  <div className="flex items-center gap-1.5 font-mono text-xs text-slate-300">
+                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 shadow-[0_0_6px_rgba(16,185,129,0.5)]" />
+                    Clicks
+                  </div>
+                  <div className="flex items-center gap-1.5 font-mono text-xs text-slate-300">
+                    <span className="w-2.5 h-2.5 rounded-full bg-blue-500 shadow-[0_0_6px_rgba(59,130,246,0.5)]" />
+                    Spend (₹)
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <div className="h-[320px] sm:h-[380px] w-full mt-4">
+              <AnalyticsChart data={chartData} />
+            </div>
+          </div>
+
+          {/* ── 5. 2-Column Bottom Breakdown Grid ── */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            
+            {/* Left Card: Platform Spend & Click Share */}
+            <div className="lg:col-span-5 bg-[#0A0E17] border border-white/[0.07] rounded-xl p-5 sm:p-6 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.06)] flex flex-col justify-between">
+              <div>
+                <div className="flex items-center justify-between pb-3 mb-4 border-b border-white/[0.06]">
+                  <div>
+                    <h3 className="text-sm font-semibold text-white tracking-tight flex items-center gap-2">
+                      <Smartphone className="w-4 h-4 text-emerald-400" /> Platform Distribution
+                    </h3>
+                    <p className="text-xs text-slate-400 font-mono mt-0.5">
+                      Spend and engagement breakdown across channels
+                    </p>
+                  </div>
+                  <span className="text-xs font-mono text-slate-400">
+                    {platformStats.length} channel{platformStats.length !== 1 ? 's' : ''}
+                  </span>
+                </div>
+
+                <div className="space-y-4">
+                  {platformStats.length === 0 ? (
+                    <div className="py-8 text-center text-slate-500 font-mono text-xs">
+                      No platform channels recorded yet.
+                    </div>
+                  ) : (
+                    platformStats.map((item) => (
+                      <div key={item.platform} className="space-y-1.5">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2.5">
+                            <div className="w-7 h-7 rounded-lg bg-white/[0.04] border border-white/[0.08] flex items-center justify-center text-slate-300 flex-shrink-0">
+                              <PlatformIcon platform={item.platform} className="w-3.5 h-3.5 text-emerald-400" />
+                            </div>
+                            <div>
+                              <span className="text-xs font-medium text-white capitalize block">
+                                {item.platform}
+                              </span>
+                              <span className="text-[11px] text-slate-400 font-mono">
+                                {item.count} deal{item.count !== 1 ? 's' : ''}
+                              </span>
+                            </div>
+                          </div>
+
+                          <div className="text-right">
+                            <span className="text-xs font-semibold text-white font-mono block">
+                              {formatINR(item.spend)}
+                            </span>
+                            <span className="text-[11px] text-emerald-400/90 font-mono">
+                              {item.clicks.toLocaleString('en-IN')} clicks ({item.clickShare}%)
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Hairline Progress Bar */}
+                        <div className="w-full bg-white/[0.06] h-1.5 rounded-full overflow-hidden mt-1 relative">
+                          <div 
+                            className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-teal-400 transition-all duration-500" 
+                            style={{ width: `${Math.max(item.spendShare, 4)}%` }} 
+                          />
+                        </div>
+
+                        <div className="flex items-center justify-between text-[10px] text-slate-400 font-mono pt-0.5">
+                          <span>{item.spendShare}% of budget</span>
+                          <span>{item.clickShare}% of click volume</span>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Right Card: Top Performing Campaigns Leaderboard */}
+            <div className="lg:col-span-7 bg-[#0A0E17] border border-white/[0.07] rounded-xl p-5 sm:p-6 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.06)] flex flex-col justify-between">
+              <div>
+                <div className="flex items-center justify-between pb-3 mb-4 border-b border-white/[0.06]">
+                  <div>
+                    <h3 className="text-sm font-semibold text-white tracking-tight flex items-center gap-2">
+                      <Award className="w-4 h-4 text-emerald-400" /> Top Performing Campaigns
+                    </h3>
+                    <p className="text-xs text-slate-400 font-mono mt-0.5">
+                      Ranked by click volume and cost efficiency
+                    </p>
+                  </div>
+                  <span className="text-xs font-mono text-slate-400">
+                    Leaderboard
+                  </span>
+                </div>
+
+                {topCampaigns.length === 0 ? (
+                  <div className="py-12 text-center text-slate-500 font-mono text-xs">
+                    No active campaigns to rank yet.
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left font-sans">
+                      <thead>
+                        <tr className="border-b border-white/[0.06] text-[10px] font-mono uppercase text-slate-400 tracking-wider">
+                          <th className="pb-2.5 font-medium pl-1">Rank</th>
+                          <th className="pb-2.5 font-medium">Creator</th>
+                          <th className="pb-2.5 font-medium">Channel</th>
+                          <th className="pb-2.5 font-medium text-right">Spend</th>
+                          <th className="pb-2.5 font-medium text-right">Clicks</th>
+                          <th className="pb-2.5 font-medium text-right pr-1">Unit CPC</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-white/[0.04]">
+                        {topCampaigns.map((c, idx) => {
+                          const cpc = (c.clicks || 0) > 0 ? (c.payment_amount || 0) / c.clicks : 0;
+                          return (
+                            <tr key={c.id} className="hover:bg-white/[0.02] transition-colors">
+                              <td className="py-3 pl-1 font-mono text-xs text-slate-400">
+                                #{idx + 1}
+                              </td>
+                              <td className="py-3 pr-2">
+                                <div className="max-w-[150px] sm:max-w-[200px]">
+                                  <p className="text-xs font-medium text-white truncate">
+                                    {c.influencer_name || c.influencer_handle || 'Creator'}
+                                  </p>
+                                  <p className="font-mono text-[11px] text-slate-400 truncate">
+                                    {c.influencer_handle ? `@${c.influencer_handle.replace(/^@/, '')}` : '—'}
+                                  </p>
+                                </div>
+                              </td>
+                              <td className="py-3">
+                                <div className="flex items-center gap-1.5 font-mono text-xs text-slate-300">
+                                  <PlatformIcon platform={c.platform} className="w-3.5 h-3.5 text-slate-400" />
+                                  <span className="capitalize">{c.platform || 'Other'}</span>
+                                </div>
+                              </td>
+                              <td className="py-3 text-right font-mono text-xs text-slate-200 tabular-nums">
+                                {formatINR(c.payment_amount || 0)}
+                              </td>
+                              <td className="py-3 text-right font-mono text-xs font-semibold text-emerald-400 tabular-nums">
+                                {(c.clicks || 0).toLocaleString('en-IN')}
+                              </td>
+                              <td className="py-3 text-right pr-1 font-mono text-xs text-slate-300 tabular-nums">
+                                {c.clicks > 0 ? (
+                                  <span>{formatINR(cpc)}</span>
+                                ) : (
+                                  <span className="text-slate-500">—</span>
+                                )}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+
+              <div className="pt-3 mt-4 border-t border-white/[0.06] flex items-center justify-between text-[11px] font-mono text-slate-400">
+                <span>Attribution: shortlinks (/t/...)</span>
+                <Link href="/dashboard" className="text-emerald-400 hover:text-emerald-300 transition-colors flex items-center gap-1">
+                  Manage Deals <ArrowUpRight className="w-3 h-3" />
+                </Link>
+              </div>
+            </div>
+
+          </div>
+        </>
+      )}
+
+    </div>
   );
 }

@@ -21,9 +21,9 @@ const baseURL =
 if (process.env.NODE_ENV === 'development') {
   console.log(
     `[API] baseURL resolved to: ${baseURL}` +
-      (process.env.NEXT_PUBLIC_API_URL
-        ? ' (from NEXT_PUBLIC_API_URL)'
-        : ' (fallback — NEXT_PUBLIC_API_URL is not set)')
+    (process.env.NEXT_PUBLIC_API_URL
+      ? ' (from NEXT_PUBLIC_API_URL)'
+      : ' (fallback — NEXT_PUBLIC_API_URL is not set)')
   );
 }
 
@@ -44,9 +44,14 @@ api.interceptors.request.use(async (config: InternalAxiosRequestConfig) => {
   const {
     data: { session },
   } = await supabase.auth.getSession();
-  
+
   if (session?.access_token) {
     config.headers.Authorization = `Bearer ${session.access_token}`;
+  } else if (process.env.NODE_ENV !== 'production' && typeof document !== 'undefined') {
+    const match = document.cookie.match(/collabo-test-token=([^;]+)/);
+    if (match) {
+      config.headers.Authorization = `Bearer ${decodeURIComponent(match[1])}`;
+    }
   }
 
   if (process.env.NODE_ENV === 'development') {
@@ -61,15 +66,15 @@ api.interceptors.response.use(
   (response) => response,
   async (error: AxiosError) => {
     const originalRequest = error.config;
-    
+
     // If it's 401 and we haven't already retried this request
     if (error.response?.status === 401 && originalRequest && !(originalRequest as any)._retry) {
       (originalRequest as any)._retry = true;
-      
+
       try {
         // Attempt to refresh the session via Supabase
         const { data: { session } } = await supabase.auth.getSession();
-        
+
         if (session?.access_token) {
           // Token refreshed successfully, retry the original request
           originalRequest.headers.Authorization = `Bearer ${session.access_token}`;
@@ -78,7 +83,11 @@ api.interceptors.response.use(
       } catch (refreshErr) {
         console.error('[API] Token refresh failed:', refreshErr);
       }
-      
+
+      if (typeof document !== 'undefined' && document.cookie.includes('collabo-test-session')) {
+        return Promise.reject(error);
+      }
+
       // If refresh failed or no session, sign out and redirect
       await supabase.auth.signOut();
       if (typeof window !== 'undefined') {
@@ -233,9 +242,9 @@ export interface UserSettings {
   verification_status?: 'connected' | 'pending' | 'failed' | 'not_connected';
 }
 
-export async function saveWhatsAppNumber(payload: { 
-  whatsapp_number?: string, 
-  email_reminders_enabled: boolean, 
+export async function saveWhatsAppNumber(payload: {
+  whatsapp_number?: string,
+  email_reminders_enabled: boolean,
   whatsapp_reminders_enabled: boolean,
   username?: string,
   telegram_username?: string
@@ -295,10 +304,10 @@ export async function downloadReport(month: string, format: 'pdf' | 'excel'): Pr
     params: { month, format },
     responseType: 'blob'
   });
-  
+
   // Create a temporary link to trigger the browser download
-  const blob = new Blob([res.data], { 
-    type: format === 'pdf' ? 'application/pdf' : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' 
+  const blob = new Blob([res.data], {
+    type: format === 'pdf' ? 'application/pdf' : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
   });
   const url = window.URL.createObjectURL(blob);
   const link = document.createElement('a');
@@ -320,14 +329,14 @@ export function computeDashboardStats(campaigns: Campaign[]): DashboardStats {
   // Define logical buckets for financial calculations
   const pendingStatuses: string[] = ['draft', 'active', 'content_received', 'needs_revision', 'approved'];
 
-  const active    = campaigns.filter(c => c.status === 'active');
+  const active = campaigns.filter(c => c.status === 'active');
   const completed = campaigns.filter(c => c.status === 'paid');
   const cancelled = campaigns.filter(c => c.status === 'cancelled');
-  const rejected  = campaigns.filter(c => c.status === 'rejected');
+  const rejected = campaigns.filter(c => c.status === 'rejected');
 
   // Overdue: Only states where the influencer owes us action (draft, active, needs_revision)
-  const overdue = campaigns.filter(c => 
-    ['draft', 'active', 'needs_revision'].includes(c.status) && 
+  const overdue = campaigns.filter(c =>
+    ['draft', 'active', 'needs_revision'].includes(c.status) &&
     c.deadline && new Date(c.deadline) < now
   );
 
@@ -348,12 +357,12 @@ export function computeDashboardStats(campaigns: Campaign[]): DashboardStats {
 
   // Financials
   const paidSpend = completed.reduce((s, c) => s + (c.payment_amount || 0), 0);
-  
+
   // Pending spend is ANY campaign that is currently ongoing/pending payment
   const pendingSpend = campaigns
     .filter(c => pendingStatuses.includes(c.status))
     .reduce((s, c) => s + (c.payment_amount || 0), 0);
-    
+
   // Total budget should only be the sum of money actually spent + money currently pending (excluding cancelled)
   const totalSpend = paidSpend + pendingSpend;
 
@@ -378,7 +387,7 @@ export function computeDashboardStats(campaigns: Campaign[]): DashboardStats {
 
 // ─── Phase 2: Bulk Actions, Influencers, Billing ──────────────────────────────
 
-export async function bulkUpdateStatus(campaign_ids: string[], status: CampaignStatus): Promise<{message: string}> {
+export async function bulkUpdateStatus(campaign_ids: string[], status: CampaignStatus): Promise<{ message: string }> {
   const res = await api.patch('/campaigns/bulk/status', { campaign_ids, status });
   return res.data;
 }
@@ -407,6 +416,7 @@ export interface InfluencerProfile {
   platform: string | null;
   notes: string | null;
   total_campaigns: number;
+  total_spend: number;
   success_rate: number;
   last_collaboration: string | null;
 }
@@ -425,6 +435,7 @@ export interface BillingUsage {
   current_plan: string;
   trial_ends_at: string | null;
   campaigns_this_month: number;
+  total_campaigns?: number;
   ai_extractions_used: number;
   is_trial: boolean;
   is_paid: boolean;
