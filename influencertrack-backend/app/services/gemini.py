@@ -209,62 +209,41 @@ def is_retryable_error(exception: Exception) -> bool:
     # Always retry on 429/quota to let tenacity's exponential backoff handle temporary spikes
     return True
 
-def _build_generation_config(
-    system_instruction: str,
-    response_schema: Any,
-    temperature: float = 0.1,
-    thinking_budget: int | None = None
-) -> types.GenerateContentConfig:
-    """Safely builds GenerateContentConfig with thinking_budget optimization when supported."""
-    config_kwargs: dict[str, Any] = {
-        "system_instruction": system_instruction,
-        "response_mime_type": "application/json",
-        "response_schema": response_schema,
-        "temperature": temperature,
-    }
-    if thinking_budget is not None:
-        try:
-            if hasattr(types, "ThinkingConfig"):
-                config_kwargs["thinking_config"] = types.ThinkingConfig(thinking_budget=thinking_budget)
-        except (TypeError, AttributeError, ValueError, Exception) as e:
-            logger.warning("thinking_config_init_skipped", error=str(e))
-    return types.GenerateContentConfig(**config_kwargs)
-
 from tenacity import retry, wait_exponential, stop_after_attempt, retry_if_exception
 
 @retry(wait=wait_exponential(multiplier=1, min=2, max=10), stop=stop_after_attempt(3), retry=retry_if_exception(is_retryable_error))
 async def _call_gemini(
     client: genai.Client,
     contents: list,
-    model: str = 'gemini-3.8-flash',
-    thinking_budget: int | None = None
+    model: str = 'gemini-3.8-flash'
 ) -> ExtractionResult:
     """Makes the actual API call with retries and timeout."""
-    config = _build_generation_config(
-        system_instruction=get_system_prompt(),
-        response_schema=ExtractionResult,
-        temperature=0.1,
-        thinking_budget=thinking_budget
-    )
     # Using asyncio.wait_for to enforce 120s timeout per attempt
     response = await asyncio.wait_for(
         client.aio.models.generate_content(
             model=model,
             contents=contents,
-            config=config
+            config=types.GenerateContentConfig(
+                system_instruction=get_system_prompt(),
+                response_mime_type="application/json",
+                response_schema=ExtractionResult,
+                temperature=0.1
+            )
         ),
         timeout=120.0
     )
     return ExtractionResult.model_validate_json(response.text)
 
 async def _call_gemini_with_fallback(client: genai.Client, contents: list) -> ExtractionResult:
-    """Attempts extraction with primary model (3.8-flash with thinking_budget=256), falls back to 2.5-flash on any failure."""
+    """Attempts extraction with primary model (gemini-3.8-flash), falls back to gemini-3.5-flash on any failure."""
     from app.core.config import settings
     primary_model = getattr(settings, "GEMINI_EXTRACTION_MODEL", "gemini-3.8-flash") or "gemini-3.8-flash"
-    fallback_model = getattr(settings, "GEMINI_FALLBACK_MODEL", "gemini-2.5-flash") or "gemini-2.5-flash"
+    fallback_model = getattr(settings, "GEMINI_FALLBACK_MODEL", "gemini-3.5-flash") or "gemini-3.5-flash"
+    if fallback_model == primary_model:
+        fallback_model = "gemini-3.5-flash" if primary_model != "gemini-3.5-flash" else "gemini-3.8-flash"
 
     try:
-        return await _call_gemini(client, contents, model=primary_model, thinking_budget=256)
+        return await _call_gemini(client, contents, model=primary_model)
     except Exception as e:
         logger.warning(
             "gemini_primary_call_failed_falling_back",
@@ -272,8 +251,7 @@ async def _call_gemini_with_fallback(client: genai.Client, contents: list) -> Ex
             primary_model=primary_model,
             fallback_model=fallback_model
         )
-        # Guaranteed bulletproof fallback: execute using fallback_model with clean basic config (no thinking_config)
-        return await _call_gemini(client, contents, model=fallback_model, thinking_budget=None)
+        return await _call_gemini(client, contents, model=fallback_model)
 
 
 @sentry_sdk.trace(op="task", name="Extract AI Data")

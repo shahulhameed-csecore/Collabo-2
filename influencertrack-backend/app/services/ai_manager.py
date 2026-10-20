@@ -130,48 +130,25 @@ def is_retryable_error(exception: Exception) -> bool:
         return False
     return True
 
-def _build_generation_config(
-    system_instruction: str,
-    response_schema: Any,
-    temperature: float = 0.1,
-    thinking_budget: int | None = None
-) -> types.GenerateContentConfig:
-    """Safely builds GenerateContentConfig with thinking_budget optimization when supported."""
-    config_kwargs: dict[str, Any] = {
-        "system_instruction": system_instruction,
-        "response_mime_type": "application/json",
-        "response_schema": response_schema,
-        "temperature": temperature,
-    }
-    if thinking_budget is not None:
-        try:
-            if hasattr(types, "ThinkingConfig"):
-                config_kwargs["thinking_config"] = types.ThinkingConfig(thinking_budget=thinking_budget)
-        except (TypeError, AttributeError, ValueError, Exception) as e:
-            logger.warning("thinking_config_init_skipped", error=str(e))
-    return types.GenerateContentConfig(**config_kwargs)
-
 @retry(wait=wait_exponential(multiplier=1, min=2, max=10), stop=stop_after_attempt(3), retry=retry_if_exception(is_retryable_error))
 async def analyze_message_intent(
     client: genai.Client, 
     contents: list, 
     context_str: str = "",
-    model: str = 'gemini-3.5-flash-lite',
-    thinking_budget: int | None = None
+    model: str = 'gemini-3.5-flash-lite'
 ) -> IntentResponse:
     """Analyzes a message using Gemini to determine intent and extract data."""
     try:
-        config = _build_generation_config(
-            system_instruction=get_ai_manager_prompt(context_str),
-            response_schema=IntentResponse,
-            temperature=0.1,
-            thinking_budget=thinking_budget
-        )
         response = await asyncio.to_thread(
             client.models.generate_content,
             model=model,
             contents=contents,
-            config=config
+            config=types.GenerateContentConfig(
+                system_instruction=get_ai_manager_prompt(context_str),
+                response_mime_type="application/json",
+                response_schema=IntentResponse,
+                temperature=0.1
+            )
         )
         # Manually load the JSON since response.text is a JSON string
         data = json.loads(response.text)
@@ -259,14 +236,14 @@ async def process_with_ai_manager(
         )
 
     primary_model = getattr(settings, "GEMINI_INTENT_MODEL", "gemini-3.5-flash-lite") or "gemini-3.5-flash-lite"
-    fallback_model = getattr(settings, "GEMINI_FALLBACK_MODEL", "gemini-2.5-flash") or "gemini-2.5-flash"
+    fallback_model = "gemini-3.8-flash" if primary_model != "gemini-3.8-flash" else "gemini-3.5-flash"
 
     last_error = None
     for key_name, api_key in keys_to_try:
         client = genai.Client(api_key=api_key)
         try:
-            # Stage 1: Try primary intent model with thinking_budget=0 for instant response without CoT overhead
-            return await analyze_message_intent(client, contents, context_str, model=primary_model, thinking_budget=0)
+            # Stage 1: Try primary intent model
+            return await analyze_message_intent(client, contents, context_str, model=primary_model)
         except Exception as e:
             logger.warning(
                 f"ai_manager_primary_failed_falling_back_{key_name.lower().replace(' ', '_')}",
@@ -275,8 +252,8 @@ async def process_with_ai_manager(
                 fallback_model=fallback_model
             )
             try:
-                # Stage 2: Fallback to fallback model with clean basic config (no thinking_config)
-                return await analyze_message_intent(client, contents, context_str, model=fallback_model, thinking_budget=None)
+                # Stage 2: Fallback to fallback model
+                return await analyze_message_intent(client, contents, context_str, model=fallback_model)
             except Exception as fallback_e:
                 logger.error(f"ai_manager_fallback_failed_{key_name.lower().replace(' ', '_')}", error=str(fallback_e))
                 last_error = fallback_e
