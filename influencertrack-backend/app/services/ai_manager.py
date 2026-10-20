@@ -64,9 +64,6 @@ def get_ai_manager_prompt(context: str = "") -> str:
     
     return f"""You are the Collabo AI Campaign Manager, an expert assistant for busy founders.
 
-**Context (Recent Drafts/Campaigns)**:
-{context}
-
 **Intent Types**:
 - CREATE: The user is creating new collaborations.
 - UPDATE: The user is updating data (payment, deadline, deliverables) of existing collaborations.
@@ -120,6 +117,9 @@ You fluently understand and parse Hinglish (Hindi + English) user input.
 
 **Output Rules**:
 Respond STRICTLY in JSON format matching the schema provided. Do not include markdown formatting or outside text.
+
+**Context (Recent Drafts/Campaigns)**:
+{context}
 """
 
 from tenacity import retry, wait_exponential, stop_after_attempt, retry_if_exception
@@ -130,25 +130,48 @@ def is_retryable_error(exception: Exception) -> bool:
         return False
     return True
 
+def _build_generation_config(
+    system_instruction: str,
+    response_schema: Any,
+    temperature: float = 0.1,
+    thinking_budget: int | None = None
+) -> types.GenerateContentConfig:
+    """Safely builds GenerateContentConfig with thinking_budget optimization when supported."""
+    config_kwargs: dict[str, Any] = {
+        "system_instruction": system_instruction,
+        "response_mime_type": "application/json",
+        "response_schema": response_schema,
+        "temperature": temperature,
+    }
+    if thinking_budget is not None:
+        try:
+            if hasattr(types, "ThinkingConfig"):
+                config_kwargs["thinking_config"] = types.ThinkingConfig(thinking_budget=thinking_budget)
+        except (TypeError, AttributeError, ValueError, Exception) as e:
+            logger.warning("thinking_config_init_skipped", error=str(e))
+    return types.GenerateContentConfig(**config_kwargs)
+
 @retry(wait=wait_exponential(multiplier=1, min=2, max=10), stop=stop_after_attempt(3), retry=retry_if_exception(is_retryable_error))
 async def analyze_message_intent(
     client: genai.Client, 
     contents: list, 
     context_str: str = "",
-    model: str = 'gemini-3.5-flash'
+    model: str = 'gemini-3.5-flash-lite',
+    thinking_budget: int | None = None
 ) -> IntentResponse:
     """Analyzes a message using Gemini to determine intent and extract data."""
     try:
+        config = _build_generation_config(
+            system_instruction=get_ai_manager_prompt(context_str),
+            response_schema=IntentResponse,
+            temperature=0.1,
+            thinking_budget=thinking_budget
+        )
         response = await asyncio.to_thread(
             client.models.generate_content,
             model=model,
             contents=contents,
-            config=types.GenerateContentConfig(
-                system_instruction=get_ai_manager_prompt(context_str),
-                response_mime_type="application/json",
-                response_schema=IntentResponse,
-                temperature=0.1
-            )
+            config=config
         )
         # Manually load the JSON since response.text is a JSON string
         data = json.loads(response.text)
@@ -200,10 +223,12 @@ async def process_with_ai_manager(
         compressed = await asyncio.to_thread(compress_image, file_bytes)
         if compressed:
             contents.append(types.Part.from_bytes(data=compressed, mime_type="image/jpeg"))
+        else:
+            contents.append(types.Part.from_bytes(data=file_bytes, mime_type=mime_type))
     elif mime_type.startswith("audio/"):
         contents.append(types.Part.from_bytes(data=file_bytes, mime_type=mime_type))
     elif mime_type.startswith("text/") and file_bytes:
-        text_fallback = file_bytes.decode('utf-8', errors='ignore')
+        text_fallback = file_bytes.decode('utf-8', errors='ignore')[:30_000]
         contents.append(text_fallback)
 
     if media_items:
@@ -214,12 +239,15 @@ async def process_with_ai_manager(
                 compressed = await asyncio.to_thread(compress_image, m_bytes)
                 if compressed:
                     contents.append(types.Part.from_bytes(data=compressed, mime_type="image/jpeg"))
+                else:
+                    contents.append(types.Part.from_bytes(data=m_bytes, mime_type=m_type))
             elif m_type.startswith("audio/"):
                 contents.append(types.Part.from_bytes(data=m_bytes, mime_type=m_type))
 
     if text_content:
-        contents.append(text_content)
-        text_fallback += "\n" + text_content
+        truncated_text = text_content[:30_000]
+        contents.append(truncated_text)
+        text_fallback += "\n" + truncated_text
 
     if not contents:
         contents.append(text_fallback if text_fallback else "Empty message")
@@ -230,26 +258,28 @@ async def process_with_ai_manager(
             recommendation_text="Security Alert: Suspicious instructions detected. Please send a normal message."
         )
 
+    primary_model = getattr(settings, "GEMINI_INTENT_MODEL", "gemini-3.5-flash-lite") or "gemini-3.5-flash-lite"
+    fallback_model = getattr(settings, "GEMINI_FALLBACK_MODEL", "gemini-2.5-flash") or "gemini-2.5-flash"
+
     last_error = None
     for key_name, api_key in keys_to_try:
         client = genai.Client(api_key=api_key)
         try:
-            # Stage 1: Try 3.5 Flash
-            return await analyze_message_intent(client, contents, context_str, model='gemini-3.5-flash')
+            # Stage 1: Try primary intent model with thinking_budget=0 for instant response without CoT overhead
+            return await analyze_message_intent(client, contents, context_str, model=primary_model, thinking_budget=0)
         except Exception as e:
-            err_str = str(e).lower()
-            if "400" in err_str or "invalid" in err_str or "not found" in err_str:
-                logger.warning(f"ai_manager_invalid_argument_falling_back_to_2_5_{key_name.lower().replace(' ', '_')}")
-                try:
-                    # Stage 2: Fallback to 2.5 Flash
-                    return await analyze_message_intent(client, contents, context_str, model='gemini-2.5-flash')
-                except Exception as fallback_e:
-                    logger.error(f"ai_manager_fallback_failed_{key_name.lower().replace(' ', '_')}", error=str(fallback_e))
-                    last_error = fallback_e
-                    continue
-            else:
-                logger.error(f"process_with_ai_manager_failed_{key_name.lower().replace(' ', '_')}", error=str(e))
-                last_error = e
+            logger.warning(
+                f"ai_manager_primary_failed_falling_back_{key_name.lower().replace(' ', '_')}",
+                error=str(e),
+                primary_model=primary_model,
+                fallback_model=fallback_model
+            )
+            try:
+                # Stage 2: Fallback to fallback model with clean basic config (no thinking_config)
+                return await analyze_message_intent(client, contents, context_str, model=fallback_model, thinking_budget=None)
+            except Exception as fallback_e:
+                logger.error(f"ai_manager_fallback_failed_{key_name.lower().replace(' ', '_')}", error=str(fallback_e))
+                last_error = fallback_e
                 continue
 
     # Provide AI Fallback if all keys fail

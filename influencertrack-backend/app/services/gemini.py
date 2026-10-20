@@ -2,6 +2,7 @@ import io
 import os
 import structlog
 from datetime import datetime
+from typing import Any
 from pydantic import BaseModel, Field
 from tenacity import retry, wait_exponential, stop_after_attempt, RetryError
 import asyncio
@@ -107,10 +108,15 @@ JSON format:
   "special_notes": "string or null"
 }"""
 
-def compress_image(image_bytes: bytes, max_size_kb: int = 500, max_dim: int = 1600) -> bytes | None:
-    """Compresses an image to be under max_size_kb and max dimensions while keeping text readable."""
+def compress_image(image_bytes: bytes, max_size_kb: int = 500, max_dim: int = 1536) -> bytes | None:
+    """Compresses an image to be under max_size_kb and max dimensions (1536x1536) while keeping text readable."""
     try:
-        # If already small enough and standard format, avoid re-compressing
+        try:
+            from PIL import Image
+        except ImportError:
+            return None
+
+        # If already small enough, within max dimensions, and standard format, avoid re-compressing
         if len(image_bytes) < max_size_kb * 1024:
             try:
                 img_test = Image.open(io.BytesIO(image_bytes))
@@ -130,8 +136,10 @@ def compress_image(image_bytes: bytes, max_size_kb: int = 500, max_dim: int = 16
         elif img.mode != "RGB":
             img = img.convert("RGB")
         
-        # Resize to max dimensions while maintaining aspect ratio
-        img.thumbnail((max_dim, max_dim), Image.Resampling.LANCZOS)
+        # Resize to max dimensions (1536x1536) while maintaining aspect ratio
+        resample_filter = getattr(getattr(Image, 'Resampling', Image), 'LANCZOS', Image.LANCZOS)
+        if max(img.size) > max_dim:
+            img.thumbnail((max_dim, max_dim), resample_filter)
         
         quality = 85
         out_io = io.BytesIO()
@@ -146,7 +154,7 @@ def compress_image(image_bytes: bytes, max_size_kb: int = 500, max_dim: int = 16
         return out_io.getvalue()
     except Exception as e:
         logger.error("image_compression_failed", error=str(e))
-        return None # Return None if compression fails to prevent sending invalid image bytes to Gemini
+        return None # Return None if compression fails so caller falls back to raw file_bytes
 
 def parse_pdf(file_bytes: bytes) -> tuple[str, list[bytes]]:
     """Extracts text from first 4 pages, and up to 2 images."""
@@ -164,7 +172,7 @@ def parse_pdf(file_bytes: bytes) -> tuple[str, list[bytes]]:
             if len(extracted_images) < 2:
                 for img_obj in page.images:
                     if len(extracted_images) < 2:
-                        compressed = compress_image(img_obj.data)
+                        compressed = compress_image(img_obj.data, max_dim=1536)
                         if compressed:
                             extracted_images.append(compressed)
                     else:
@@ -201,36 +209,72 @@ def is_retryable_error(exception: Exception) -> bool:
     # Always retry on 429/quota to let tenacity's exponential backoff handle temporary spikes
     return True
 
+def _build_generation_config(
+    system_instruction: str,
+    response_schema: Any,
+    temperature: float = 0.1,
+    thinking_budget: int | None = None
+) -> types.GenerateContentConfig:
+    """Safely builds GenerateContentConfig with thinking_budget optimization when supported."""
+    config_kwargs: dict[str, Any] = {
+        "system_instruction": system_instruction,
+        "response_mime_type": "application/json",
+        "response_schema": response_schema,
+        "temperature": temperature,
+    }
+    if thinking_budget is not None:
+        try:
+            if hasattr(types, "ThinkingConfig"):
+                config_kwargs["thinking_config"] = types.ThinkingConfig(thinking_budget=thinking_budget)
+        except (TypeError, AttributeError, ValueError, Exception) as e:
+            logger.warning("thinking_config_init_skipped", error=str(e))
+    return types.GenerateContentConfig(**config_kwargs)
+
 from tenacity import retry, wait_exponential, stop_after_attempt, retry_if_exception
 
 @retry(wait=wait_exponential(multiplier=1, min=2, max=10), stop=stop_after_attempt(3), retry=retry_if_exception(is_retryable_error))
-async def _call_gemini(client: genai.Client, contents: list, model: str = 'gemini-3.5-flash') -> ExtractionResult:
+async def _call_gemini(
+    client: genai.Client,
+    contents: list,
+    model: str = 'gemini-3.8-flash',
+    thinking_budget: int | None = None
+) -> ExtractionResult:
     """Makes the actual API call with retries and timeout."""
+    config = _build_generation_config(
+        system_instruction=get_system_prompt(),
+        response_schema=ExtractionResult,
+        temperature=0.1,
+        thinking_budget=thinking_budget
+    )
     # Using asyncio.wait_for to enforce 120s timeout per attempt
     response = await asyncio.wait_for(
         client.aio.models.generate_content(
             model=model,
             contents=contents,
-            config=types.GenerateContentConfig(
-                system_instruction=get_system_prompt(),
-                response_mime_type="application/json",
-                response_schema=ExtractionResult,
-                temperature=0.1
-            )
+            config=config
         ),
         timeout=120.0
     )
     return ExtractionResult.model_validate_json(response.text)
 
 async def _call_gemini_with_fallback(client: genai.Client, contents: list) -> ExtractionResult:
-    """Attempts extraction with 3.5-flash, falls back to 2.5-flash on failure/quota."""
+    """Attempts extraction with primary model (3.8-flash with thinking_budget=256), falls back to 2.5-flash on any failure."""
+    from app.core.config import settings
+    primary_model = getattr(settings, "GEMINI_EXTRACTION_MODEL", "gemini-3.8-flash") or "gemini-3.8-flash"
+    fallback_model = getattr(settings, "GEMINI_FALLBACK_MODEL", "gemini-2.5-flash") or "gemini-2.5-flash"
+
     try:
-        return await _call_gemini(client, contents, model='gemini-3.5-flash')
+        return await _call_gemini(client, contents, model=primary_model, thinking_budget=256)
     except Exception as e:
-        if "400" in str(e).lower() or "invalid" in str(e).lower() or "not found" in str(e).lower():
-            logger.warning("gemini_invalid_argument_falling_back", error=str(e))
-            return await _call_gemini(client, contents, model='gemini-2.5-flash')
-        raise
+        logger.warning(
+            "gemini_primary_call_failed_falling_back",
+            error=str(e),
+            primary_model=primary_model,
+            fallback_model=fallback_model
+        )
+        # Guaranteed bulletproof fallback: execute using fallback_model with clean basic config (no thinking_config)
+        return await _call_gemini(client, contents, model=fallback_model, thinking_budget=None)
+
 
 @sentry_sdk.trace(op="task", name="Extract AI Data")
 async def extract_campaign_data(file_bytes: bytes, filename: str, mime_type: str, text_content: str = "") -> dict:

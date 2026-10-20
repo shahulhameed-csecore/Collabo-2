@@ -9,6 +9,9 @@ class Settings(BaseSettings):
     GEMINI_API_KEY: Optional[str] = None
     GEMINI_API_KEY_1: Optional[str] = None
     GEMINI_API_KEY_2: Optional[str] = None
+    GEMINI_EXTRACTION_MODEL: str = "gemini-3.8-flash"
+    GEMINI_INTENT_MODEL: str = "gemini-3.5-flash-lite"
+    GEMINI_FALLBACK_MODEL: str = "gemini-2.5-flash"
     BASE_URL: str = "https://mycollabo.online"
     ALLOWED_ORIGINS: str = "https://mycollabo.online,http://localhost:3000,http://127.0.0.1:3000"
     SENTRY_DSN: Optional[str] = None
