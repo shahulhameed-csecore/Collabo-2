@@ -1,10 +1,22 @@
 import json
+import secrets
+import string
 import structlog
 from typing import Callable, Any, Dict, List
 from app.services.ai_manager import IntentType
 from app.core.formatters import format_single_campaign_summary
+from app.core.parsers import parse_date_string
+from app.services.supabase import is_user_pro_or_paid
 
 logger = structlog.get_logger(__name__)
+
+async def _generate_unique_short_code(supabase_admin, max_retries=5) -> str:
+    for _ in range(max_retries):
+        code = ''.join(secrets.choice(string.ascii_letters + string.digits) for _ in range(8))
+        res = await supabase_admin.table("campaigns").select("id").eq("short_code", code).execute()
+        if not res.data:
+            return code
+    return ''.join(secrets.choice(string.ascii_letters + string.digits) for _ in range(8))
 
 async def execute_intent(
     intent_res,
@@ -38,6 +50,20 @@ async def execute_intent(
                 await send_message_func(target_id, "No valid creators found to extract.")
                 return
 
+            # BUG-09: Enforce 5-campaign quota for non-Pro users
+            is_pro, _ = await is_user_pro_or_paid(supabase_admin, user_id)
+            if not is_pro:
+                count_res = await supabase_admin.table("campaigns").select("id", count="exact").eq("user_id", user_id).execute()
+                current_count = count_res.count if (count_res and count_res.count is not None) else 0
+                if current_count >= 5:
+                    upgrade_msg = (
+                        "⚠️ *Free Tier Limit Reached*\n\n"
+                        "You have reached the free limit of 5 campaigns. "
+                        "Please upgrade to Pro on your Collabo dashboard to create and track unlimited campaigns."
+                    )
+                    await send_message_func(target_id, upgrade_msg)
+                    return
+
             saved_campaigns = []
             campaign_name_for_intro = "Unknown Campaign"
             
@@ -56,6 +82,18 @@ async def execute_intent(
                 campaign_data["influencer_handle"] = campaign_data.get("influencer_name") or "Unknown"
                 if message_id_str:
                     campaign_data["special_notes"] = f"{campaign_data.get('special_notes', '')} [{message_id_str}]".strip()
+                
+                # BUG-04: Normalize deadline
+                raw_deadline = campaign_data.get("deadline")
+                if raw_deadline:
+                    parsed_deadline = parse_date_string(str(raw_deadline))
+                    campaign_data["deadline"] = parsed_deadline
+                else:
+                    campaign_data["deadline"] = None
+
+                # BUG-08: Generate 8-character short_code if destination_url is present
+                if campaign_data.get("destination_url") and not campaign_data.get("short_code"):
+                    campaign_data["short_code"] = await _generate_unique_short_code(supabase_admin)
                     
                 # We temporarily store camp_name and brand in the payload dict so we can restore them
                 # after Supabase insert (Supabase will ignore extra keys if strict=False, but it's safer to not send them)
@@ -140,10 +178,16 @@ async def execute_intent(
                     updates.pop("brand_name", None)
                     
                 if updates:
-                    # [FIX] If the AI updated the deadline, reset the reminder flags
+                    # [FIX] If the AI updated the deadline, normalize and reset the reminder flags
                     if "deadline" in updates:
+                        if updates["deadline"]:
+                            updates["deadline"] = parse_date_string(str(updates["deadline"]))
+                        else:
+                            updates["deadline"] = None
                         updates["reminder_48h_sent"] = False
                         updates["overdue_alert_sent"] = False
+                    if updates.get("destination_url") and not updates.get("short_code"):
+                        updates["short_code"] = await _generate_unique_short_code(supabase_admin)
                     await supabase_admin.table("campaigns").update(updates).in_("id", target_ids).execute()
                     
                 updated_resp = await (supabase_admin.table("campaigns").select("*").in_("id", target_ids).execute())

@@ -3,6 +3,10 @@
 import { useState, useMemo } from 'react';
 import type { Campaign, CampaignStatus, FilterState } from '@/lib/types';
 import { updateCampaignStatus, deleteCampaign, getApiErrorMessage, bulkUpdateStatus, bulkDeleteCampaigns, bulkRemindCampaigns, exportCsvApi } from '@/lib/api';
+import { isDateOverdue, formatDisplayDate } from '@/lib/dates';
+import ProofHistoryModal from '@/components/modals/ProofHistoryModal';
+import TrackingModal from '@/components/modals/TrackingModal';
+import FeedbackModal, { type FeedbackModalState } from '@/components/modals/FeedbackModal';
 import {
   ChevronUp, ChevronDown, Trash2,
   Calendar, DollarSign, AlertCircle, CheckCircle2,
@@ -53,9 +57,7 @@ export default function CampaignTable({
   const [isBulkActioning, setIsBulkActioning] = useState(false);
   const [trackingModalCampaign, setTrackingModalCampaign] = useState<Campaign | null>(null);
   const [proofHistoryCampaign, setProofHistoryCampaign] = useState<Campaign | null>(null);
-
-  type FeedbackStep = 'input' | 'share';
-  const [feedbackModal, setFeedbackModal] = useState<{ id: string, step: FeedbackStep, feedback: string } | null>(null);
+  const [feedbackModal, setFeedbackModal] = useState<FeedbackModalState | null>(null);
 
   const handleSort = (key: keyof Campaign) => {
     if (sortKey === key) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
@@ -202,7 +204,7 @@ export default function CampaignTable({
   };
 
   const isOverdue = (c: Campaign) =>
-    c.deadline && c.status === 'active' && new Date(c.deadline) < new Date();
+    !!(c.deadline && c.status === 'active' && isDateOverdue(c.deadline));
 
   const SortIcon = ({ col }: { col: keyof Campaign }) =>
     sortKey === col
@@ -549,7 +551,7 @@ export default function CampaignTable({
                                 <Calendar className="w-3.5 h-3.5 text-slate-500 flex-shrink-0" />
                               )}
                               <span className={overdue ? 'text-rose-400 font-medium' : ''}>
-                                {new Date(c.deadline).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
+                                {formatDisplayDate(c.deadline)}
                               </span>
                               {overdue && (
                                 <span className="text-[9px] font-mono font-bold text-rose-400 bg-rose-500/15 border border-rose-500/25 px-1 py-0.2 rounded">
@@ -798,279 +800,25 @@ export default function CampaignTable({
       )}
 
       {/* ── Proof Revision History Drawer ── */}
-      {proofHistoryCampaign && (
-        <div className="fixed inset-0 z-50 flex items-center justify-end bg-black/60 dark:bg-black/75 backdrop-blur-sm animate-fade-in">
-          <div 
-            className="w-full max-w-md h-full bg-white dark:bg-[#0A0E17] border-l border-slate-200 dark:border-white/[0.08] p-6 flex flex-col justify-between shadow-2xl animate-slide-in-right overflow-y-auto"
-            onClick={e => e.stopPropagation()}
-          >
-            <div>
-              <div className="flex items-center justify-between pb-4 border-b border-slate-200 dark:border-white/[0.06] mb-5">
-                <div>
-                  <h2 className="text-base font-semibold text-slate-900 dark:text-white flex items-center gap-2">
-                    <Clock className="w-4 h-4 text-blue-500 dark:text-blue-400" />
-                    Proof Revision History
-                  </h2>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 font-mono mt-0.5">
-                    {proofHistoryCampaign.influencer_name} ({proofHistoryCampaign.influencer_handle})
-                  </p>
-                </div>
-                <button 
-                  onClick={() => setProofHistoryCampaign(null)}
-                  className="p-1.5 text-slate-400 hover:text-slate-700 dark:hover:text-white rounded-lg hover:bg-slate-100 dark:hover:bg-white/[0.04] transition-colors"
-                  aria-label="Close drawer"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-
-              {/* Latest Active Proof */}
-              {proofHistoryCampaign.proof_url && (
-                <div className="mb-5 p-3.5 bg-emerald-500/10 dark:bg-emerald-500/[0.06] border border-emerald-500/20 rounded-xl">
-                  <div className="flex items-center justify-between mb-1.5">
-                    <span className="text-[10px] font-mono uppercase tracking-wider text-emerald-600 dark:text-emerald-400 font-bold">
-                      Latest Submission
-                    </span>
-                    <span className="w-2 h-2 rounded-full bg-emerald-500 dark:bg-emerald-400 animate-pulse" />
-                  </div>
-                  <a
-                    href={proofHistoryCampaign.proof_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-xs font-mono text-emerald-600 dark:text-emerald-300 hover:underline flex items-center gap-1.5 break-all"
-                  >
-                    <span>{proofHistoryCampaign.proof_url}</span>
-                    <ExternalLink className="w-3 h-3 shrink-0" />
-                  </a>
-                </div>
-              )}
-
-              {/* Previous Iterations */}
-              <div className="space-y-3">
-                <p className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider font-mono">
-                  Iteration Log ({proofHistoryCampaign.proof_history?.length || 0})
-                </p>
-                {proofHistoryCampaign.proof_history && proofHistoryCampaign.proof_history.length > 0 ? (
-                  proofHistoryCampaign.proof_history.map((item, idx) => (
-                    <div
-                      key={idx}
-                      className="p-3 bg-slate-50 dark:bg-white/[0.02] border border-slate-200 dark:border-white/[0.06] rounded-xl hover:border-slate-300 dark:hover:border-white/[0.12] transition-colors"
-                    >
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="font-mono text-xs font-semibold text-slate-900 dark:text-slate-200">
-                          Version {idx + 1}
-                        </span>
-                        <span className="font-mono text-[11px] text-slate-500">
-                          {new Date(item.uploaded_at).toLocaleString('en-IN', {
-                            day: '2-digit',
-                            month: 'short',
-                            year: 'numeric',
-                            hour: '2-digit',
-                            minute: '2-digit',
-                          })}
-                        </span>
-                      </div>
-                      <a
-                        href={item.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-xs font-mono text-blue-500 dark:text-blue-400 hover:underline flex items-center gap-1.5 break-all mt-1.5"
-                      >
-                        <span className="truncate">{item.url}</span>
-                        <ExternalLink className="w-3 h-3 shrink-0" />
-                      </a>
-                    </div>
-                  ))
-                ) : (
-                  <p className="text-xs text-slate-500 font-mono py-4 text-center">
-                    No prior revisions recorded for this campaign.
-                  </p>
-                )}
-              </div>
-            </div>
-
-            <div className="pt-6 border-t border-slate-200 dark:border-white/[0.06] mt-6">
-              <button
-                onClick={() => setProofHistoryCampaign(null)}
-                className="w-full py-2.5 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-white/[0.04] dark:hover:bg-white/[0.08] text-slate-700 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white text-xs font-semibold transition-colors border border-slate-200 dark:border-white/[0.06]"
-              >
-                Close Drawer
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ProofHistoryModal
+        campaign={proofHistoryCampaign}
+        onClose={() => setProofHistoryCampaign(null)}
+      />
 
       {/* ── Affiliate Link Analytics Modal ── */}
-      {trackingModalCampaign && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-fade-in">
-          <div 
-            className="w-full max-w-md bg-white dark:bg-[#0A0E17] rounded-2xl shadow-2xl overflow-hidden border border-slate-200 dark:border-white/[0.08] animate-slide-up"
-            onClick={e => e.stopPropagation()}
-          >
-            <div className="p-5 border-b border-slate-100 dark:border-white/[0.06] flex items-center justify-between">
-              <div>
-                <h2 className="text-base font-semibold text-slate-900 dark:text-white flex items-center gap-2">
-                  <TrendingUp className="w-4 h-4 text-emerald-500 dark:text-emerald-400" />
-                  Link Analytics
-                </h2>
-                <p className="text-xs text-slate-500 dark:text-slate-400 font-mono mt-0.5">{trackingModalCampaign.influencer_name}</p>
-              </div>
-              <button 
-                onClick={() => setTrackingModalCampaign(null)}
-                className="p-1.5 text-slate-400 hover:text-slate-700 dark:hover:text-white rounded-lg hover:bg-slate-100 dark:hover:bg-white/[0.04] transition-colors"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-            
-            <div className="p-5">
-              <div className="bg-slate-50 dark:bg-white/[0.02] border border-emerald-500/20 rounded-xl p-5 text-center mb-4">
-                <p className="text-xs font-mono uppercase tracking-wider text-emerald-600 dark:text-emerald-400 mb-1">Total Verified Clicks</p>
-                <p className="font-mono text-5xl font-semibold text-slate-900 dark:text-white tracking-tight">
-                  {trackingModalCampaign.clicks}
-                </p>
-              </div>
-
-              <div className="space-y-2.5">
-                <div className="flex justify-between items-center p-2.5 bg-slate-50 dark:bg-white/[0.02] rounded-lg border border-slate-200 dark:border-white/[0.06]">
-                  <span className="text-xs text-slate-500 dark:text-slate-400">Cost Per Click (CPC)</span>
-                  <span className="text-xs font-mono font-semibold text-slate-900 dark:text-white">
-                    {trackingModalCampaign.clicks > 0 
-                      ? `₹${((trackingModalCampaign.payment_amount || 0) / trackingModalCampaign.clicks).toFixed(2)}` 
-                      : '—'}
-                  </span>
-                </div>
-                <div className="flex justify-between items-center p-2.5 bg-slate-50 dark:bg-white/[0.02] rounded-lg border border-slate-200 dark:border-white/[0.06]">
-                  <span className="text-xs text-slate-500 dark:text-slate-400">Destination</span>
-                  <a 
-                    href={trackingModalCampaign.destination_url || '#'} 
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-xs font-mono text-emerald-600 dark:text-emerald-400 hover:underline max-w-[200px] truncate"
-                  >
-                    {trackingModalCampaign.destination_url || 'None'}
-                  </a>
-                </div>
-              </div>
-            </div>
-            
-            <div className="p-5 pt-0">
-              <button
-                onClick={() => setTrackingModalCampaign(null)}
-                className="w-full bg-slate-100 hover:bg-slate-200 dark:bg-white/[0.04] dark:hover:bg-white/[0.08] text-slate-700 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white text-xs font-semibold rounded-lg px-4 py-2.5 transition-colors border border-slate-200 dark:border-white/[0.06]"
-              >
-                Close Analytics
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <TrackingModal
+        campaign={trackingModalCampaign}
+        onClose={() => setTrackingModalCampaign(null)}
+      />
 
       {/* ── Revision Feedback Modal ── */}
-      {feedbackModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-fade-in">
-          <div 
-            className="w-full max-w-md bg-white dark:bg-[#0A0E17] rounded-2xl shadow-2xl overflow-hidden border border-slate-200 dark:border-white/[0.08] animate-slide-up"
-            onClick={e => e.stopPropagation()}
-          >
-            <div className="p-5 border-b border-slate-100 dark:border-white/[0.06] flex items-center justify-between">
-              <h2 className="text-base font-semibold text-slate-900 dark:text-white flex items-center gap-2">
-                {feedbackModal.step === 'input' ? 'Request Deliverable Revision' : 'Notify Influencer'}
-              </h2>
-              <button 
-                onClick={() => setFeedbackModal(null)}
-                className="p-1.5 text-slate-400 hover:text-slate-700 dark:hover:text-white rounded-lg hover:bg-slate-100 dark:hover:bg-white/[0.04] transition-colors"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-            
-            <div className="p-5">
-              {feedbackModal.step === 'input' ? (
-                <>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 mb-3">
-                    Specify required edits. This will mark the campaign as "Needs Revision" and generate a WhatsApp template.
-                  </p>
-                  <textarea
-                    autoFocus
-                    value={feedbackModal.feedback}
-                    onChange={e => setFeedbackModal({ ...feedbackModal, feedback: e.target.value })}
-                    placeholder="E.g., The product packaging is partially obscured during seconds 0:04–0:08..."
-                    className="w-full h-28 bg-slate-50 dark:bg-[#05070B] border border-slate-200 dark:border-white/[0.08] rounded-lg p-3 text-slate-900 dark:text-white text-xs focus:outline-none focus:border-emerald-500/50 resize-none font-sans"
-                  />
-                  <div className="mt-4 flex gap-2">
-                    <button
-                      onClick={() => setFeedbackModal(null)}
-                      className="flex-1 px-3 py-2 text-xs font-medium text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/[0.04] rounded-lg transition-colors border border-slate-200 dark:border-white/[0.06]"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      onClick={async () => {
-                        try {
-                          await updateCampaignStatus(feedbackModal.id, { status: 'needs_revision', feedback: feedbackModal.feedback });
-                          toast.success('Status updated to Needs Revision');
-                          onRefresh();
-                          setFeedbackModal({ ...feedbackModal, step: 'share' });
-                        } catch (err) {
-                          toast.error(getApiErrorMessage(err, 'Failed to update status'));
-                        }
-                      }}
-                      disabled={!feedbackModal.feedback.trim()}
-                      className="flex-1 px-3 py-2 bg-emerald-500 hover:bg-emerald-400 text-[#05070B] text-xs font-semibold rounded-lg transition-all shadow-[0_1px_8px_rgba(16,185,129,0.25)] disabled:opacity-50"
-                    >
-                      Save & Continue
-                    </button>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 mb-3">
-                    Copy or dispatch this revision notice directly via WhatsApp.
-                  </p>
-                  {(() => {
-                    const campaign = campaigns.find(c => c.id === feedbackModal.id);
-                    const link = campaign?.magic_link_token ? `${window.location.origin}/submit-proof/${campaign.magic_link_token}` : '';
-                    const message = `Hi ${campaign?.influencer_name || 'there'},\n\nYour recent Collabo proof needs a quick revision.\n\nFeedback: ${feedbackModal.feedback}\n\nPlease upload the updated version here:\n${link}`;
-                    
-                    return (
-                      <>
-                        <textarea
-                          readOnly
-                          value={message}
-                          className="w-full h-40 bg-slate-50 dark:bg-[#05070B] border border-slate-200 dark:border-white/[0.08] rounded-lg p-3 text-slate-800 dark:text-slate-200 text-xs font-mono focus:outline-none resize-none"
-                        />
-                        <div className="mt-4 flex gap-2">
-                          <button
-                            onClick={() => {
-                              navigator.clipboard.writeText(message);
-                              toast.success('Notice copied to clipboard!');
-                            }}
-                            className="flex-1 px-3 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-white/[0.04] dark:hover:bg-white/[0.08] text-slate-700 dark:text-slate-200 text-xs font-medium rounded-lg transition-colors border border-slate-200 dark:border-white/[0.06]"
-                          >
-                            Copy Message
-                          </button>
-                          <a
-                            href={`https://wa.me/?text=${encodeURIComponent(message)}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            onClick={() => setFeedbackModal(null)}
-                            className="flex-1 px-3 py-2 bg-emerald-500 hover:bg-emerald-400 text-[#05070B] text-xs font-semibold rounded-lg transition-all shadow-[0_1px_8px_rgba(16,185,129,0.25)] text-center flex items-center justify-center gap-1.5"
-                          >
-                            <MessageCircle className="w-3.5 h-3.5" />
-                            Send WhatsApp
-                          </a>
-                        </div>
-                      </>
-                    );
-                  })()}
-                </>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
+      <FeedbackModal
+        data={feedbackModal}
+        campaigns={campaigns}
+        onClose={() => setFeedbackModal(null)}
+        onRefresh={onRefresh}
+        onChangeData={setFeedbackModal}
+      />
     </div>
   );
 }

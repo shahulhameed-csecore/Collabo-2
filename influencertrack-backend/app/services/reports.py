@@ -27,7 +27,7 @@ async def fetch_monthly_metrics(user_id: str, start_date: str, end_date: str) ->
     import asyncio
     resp = await (client.table("campaigns").select(
         "status, payment_amount, platform"
-    ).eq("user_id", user_id).gte("created_at", f"{start_date}T00:00:00Z").lte("created_at", f"{end_date}T23:59:59Z").execute())
+    ).eq("user_id", user_id).gte("created_at", f"{start_date}T00:00:00+05:30").lte("created_at", f"{end_date}T23:59:59+05:30").execute())
     
     data = resp.data or []
     
@@ -49,7 +49,7 @@ async def fetch_monthly_metrics(user_id: str, start_date: str, end_date: str) ->
             platform_spend[platform] += amount
         elif status == "cancelled":
             cancelled_count += 1
-        elif status in ["active", "content_received", "approved"]:
+        elif status in ["active", "content_received", "approved", "needs_revision"]:
             pending_count += 1
             pending_value += amount
 

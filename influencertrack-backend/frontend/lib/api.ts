@@ -355,9 +355,11 @@ export async function downloadReport(month: string, format: 'pdf' | 'excel'): Pr
 
 export function computeDashboardStats(campaigns: Campaign[] = []): DashboardStats {
   const safeCampaigns = Array.isArray(campaigns) ? campaigns : [];
+  const todayStr = new Date().toLocaleDateString('en-CA');
   const now = new Date();
   const sevenDaysLater = new Date(now);
   sevenDaysLater.setDate(now.getDate() + 7);
+  const sevenDaysLaterStr = sevenDaysLater.toLocaleDateString('en-CA');
 
   // Define logical buckets for financial calculations
   const pendingStatuses: string[] = ['draft', 'active', 'content_received', 'needs_revision', 'approved'];
@@ -370,15 +372,14 @@ export function computeDashboardStats(campaigns: Campaign[] = []): DashboardStat
   // Overdue: Only states where the influencer owes us action (draft, active, needs_revision)
   const overdue = safeCampaigns.filter(c =>
     ['draft', 'active', 'needs_revision'].includes(c.status) &&
-    c.deadline && new Date(c.deadline) < now
+    c.deadline && c.deadline < todayStr
   );
 
   // Upcoming deadlines (next 7 days, influencer owes action)
   const upcomingDeadlines = safeCampaigns
     .filter(c => {
       if (!['draft', 'active', 'needs_revision'].includes(c.status) || !c.deadline) return false;
-      const d = new Date(c.deadline);
-      return d >= now && d <= sevenDaysLater;
+      return c.deadline >= todayStr && c.deadline <= sevenDaysLaterStr;
     })
     .sort((a, b) => new Date(a.deadline!).getTime() - new Date(b.deadline!).getTime());
 

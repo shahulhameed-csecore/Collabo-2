@@ -25,7 +25,7 @@ ALLOWED_MIME_TYPES = {
     "video/quicktime": ".mov"
 }
 
-MAX_IMAGE_SIZE = 5 * 1024 * 1024 # 5MB
+MAX_IMAGE_SIZE = 10 * 1024 * 1024 # 10MB
 MAX_VIDEO_SIZE = 50 * 1024 * 1024 # 50MB
 
 import html
@@ -86,7 +86,9 @@ async def notify_owner_of_proof(user_id: str, inf_name: str):
         if email:
             subject = f"🎉 Proof Received for {inf_name}"
             html = get_proof_received_email_html(inf_name)
-            await _send_email(email, subject, html)
+            import httpx
+            async with httpx.AsyncClient(timeout=15.0) as client:
+                await _send_email(email, subject, html, client=client)
 
 @router.post("/{token}/upload-proof")
 @limiter.limit("10/minute")
@@ -148,7 +150,7 @@ async def upload_proof(
     file.file.seek(0) # Reset to start
     
     if file_size > max_size_allowed:
-        raise HTTPException(status_code=413, detail=f"File size exceeds the limit ({'5MB' if is_image else '50MB'}).")
+        raise HTTPException(status_code=413, detail=f"File size exceeds the limit ({'10MB' if is_image else '50MB'}).")
 
     # 3. Generate Secure Filename
     ext = ALLOWED_MIME_TYPES[file_mime]

@@ -1,6 +1,6 @@
 'use client';
 
-import { motion, useScroll, useTransform } from 'framer-motion';
+import { motion, useScroll, useTransform, MotionValue } from 'framer-motion';
 import { useRef } from 'react';
 import { CheckCircle2 } from 'lucide-react';
 
@@ -68,7 +68,19 @@ export function MagicMomentTimeline() {
   );
 }
 
-function TimelineItem({ step, index, progress, total }: any) {
+interface TimelineStepItem {
+  title: string;
+  desc: string;
+}
+
+interface TimelineItemProps {
+  step: TimelineStepItem;
+  index: number;
+  progress: MotionValue<number>;
+  total: number;
+}
+
+function TimelineItem({ step, index, progress, total }: TimelineItemProps) {
   // Calculate when this specific item should light up
   const start = index / total;
   const end = (index + 1) / total;
@@ -93,7 +105,7 @@ function TimelineItem({ step, index, progress, total }: any) {
   );
 }
 
-function SparklesIcon({ progress }: { progress: any }) {
+function SparklesIcon({ progress }: { progress: MotionValue<number> }) {
   const rotate = useTransform(progress, [0, 1], [0, 360]);
   return (
     <motion.svg style={{ rotate }} xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-indigo-400">

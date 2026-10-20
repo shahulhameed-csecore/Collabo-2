@@ -179,6 +179,7 @@ async def get_settings(
             "whatsapp_number": None,
             "email_reminders_enabled": True,
             "whatsapp_reminders_enabled": True,
+            "username": None,
             "telegram_username": None,
             "whatsapp_verified": False,
             "whatsapp_verified_at": None,

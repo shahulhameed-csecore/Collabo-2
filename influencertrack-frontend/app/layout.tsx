@@ -2,7 +2,6 @@ import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { Toaster } from "sonner";
 import { ThemeProvider } from "@/components/ThemeProvider";
-import { GoogleOAuthProvider } from "@react-oauth/google";
 import { CampaignModalProvider } from "@/contexts/CampaignModalContext";
 import Script from 'next/script';
 import "./globals.css";
@@ -95,11 +94,9 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}>
       <body className="min-h-full flex flex-col bg-background text-foreground transition-colors duration-200">
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
-          <GoogleOAuthProvider clientId={process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || ''}>
-            <CampaignModalProvider>
-              {children}
-            </CampaignModalProvider>
-          </GoogleOAuthProvider>
+          <CampaignModalProvider>
+            {children}
+          </CampaignModalProvider>
           <Toaster
             position="bottom-right"
             toastOptions={{

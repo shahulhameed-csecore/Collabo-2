@@ -112,6 +112,7 @@ export default function DashboardPage() {
         setStats(computeDashboardStats(newData));
         return newData;
       });
+      if (pageNum === 1) setPage(1);
       setHasMore(items.length === limit);
       setTotalCount(data?.count ?? items.length);
     } catch (err) {
@@ -362,9 +363,12 @@ export default function DashboardPage() {
               {urgentDeadlines.length > 0 ? (
                 <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-1 w-full">
                   {urgentDeadlines.map(c => {
-                    const deadline = new Date(c.deadline!);
-                    const now = new Date();
-                    const daysLeft = Math.ceil((deadline.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+                    const [y, m, d] = c.deadline!.split('-').map(Number);
+                    const deadline = new Date(y, m - 1, d);
+                    const todayDate = new Date();
+                    todayDate.setHours(0, 0, 0, 0);
+                    const diffMs = deadline.getTime() - todayDate.getTime();
+                    const daysLeft = Math.round(diffMs / (1000 * 60 * 60 * 24));
                     const isOverdue = daysLeft < 0;
                     const isToday = daysLeft === 0;
 

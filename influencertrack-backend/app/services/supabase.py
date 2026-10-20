@@ -86,16 +86,15 @@ async def is_user_pro_or_paid(service_client, user_id: str) -> tuple[bool, dict]
         parsed_trial_ends_at = parsed_trial_ends_at.replace(tzinfo=timezone.utc)
 
     now = datetime.now(timezone.utc)
-    has_valid_time = (parsed_trial_ends_at is None) or (parsed_trial_ends_at > now)
+    # has_valid_time is True if trial_ends_at is in the future, OR if trial_ends_at is None and tier == 'pro' (lifetime/manual pro)
+    if parsed_trial_ends_at is not None:
+        has_valid_time = parsed_trial_ends_at > now
+    else:
+        has_valid_time = (tier == "pro")
 
     is_pro = False
-    # Rule 1: Paid account (active expiration or lifetime/manual pro)
-    if is_paid and (has_valid_time or tier == "pro"):
+    if (tier == "pro" or is_paid) and has_valid_time:
         is_pro = True
-    # Rule 2: Tier is Pro (active paid or trial)
-    elif tier == "pro" and (is_paid or has_valid_time):
-        is_pro = True
-    # Rule 3: Active trial
     elif parsed_trial_ends_at and parsed_trial_ends_at > now:
         is_pro = True
 

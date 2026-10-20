@@ -204,10 +204,26 @@ async def verify_payment(
                     f"order_id.eq.{req.razorpay_order_id},payment_id.eq.{req.razorpay_payment_id}"
                 ).execute()
                 if existing_tx.data and existing_tx.data[0].get("user_id") == user.user.id:
-                    logger.info("payment_already_credited_graceful", order_id=req.razorpay_order_id, user_id=user.user.id)
-                    return {"status": "already_credited", "message": "Payment verified and already credited."}
-                raise HTTPException(status_code=400, detail="This payment has already been credited or belongs to another user.")
-            raise db_err
+                    # When a duplicate key on processed_transactions is caught for the same user,
+                    # verify that the user's subscriptions row actually has tier == "pro" and is_paid == True
+                    # —if not, execute the subscription upgrade before returning already_credited.
+                    sub_check = await service_client.table("subscriptions").select("tier, is_paid").eq("user_id", user.user.id).execute()
+                    needs_upgrade = True
+                    if sub_check.data:
+                        sub_row = sub_check.data[0]
+                        if sub_row.get("tier") == "pro" and sub_row.get("is_paid") is True:
+                            needs_upgrade = False
+                    
+                    if not needs_upgrade:
+                        logger.info("payment_already_credited_graceful", order_id=req.razorpay_order_id, user_id=user.user.id)
+                        return {"status": "already_credited", "message": "Payment verified and already credited."}
+                    else:
+                        logger.info("payment_tx_exists_but_sub_not_pro", order_id=req.razorpay_order_id, user_id=user.user.id)
+                        tx_inserted = True
+                else:
+                    raise HTTPException(status_code=400, detail="This payment has already been credited or belongs to another user.")
+            else:
+                raise db_err
 
         # 4. Extend subscription with rollback safety
         try:
@@ -283,43 +299,51 @@ async def process_razorpay_webhook_db(order_id: str, user_id: str, notes: dict):
         else:
             raise db_err
 
-    now = datetime.now(timezone.utc)
-    sub_response = await service_client.table("subscriptions").select("*").eq("user_id", user_id).execute()
-    
-    is_annual = notes.get("type") == "annual_pro"
-    days_to_add = 365 if is_annual else 30 
-    
-    if sub_response.data:
-        current_sub = sub_response.data[0]
-        current_trial = current_sub.get("trial_ends_at")
-        if current_trial:
-            try:
-                parsed_trial = datetime.fromisoformat(current_trial.replace("Z", "+00:00"))
-                if parsed_trial > now:
-                    new_expiry = parsed_trial + timedelta(days=days_to_add)
-                else:
-                    new_expiry = now + timedelta(days=days_to_add)
-            except:
-                new_expiry = now + timedelta(days=days_to_add)
-        else:
-            new_expiry = now + timedelta(days=days_to_add)
-            
-        await service_client.table("subscriptions").update({
-            "tier": "pro",
-            "trial_ends_at": new_expiry.isoformat(),
-            "is_paid": True
-        }).eq("user_id", user_id).execute()
-    else:
-        await service_client.table("subscriptions").insert({
-            "user_id": user_id,
-            "tier": "pro",
-            "trial_ends_at": (now + timedelta(days=days_to_add)).isoformat(),
-            "is_paid": True
-        }).execute()
+    try:
+        now = datetime.now(timezone.utc)
+        sub_response = await service_client.table("subscriptions").select("*").eq("user_id", user_id).execute()
         
-    import structlog
-    structlog.get_logger(__name__).info("webhook_processed_success", order_id=order_id, user_id=user_id)
-    return {"status": "ok"}
+        is_annual = notes.get("type") == "annual_pro"
+        days_to_add = 365 if is_annual else 30 
+        
+        if sub_response.data:
+            current_sub = sub_response.data[0]
+            current_trial = current_sub.get("trial_ends_at")
+            if current_trial:
+                try:
+                    parsed_trial = datetime.fromisoformat(current_trial.replace("Z", "+00:00"))
+                    if parsed_trial > now:
+                        new_expiry = parsed_trial + timedelta(days=days_to_add)
+                    else:
+                        new_expiry = now + timedelta(days=days_to_add)
+                except Exception:
+                    new_expiry = now + timedelta(days=days_to_add)
+            else:
+                new_expiry = now + timedelta(days=days_to_add)
+                
+            await service_client.table("subscriptions").update({
+                "tier": "pro",
+                "trial_ends_at": new_expiry.isoformat(),
+                "is_paid": True
+            }).eq("user_id", user_id).execute()
+        else:
+            await service_client.table("subscriptions").insert({
+                "user_id": user_id,
+                "tier": "pro",
+                "trial_ends_at": (now + timedelta(days=days_to_add)).isoformat(),
+                "is_paid": True
+            }).execute()
+            
+        import structlog
+        structlog.get_logger(__name__).info("webhook_processed_success", order_id=order_id, user_id=user_id)
+        return {"status": "ok"}
+    except Exception as sub_err:
+        try:
+            await service_client.table("processed_transactions").delete().eq("order_id", order_id).execute()
+        except Exception as rollback_err:
+            import structlog
+            structlog.get_logger(__name__).error("failed_to_rollback_webhook_tx", error=str(rollback_err))
+        raise sub_err
 
 @router.post("/razorpay-webhook")
 async def razorpay_webhook(request: Request, background_tasks: BackgroundTasks):

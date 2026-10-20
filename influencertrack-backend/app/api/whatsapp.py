@@ -25,6 +25,7 @@ _MAX_MEDIA_BYTES = 16 * 1024 * 1024
 
 _message_buffer = {}
 _batch_locks = set()
+_running_batch_tasks = set()
 
 # Supabase service client (bypasses RLS) is lazily initialized via get_supabase_admin()
 
@@ -594,7 +595,9 @@ async def meta_whatsapp_webhook(request: Request, background_tasks: BackgroundTa
                             lock_acquired = await redis_client.set(lock_key, "1", ex=4, nx=True)
                             
                             if lock_acquired:
-                                asyncio.create_task(_process_batched_wrapper(sender_id))
+                                t = asyncio.create_task(_process_batched_wrapper(sender_id))
+                                _running_batch_tasks.add(t)
+                                t.add_done_callback(_running_batch_tasks.discard)
                         else:
                             # In-memory fallback
                             if sender_id not in _message_buffer:
@@ -603,7 +606,9 @@ async def meta_whatsapp_webhook(request: Request, background_tasks: BackgroundTa
                             
                             if sender_id not in _batch_locks:
                                 _batch_locks.add(sender_id)
-                                asyncio.create_task(_process_batched_wrapper(sender_id))
+                                t = asyncio.create_task(_process_batched_wrapper(sender_id))
+                                _running_batch_tasks.add(t)
+                                t.add_done_callback(_running_batch_tasks.discard)
     except Exception as e:
         logger.error("Error queueing Meta webhook payload for processing", error=str(e))
 

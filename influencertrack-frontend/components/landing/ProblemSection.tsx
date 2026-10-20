@@ -73,7 +73,13 @@ export function ProblemSection() {
   );
 }
 
-function ProblemCard({ prob, index }: { prob: any, index: number }) {
+interface ProblemSectionItem {
+  icon: React.ReactNode;
+  title: string;
+  desc: string;
+}
+
+function ProblemCard({ prob, index }: { prob: ProblemSectionItem; index: number }) {
   const cardRef = useRef<HTMLDivElement>(null);
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
 

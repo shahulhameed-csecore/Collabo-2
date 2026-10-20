@@ -67,15 +67,21 @@ export function PainPointCards() {
   );
 }
 
-function ProblemCard({ prob, index }: { prob: any, index: number }) {
-  
-  const bgColors: any = {
+interface ProblemItem {
+  type: string;
+  icon: React.ReactNode;
+  title: string;
+  desc: string;
+}
+
+function ProblemCard({ prob, index }: { prob: ProblemItem; index: number }) {
+  const bgColors: Record<ProblemItem['type'], string> = {
     danger: "bg-[#FF4F81]/10 border-[#FF4F81]/20",
     warning: "bg-[#FFC933]/10 border-[#FFC933]/20",
     neutral: "bg-[#1E293B] border-[#1E293B]"
   };
 
-  const textColors: any = {
+  const textColors: Record<ProblemItem['type'], string> = {
     danger: "text-[#FF4F81]",
     warning: "text-[#FFC933]",
     neutral: "text-[#94A3B8]"

@@ -22,10 +22,22 @@ interface AnalyticsChartProps {
   data: AnalyticsChartDataPoint[];
 }
 
-const CustomTooltip = ({ active, payload, label }: any) => {
+interface TooltipPayloadItem {
+  dataKey: string;
+  value: number;
+  [key: string]: unknown;
+}
+
+interface CustomTooltipProps {
+  active?: boolean;
+  payload?: TooltipPayloadItem[];
+  label?: string;
+}
+
+const CustomTooltip = ({ active, payload, label }: CustomTooltipProps) => {
   if (active && payload && payload.length) {
-    const clicks = payload.find((p: any) => p.dataKey === 'clicks')?.value || 0;
-    const spend = payload.find((p: any) => p.dataKey === 'spend')?.value || 0;
+    const clicks = payload.find(p => p.dataKey === 'clicks')?.value || 0;
+    const spend = payload.find(p => p.dataKey === 'spend')?.value || 0;
     const cpc = clicks > 0 ? spend / clicks : 0;
 
     return (

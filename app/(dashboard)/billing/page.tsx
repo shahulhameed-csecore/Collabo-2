@@ -28,13 +28,19 @@ export default function BillingPage() {
         const { data: { session } } = await supabase.auth.getSession();
         const userId = session?.user?.id;
 
-        // 1. Direct Supabase query for instant resilient state
-        if (userId) {
-          const [{ data: subData }, { count: campCount }] = await Promise.all([
-            supabase.from('subscriptions').select('*').eq('user_id', userId).maybeSingle(),
-            supabase.from('campaigns').select('id', { count: 'exact', head: true }).eq('user_id', userId),
-          ]);
+        // Parallelize direct Supabase queries and backend billing usage fetch
+        const [dbResult, usageResult] = await Promise.allSettled([
+          userId
+            ? Promise.all([
+                supabase.from('subscriptions').select('*').eq('user_id', userId).maybeSingle(),
+                supabase.from('campaigns').select('id', { count: 'exact', head: true }).eq('user_id', userId),
+              ])
+            : Promise.resolve([null, null]),
+          getBillingUsage(),
+        ]);
 
+        if (dbResult.status === 'fulfilled' && dbResult.value) {
+          const [{ data: subData }, { count: campCount }] = dbResult.value as any;
           if (subData) {
             setDirectSub(subData);
           }
@@ -43,12 +49,8 @@ export default function BillingPage() {
           }
         }
 
-        // 2. Fetch from backend API
-        try {
-          const data = await getBillingUsage();
-          setUsage(data);
-        } catch {
-          // Handled gracefully via Supabase data
+        if (usageResult.status === 'fulfilled' && usageResult.value) {
+          setUsage(usageResult.value);
         }
       } catch (err) {
         console.warn('Billing data fetch:', err);
@@ -72,9 +74,7 @@ export default function BillingPage() {
         ? liveCampaignCount
         : (usage?.campaigns_this_month || 0));
 
-  const aiExtractionsCount = (usage?.ai_extractions_used && usage.ai_extractions_used > 0) 
-    ? usage.ai_extractions_used 
-    : 91;
+  const aiExtractionsCount = usage?.ai_extractions_used ?? 0;
 
   const handleUpgrade = async () => {
     if (IS_TESTING_PHASE && !process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID) {

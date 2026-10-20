@@ -42,10 +42,10 @@ function ArchitecturalMetricCard({
   return (
     <div
       id={id}
-      className="bg-[#0A0E17] border border-white/[0.07] rounded-xl p-5 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.06)] hover:border-white/[0.12] transition-colors flex flex-col justify-between"
+      className="bg-white dark:bg-[#0A0E17] border border-slate-200 dark:border-white/[0.07] rounded-xl p-5 shadow-sm dark:shadow-[inset_0_1px_0_0_rgba(255,255,255,0.06)] hover:border-slate-300 dark:hover:border-white/[0.12] transition-colors flex flex-col justify-between"
     >
       <div className="flex items-center justify-between gap-2 mb-3">
-        <span className="text-[11px] font-medium tracking-wider text-slate-400 uppercase font-sans">
+        <span className="text-[11px] font-medium tracking-wider text-slate-500 dark:text-slate-400 uppercase font-sans">
           {label}
         </span>
         {statusDot && (
@@ -54,13 +54,13 @@ function ArchitecturalMetricCard({
       </div>
 
       <div className="my-1">
-        <span className="font-mono tabular-nums text-3xl font-semibold text-white tracking-tight leading-none block">
+        <span className="font-mono tabular-nums text-3xl font-semibold text-slate-900 dark:text-white tracking-tight leading-none block">
           {value}
         </span>
       </div>
 
       {sub && (
-        <p className="text-xs text-slate-400 font-mono mt-2 truncate">
+        <p className="text-xs text-slate-500 dark:text-slate-400 font-mono mt-2 truncate">
           {sub}
         </p>
       )}
@@ -71,13 +71,13 @@ function ArchitecturalMetricCard({
 // ─── Skeleton Metric Card ─────────────────────────────────────────────────────
 function MetricCardSkeleton() {
   return (
-    <div className="bg-[#0A0E17] border border-white/[0.07] rounded-xl p-5 animate-pulse flex flex-col justify-between">
+    <div className="bg-white dark:bg-[#0A0E17] border border-slate-200 dark:border-white/[0.07] rounded-xl p-5 animate-pulse flex flex-col justify-between">
       <div className="flex items-center justify-between mb-4">
-        <div className="h-3 w-20 rounded bg-white/[0.06]" />
-        <div className="w-1.5 h-1.5 rounded-full bg-white/[0.06]" />
+        <div className="h-3 w-20 rounded bg-slate-200 dark:bg-white/[0.06]" />
+        <div className="w-1.5 h-1.5 rounded-full bg-slate-200 dark:bg-white/[0.06]" />
       </div>
-      <div className="h-8 w-24 rounded bg-white/[0.06] mb-3" />
-      <div className="h-3 w-32 rounded bg-white/[0.06]" />
+      <div className="h-8 w-24 rounded bg-slate-200 dark:bg-white/[0.06] mb-3" />
+      <div className="h-3 w-32 rounded bg-slate-200 dark:bg-white/[0.06]" />
     </div>
   );
 }
@@ -112,6 +112,7 @@ export default function DashboardPage() {
         setStats(computeDashboardStats(newData));
         return newData;
       });
+      if (pageNum === 1) setPage(1);
       setHasMore(items.length === limit);
       setTotalCount(data?.count ?? items.length);
     } catch (err) {
@@ -182,8 +183,8 @@ export default function DashboardPage() {
       {/* ── Page Header ── */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
         <div>
-          <h1 className="text-xl font-semibold text-white tracking-tight">Campaign Command Center</h1>
-          <p className="text-xs text-slate-400 font-sans mt-0.5 font-normal">
+          <h1 className="text-xl font-semibold text-slate-900 dark:text-white tracking-tight">Campaign Command Center</h1>
+          <p className="text-xs text-slate-500 dark:text-slate-400 font-sans mt-0.5 font-normal">
             Track deliverables, deadlines, and payouts.
           </p>
         </div>
@@ -195,7 +196,7 @@ export default function DashboardPage() {
               <button
                 onClick={() => setShowDownloadMenu(!showDownloadMenu)}
                 disabled={isDownloading || isLoading}
-                className="flex items-center gap-1.5 bg-[#0A0E17] hover:bg-white/[0.04] border border-white/[0.08] text-slate-300 hover:text-white font-medium rounded-lg px-3 py-2 text-xs transition-colors disabled:opacity-50"
+                className="flex items-center gap-1.5 bg-white dark:bg-[#0A0E17] hover:bg-slate-50 dark:hover:bg-white/[0.04] border border-slate-200 dark:border-white/[0.08] text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white font-medium rounded-lg px-3 py-2 text-xs transition-colors disabled:opacity-50"
               >
                 {isDownloading ? (
                   <RefreshCw className="w-3.5 h-3.5 animate-spin text-emerald-400" />
@@ -207,17 +208,17 @@ export default function DashboardPage() {
               </button>
               
               {showDownloadMenu && (
-                <div className="absolute right-0 mt-1.5 w-44 bg-[#0A0E17] border border-white/[0.08] rounded-xl shadow-2xl py-1 z-50 animate-fade-in">
+                <div className="absolute right-0 mt-1.5 w-44 bg-white dark:bg-[#0A0E17] border border-slate-200 dark:border-white/[0.08] rounded-xl shadow-2xl py-1 z-50 animate-fade-in">
                   <button
                     onClick={() => handleDownload('pdf')}
-                    className="w-full text-left px-3.5 py-2 text-xs text-slate-300 hover:text-white hover:bg-white/[0.04] flex items-center gap-2 transition-colors"
+                    className="w-full text-left px-3.5 py-2 text-xs text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-white/[0.04] flex items-center gap-2 transition-colors"
                   >
                     <FileText className="w-3.5 h-3.5 text-rose-400" />
                     Download PDF
                   </button>
                   <button
                     onClick={() => handleDownload('excel')}
-                    className="w-full text-left px-3.5 py-2 text-xs text-slate-300 hover:text-white hover:bg-white/[0.04] flex items-center gap-2 transition-colors"
+                    className="w-full text-left px-3.5 py-2 text-xs text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-white/[0.04] flex items-center gap-2 transition-colors"
                   >
                     <TableIcon className="w-3.5 h-3.5 text-emerald-400" />
                     Download Excel
@@ -231,7 +232,7 @@ export default function DashboardPage() {
             id="refresh-btn"
             onClick={() => fetchCampaigns(true)}
             disabled={isRefreshing || isLoading}
-            className="flex items-center gap-1.5 bg-[#0A0E17] hover:bg-white/[0.04] border border-white/[0.08] text-slate-300 hover:text-white font-medium rounded-lg px-3 py-2 text-xs transition-colors disabled:opacity-50"
+            className="flex items-center gap-1.5 bg-white dark:bg-[#0A0E17] hover:bg-slate-50 dark:hover:bg-white/[0.04] border border-slate-200 dark:border-white/[0.08] text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white font-medium rounded-lg px-3 py-2 text-xs transition-colors disabled:opacity-50"
             title="Refresh dashboard data"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin text-emerald-400' : ''}`} />
@@ -269,15 +270,15 @@ export default function DashboardPage() {
 
       {/* ── First-time Welcome Banner ── */}
       {isFirstTime && (
-        <div className="mb-6 relative overflow-hidden rounded-2xl border border-white/[0.08] bg-[#0A0E17] p-6 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.06)] animate-fade-in">
+        <div className="mb-6 relative overflow-hidden rounded-2xl border border-slate-200 dark:border-white/[0.08] bg-white dark:bg-[#0A0E17] p-6 shadow-sm dark:shadow-[inset_0_1px_0_0_rgba(255,255,255,0.06)] animate-fade-in">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-5">
             <div className="flex items-start gap-4">
-              <div className="p-2.5 bg-emerald-500/10 rounded-xl border border-emerald-500/20 text-emerald-400 flex-shrink-0">
+              <div className="p-2.5 bg-emerald-500/10 rounded-xl border border-emerald-500/20 text-emerald-500 dark:text-emerald-400 flex-shrink-0">
                 <Zap className="w-5 h-5" />
               </div>
               <div>
-                <h2 className="text-base font-semibold text-white mb-1 tracking-tight">Welcome to Collabo Engine</h2>
-                <p className="text-xs text-slate-400 max-w-lg leading-relaxed">
+                <h2 className="text-base font-semibold text-slate-900 dark:text-white mb-1 tracking-tight">Welcome to Collabo Engine</h2>
+                <p className="text-xs text-slate-600 dark:text-slate-400 max-w-lg leading-relaxed">
                   Track every creator deliverable, deadline, and payout in one unified command center.
                   Forward negotiation chats or voice notes to auto-extract campaigns instantly.
                 </p>
@@ -345,15 +346,15 @@ export default function DashboardPage() {
       {!isLoading && stats && stats.total > 0 && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 mb-5">
           {/* Card A: Urgent & Upcoming Deadlines (Next 7 Days) */}
-          <div className="bg-[#0A0E17] border border-white/[0.07] rounded-xl p-3.5 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.06)] flex flex-col justify-between">
+          <div className="bg-white dark:bg-[#0A0E17] border border-slate-200 dark:border-white/[0.07] rounded-xl p-3.5 shadow-sm dark:shadow-[inset_0_1px_0_0_rgba(255,255,255,0.06)] flex flex-col justify-between">
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-1.5">
-                <Clock className="w-3.5 h-3.5 text-amber-400" />
-                <span className="text-[11px] font-medium tracking-wider text-slate-400 uppercase font-sans">
+                <Clock className="w-3.5 h-3.5 text-amber-500 dark:text-amber-400" />
+                <span className="text-[11px] font-medium tracking-wider text-slate-500 dark:text-slate-400 uppercase font-sans">
                   Upcoming Deadlines (Next 7 Days)
                 </span>
               </div>
-              <span className="text-[10px] font-mono text-amber-400 bg-amber-500/10 border border-amber-500/20 px-1.5 py-0.5 rounded">
+              <span className="text-[10px] font-mono text-amber-600 dark:text-amber-400 bg-amber-500/10 border border-amber-500/20 px-1.5 py-0.5 rounded">
                 {urgentDeadlines.length} scheduled
               </span>
             </div>
@@ -362,35 +363,38 @@ export default function DashboardPage() {
               {urgentDeadlines.length > 0 ? (
                 <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-1 w-full">
                   {urgentDeadlines.map(c => {
-                    const deadline = new Date(c.deadline!);
-                    const now = new Date();
-                    const daysLeft = Math.ceil((deadline.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+                    const [y, m, d] = c.deadline!.split('-').map(Number);
+                    const deadline = new Date(y, m - 1, d);
+                    const todayDate = new Date();
+                    todayDate.setHours(0, 0, 0, 0);
+                    const diffMs = deadline.getTime() - todayDate.getTime();
+                    const daysLeft = Math.round(diffMs / (1000 * 60 * 60 * 24));
                     const isOverdue = daysLeft < 0;
                     const isToday = daysLeft === 0;
 
                     return (
                       <div
                         key={c.id}
-                        className="shrink-0 flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-white/[0.02] border border-white/[0.07] text-xs hover:border-white/[0.14] transition-colors"
+                        className="shrink-0 flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-slate-50 dark:bg-white/[0.02] border border-slate-200 dark:border-white/[0.07] text-xs hover:border-slate-300 dark:hover:border-white/[0.14] transition-colors"
                       >
-                        <span className="font-medium text-slate-200">
+                        <span className="font-medium text-slate-800 dark:text-slate-200">
                           {c.influencer_name || c.influencer_handle}
                         </span>
-                        <span className="text-white/20 text-[10px]">•</span>
-                        <span className="text-slate-400 text-[11px] truncate max-w-[120px]">
+                        <span className="text-slate-300 dark:text-white/20 text-[10px]">•</span>
+                        <span className="text-slate-500 dark:text-slate-400 text-[11px] truncate max-w-[120px]">
                           {c.deliverables || 'Deliverable'}
                         </span>
-                        <span className="text-white/20 text-[10px]">•</span>
-                        <span className="font-mono text-slate-400 text-[11px]">
+                        <span className="text-slate-300 dark:text-white/20 text-[10px]">•</span>
+                        <span className="font-mono text-slate-500 dark:text-slate-400 text-[11px]">
                           {deadline.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}
                         </span>
                         <span
                           className={`font-mono text-[10px] font-medium px-1.5 py-0.5 rounded ${
                             isOverdue
-                              ? 'bg-rose-500/15 text-rose-400 border border-rose-500/30'
+                              ? 'bg-rose-500/15 text-rose-500 dark:text-rose-400 border border-rose-500/30'
                               : isToday
-                              ? 'bg-amber-500/15 text-amber-400 border border-amber-500/30'
-                              : 'bg-white/[0.04] text-slate-300 border border-white/[0.08]'
+                              ? 'bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30'
+                              : 'bg-slate-100 dark:bg-white/[0.04] text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-white/[0.08]'
                           }`}
                         >
                           {isOverdue ? `${Math.abs(daysLeft)}d overdue` : isToday ? 'Today' : `${daysLeft}d left`}
@@ -400,8 +404,8 @@ export default function DashboardPage() {
                   })}
                 </div>
               ) : (
-                <div className="flex items-center gap-2 text-xs text-slate-400 font-sans py-1">
-                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400 font-sans py-1">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 dark:text-emerald-400" />
                   <span>All deadlines on track — no urgent deliverables pending.</span>
                 </div>
               )}
@@ -409,45 +413,45 @@ export default function DashboardPage() {
           </div>
 
           {/* Card B: Pipeline Health & Quick Breakdown */}
-          <div className="bg-[#0A0E17] border border-white/[0.07] rounded-xl p-3.5 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.06)] flex flex-col justify-between">
+          <div className="bg-white dark:bg-[#0A0E17] border border-slate-200 dark:border-white/[0.07] rounded-xl p-3.5 shadow-sm dark:shadow-[inset_0_1px_0_0_rgba(255,255,255,0.06)] flex flex-col justify-between">
             <div className="flex items-center justify-between mb-1.5">
-              <span className="text-[11px] font-medium tracking-wider text-slate-400 uppercase font-sans">
+              <span className="text-[11px] font-medium tracking-wider text-slate-500 dark:text-slate-400 uppercase font-sans">
                 Pipeline Health
               </span>
               <div className="flex items-center gap-3 text-xs font-mono">
-                <span className="text-slate-400">
-                  Success: <span className="text-emerald-400 font-semibold">{stats.successRate}%</span>
+                <span className="text-slate-500 dark:text-slate-400">
+                  Success: <span className="text-emerald-600 dark:text-emerald-400 font-semibold">{stats.successRate}%</span>
                 </span>
                 {stats.avgPayment > 0 && (
-                  <span className="text-slate-400">
-                    Avg: <span className="text-slate-200 font-semibold">₹{stats.avgPayment.toLocaleString('en-IN')}</span>
+                  <span className="text-slate-500 dark:text-slate-400">
+                    Avg: <span className="text-slate-800 dark:text-slate-200 font-semibold">₹{stats.avgPayment.toLocaleString('en-IN')}</span>
                   </span>
                 )}
               </div>
             </div>
 
             {/* Micro Progress Bar */}
-            <div className="h-1.5 w-full bg-white/[0.06] rounded-full overflow-hidden my-2">
+            <div className="h-1.5 w-full bg-slate-100 dark:bg-white/[0.06] rounded-full overflow-hidden my-2">
               <div
-                className="h-full bg-emerald-400 rounded-full transition-all duration-500"
+                className="h-full bg-emerald-500 dark:bg-emerald-400 rounded-full transition-all duration-500"
                 style={{ width: `${stats.successRate}%` }}
               />
             </div>
 
             {/* Mini Horizontal Status Breakdown */}
-            <div className="flex items-center gap-3 text-[11px] font-mono text-slate-400 overflow-x-auto no-scrollbar pt-0.5">
+            <div className="flex items-center gap-3 text-[11px] font-mono text-slate-500 dark:text-slate-400 overflow-x-auto no-scrollbar pt-0.5">
               <span className="flex items-center gap-1.5 shrink-0">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                <span className="text-slate-200">{stats.completed}</span> Paid
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 dark:bg-emerald-400" />
+                <span className="text-slate-800 dark:text-slate-200">{stats.completed}</span> Paid
               </span>
-              <span className="text-white/20">•</span>
+              <span className="text-slate-300 dark:text-white/20">•</span>
               <span className="flex items-center gap-1.5 shrink-0">
-                <span className="w-1.5 h-1.5 rounded-full bg-blue-400" />
-                <span className="text-slate-200">{campaigns.filter(c => c.status === 'approved').length}</span> Approved
+                <span className="w-1.5 h-1.5 rounded-full bg-blue-500 dark:bg-blue-400" />
+                <span className="text-slate-800 dark:text-slate-200">{campaigns.filter(c => c.status === 'approved').length}</span> Approved
               </span>
-              <span className="text-white/20">•</span>
+              <span className="text-slate-300 dark:text-white/20">•</span>
               <span className="flex items-center gap-1.5 shrink-0">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 dark:bg-emerald-400" />
                 <span className="text-slate-200">{stats.active}</span> Active
               </span>
               <span className="text-white/20">•</span>

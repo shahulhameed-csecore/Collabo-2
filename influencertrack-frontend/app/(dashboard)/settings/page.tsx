@@ -59,59 +59,44 @@ export default function SettingsPage() {
         const { data: { session } } = await supabase.auth.getSession();
         const userId = session?.user?.id;
 
-        // 1. Direct Supabase fetch for instant resilience and accurate Pro/WhatsApp state
-        if (userId) {
-          const [{ data: userSettings }, { data: subData }] = await Promise.all([
-            supabase.from('user_settings').select('*').eq('user_id', userId).maybeSingle(),
-            supabase.from('subscriptions').select('*').eq('user_id', userId).maybeSingle(),
-          ]);
+        // Parallelize direct Supabase queries, WhatsApp settings, and billing usage fetching
+        const [dbResult, waResult, billingResult] = await Promise.allSettled([
+          userId
+            ? Promise.all([
+                supabase.from('user_settings').select('*').eq('user_id', userId).maybeSingle(),
+                supabase.from('subscriptions').select('*').eq('user_id', userId).maybeSingle(),
+              ])
+            : Promise.resolve([null, null]),
+          getWhatsAppNumber(),
+          getBillingUsage(),
+        ]);
+
+        if (dbResult.status === 'fulfilled' && dbResult.value) {
+          const [settingsRes, subRes] = dbResult.value as any;
+          const userSettings = settingsRes?.data;
+          const subData = subRes?.data;
 
           if (userSettings) {
-            if (userSettings.whatsapp_number) {
-              setWhatsappNumber(userSettings.whatsapp_number);
-            }
-            if (userSettings.telegram_username) {
-              setTelegramUsername(userSettings.telegram_username);
-            }
-            if (userSettings.email_reminders_enabled !== undefined) {
-              setEmailEnabled(userSettings.email_reminders_enabled);
-            }
-            if (userSettings.whatsapp_reminders_enabled !== undefined) {
-              setWaEnabled(userSettings.whatsapp_reminders_enabled);
-            }
+            if (userSettings.whatsapp_number) setWhatsappNumber(userSettings.whatsapp_number);
+            if (userSettings.telegram_username) setTelegramUsername(userSettings.telegram_username);
+            if (userSettings.email_reminders_enabled !== undefined) setEmailEnabled(userSettings.email_reminders_enabled);
+            if (userSettings.whatsapp_reminders_enabled !== undefined) setWaEnabled(userSettings.whatsapp_reminders_enabled);
           }
-
           if (subData) {
             setSubscriptionData(subData);
           }
         }
 
-        // 2. Fetch from backend API
-        try {
-          const settings = await getWhatsAppNumber();
-          if (settings.whatsapp_number) {
-            setWhatsappNumber(settings.whatsapp_number);
-          }
-          if (settings.telegram_username) {
-            setTelegramUsername(settings.telegram_username);
-          }
-          if (settings.email_reminders_enabled !== undefined) {
-            setEmailEnabled(settings.email_reminders_enabled);
-          }
-          if (settings.whatsapp_reminders_enabled !== undefined) {
-            setWaEnabled(settings.whatsapp_reminders_enabled);
-          }
-        } catch {
-          // Handled via Supabase data
+        if (waResult.status === 'fulfilled' && waResult.value) {
+          const settings = waResult.value;
+          if (settings.whatsapp_number) setWhatsappNumber(settings.whatsapp_number);
+          if (settings.telegram_username) setTelegramUsername(settings.telegram_username);
+          if (settings.email_reminders_enabled !== undefined) setEmailEnabled(settings.email_reminders_enabled);
+          if (settings.whatsapp_reminders_enabled !== undefined) setWaEnabled(settings.whatsapp_reminders_enabled);
         }
 
-        try {
-          const usageData = await getBillingUsage();
-          if (usageData) {
-            setUsage(usageData);
-          }
-        } catch {
-          // Handled via Supabase data
+        if (billingResult.status === 'fulfilled' && billingResult.value) {
+          setUsage(billingResult.value);
         }
       } catch (error) {
         console.warn("Notice: settings initial load:", error);

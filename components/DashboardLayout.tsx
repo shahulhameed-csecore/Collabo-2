@@ -35,7 +35,16 @@ interface DashboardLayoutProps {
   children: React.ReactNode;
 }
 
-const navItems = [
+interface NavItem {
+  href: string;
+  label: string;
+  icon: React.ElementType;
+  disabled?: boolean;
+  soon?: boolean;
+  id?: string;
+}
+
+const navItems: NavItem[] = [
   { href: '/dashboard',           label: 'Campaigns',   icon: LayoutDashboard },
   { href: '/calendar',            label: 'Calendar',    icon: Calendar, id: 'tour-nav-calendar' },
   { href: '/influencers',         label: 'Influencers', icon: Users },
@@ -312,7 +321,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
             Workspace
           </p>
         )}
-        {navItems.map(({ href, label, icon, disabled, soon, id }: any) => (
+        {navItems.map(({ href, label, icon, disabled, soon, id }: NavItem) => (
           <NavLink
             key={href}
             href={href}

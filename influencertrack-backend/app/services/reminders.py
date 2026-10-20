@@ -80,12 +80,16 @@ async def _do_send_email(payload: dict, client: httpx.AsyncClient) -> httpx.Resp
     return resp
 
 
-async def _send_email(to_email: str, subject: str, html: str, client: httpx.AsyncClient) -> bool:
+async def _send_email(to_email: str, subject: str, html: str, client: httpx.AsyncClient | None = None) -> bool:
     """
     Send a transactional email using a Webhook (e.g., Google Apps Script).
     Runs asynchronously using httpx to prevent blocking.
     Returns True on confirmed delivery, False on any failure.
     """
+    if client is None:
+        async with httpx.AsyncClient(timeout=15.0) as local_client:
+            return await _send_email(to_email, subject, html, local_client)
+
     if not settings.GMAIL_WEBHOOK_URL:
         logger.warning(
             "reminders.email_skipped",
@@ -631,10 +635,10 @@ async def process_manual_reminders(campaign_ids: list[str], client: httpx.AsyncC
     from app.services.notifications import create_notification
     supabase = await get_supabase_admin()
     
-    # Fetch campaigns with settings
+    # Two-step fetch: Step 1 - Fetch campaigns (no PostgREST join)
     try:
         c_resp = await (supabase.table("campaigns")
-            .select("*, user_settings(*)")
+            .select("*")
             .in_("id", campaign_ids)
             .execute()
         )
@@ -644,7 +648,24 @@ async def process_manual_reminders(campaign_ids: list[str], client: httpx.AsyncC
         
     campaigns = c_resp.data or []
     if not campaigns: return
-    
+
+    # Step 2: Fetch user_settings by user_ids in batch
+    user_ids = list({camp.get("user_id") for camp in campaigns if camp.get("user_id")})
+    settings_by_user: dict[str, dict] = {}
+    if user_ids:
+        try:
+            s_resp = await (supabase.table("user_settings")
+                .select("user_id, whatsapp_number, telegram_chat_id, email_reminders_enabled, whatsapp_reminders_enabled")
+                .in_("user_id", user_ids)
+                .execute()
+            )
+            for row in (s_resp.data or []):
+                uid = row.get("user_id")
+                if uid:
+                    settings_by_user[uid] = row
+        except Exception as exc:
+            logger.warning("reminders.manual_user_settings_fetch_failed", error=str(exc))
+
     for camp in campaigns:
         user_id = camp.get("user_id")
         inf_name = camp.get("influencer_name") or camp.get("influencer_handle") or "Creator"
@@ -654,20 +675,20 @@ async def process_manual_reminders(campaign_ids: list[str], client: httpx.AsyncC
         if status not in ["active", "needs_revision"]:
             continue
             
-        settings_arr = camp.get("user_settings", [])
-        user_settings = settings_arr[0] if isinstance(settings_arr, list) and len(settings_arr) > 0 else {}
+        user_settings = settings_by_user.get(user_id, {})
         
         wa_num = user_settings.get("whatsapp_number")
         wa_enabled = bool(user_settings.get("whatsapp_reminders_enabled", True))
         
-        # Send Notification
+        # Send in-app Notification to brand owner
         await create_notification(
-            supabase, user_id, "Manual Reminder Sent", 
-            f"A manual reminder was triggered for {inf_name}.", "info", "/dashboard"
+            supabase, user_id, "Manual Reminder Triggered", 
+            f"Reminder triggered for {inf_name} ({status.replace('_', ' ').title()}).", "info", "/dashboard"
         )
         
+        # Send WhatsApp confirmation to brand owner
         if wa_enabled and wa_num:
-            text = f"⏰ *Manual Reminder*\n\nYour Collabo campaign with the brand is pending action. Please check your dashboard or magic link to proceed."
+            text = f"⏰ *Manual Campaign Reminder*\n\nYou triggered a reminder for your campaign with *{inf_name}* (Status: *{status.replace('_', ' ').title()}*). Please follow up with the creator or share their magic link to submit deliverables."
             await _send_whatsapp(wa_num, text, client)
     
     return {"processed": len(campaigns)}
