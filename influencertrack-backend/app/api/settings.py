@@ -1,9 +1,10 @@
 import logging
 import re
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 from app.api.dependencies import get_current_user, get_user_supabase_client, AuthenticatedUser, get_service_client
 from app.services.supabase import is_user_pro_or_paid
+from app.core.limiter import limiter
 
 logger = logging.getLogger(__name__)
 
@@ -25,7 +26,9 @@ class SettingsInput(BaseModel):
 
 
 @router.post("/whatsapp")
+@limiter.limit("20/minute")
 async def save_settings(
+    request: Request,
     input_data: SettingsInput,
     current_user: AuthenticatedUser = Depends(get_current_user),
     client=Depends(get_user_supabase_client),
@@ -187,7 +190,9 @@ async def get_settings(
         }
 
 @router.post("/whatsapp/verify")
+@limiter.limit("5/minute")
 async def verify_whatsapp_connection(
+    request: Request,
     current_user: AuthenticatedUser = Depends(get_current_user),
     client=Depends(get_user_supabase_client),
 ):
@@ -239,7 +244,9 @@ async def verify_whatsapp_connection(
     return {"message": "Verification message sent successfully!", "status": "connected"}
 
 @router.post("/whatsapp/generate-code")
+@limiter.limit("5/minute")
 async def generate_pairing_code(
+    request: Request,
     current_user: AuthenticatedUser = Depends(get_current_user),
     client=Depends(get_user_supabase_client),
 ):
@@ -288,7 +295,9 @@ async def unlink_whatsapp_endpoint(
     return {"message": "WhatsApp unlinked successfully"}
     
 @router.post("/telegram/generate-code")
+@limiter.limit("5/minute")
 async def generate_tg_pairing_code(
+    request: Request,
     current_user: AuthenticatedUser = Depends(get_current_user),
     client=Depends(get_user_supabase_client),
 ):

@@ -4,6 +4,7 @@ from typing import List, Optional
 from datetime import datetime
 from app.api.dependencies import get_current_user, get_user_supabase_client, AuthenticatedUser
 from app.schemas.influencer import InfluencerResponse, InfluencerProfileUpdate
+from app.core.limiter import limiter
 
 router = APIRouter(prefix="/influencers", tags=["Influencers"])
 
@@ -42,6 +43,7 @@ def clean_platform_name(part: str) -> str:
     return mapping.get(part_lower, part.strip().title())
 
 @router.get("/", response_model=List[InfluencerResponse])
+@limiter.limit("60/minute")
 async def get_influencers(
     request: Request,
     client=Depends(get_user_supabase_client),
@@ -177,6 +179,7 @@ async def get_influencers(
     return response_data
 
 @router.patch("/{handle}", response_model=InfluencerResponse)
+@limiter.limit("20/minute")
 async def update_influencer_profile(
     handle: str,
     profile_update: InfluencerProfileUpdate,

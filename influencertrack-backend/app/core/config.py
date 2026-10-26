@@ -41,6 +41,17 @@ class Settings(BaseSettings):
     # Webhook Settings
     GMAIL_WEBHOOK_URL: Optional[str] = None
     GMAIL_WEBHOOK_SECRET: Optional[str] = None
+
+    # SMTP Settings (Gmail / Custom SMTP)
+    SMTP_EMAIL: Optional[str] = None
+    SMTP_PASSWORD: Optional[str] = None
+    SMTP_HOST: Optional[str] = None
+    SMTP_PORT: int = 465
+
+    # Resend Settings (Alternative Email Provider)
+    RESEND_API_KEY: Optional[str] = None
+    RESEND_FROM_EMAIL: str = "onboarding@resend.dev"
+
     SCHEDULER_INTERVAL_MINUTES: int = 60  # Default to 1 hour
     
     # Dynamic Pricing Settings (in INR)

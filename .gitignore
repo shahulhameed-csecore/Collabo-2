@@ -47,3 +47,11 @@ Thumbs.db
 *.log
 .playwright-mcp/
 *.tsbuildinfo
+storageState.json
+*.bak
+
+# Markdown documentation & audit reports (keep only README)
+*.md
+**/*.md
+!README.md
+!**/README.md

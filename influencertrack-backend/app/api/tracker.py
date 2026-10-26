@@ -35,8 +35,8 @@ def is_safe_url(url: str) -> bool:
             normalized_ip = socket.inet_ntoa(socket.inet_aton(hostname))
             ip = ipaddress.ip_address(normalized_ip)
             
-            # Block private, loopback, link-local, and multicast
-            if ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_multicast:
+            # Block private, loopback, link-local, multicast, unspecified (0.0.0.0), and reserved ranges
+            if ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_multicast or ip.is_unspecified or ip.is_reserved:
                 return False
         except OSError:
             # It's a standard domain name (e.g. amazon.com)

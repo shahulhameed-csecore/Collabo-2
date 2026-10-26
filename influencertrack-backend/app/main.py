@@ -20,10 +20,23 @@ BUG FIXES in this version
 """
 
 import os
+import sys
 import uuid
 import logging
 import structlog
 from typing import Any
+
+# Reconfigure stdout/stderr to avoid charmap encoding errors on Windows console
+if hasattr(sys.stdout, "reconfigure"):
+    try:
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
+if hasattr(sys.stderr, "reconfigure"):
+    try:
+        sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
 
 # ─── Step 1: Configure structlog FIRST ────────────────────────────────────────
 # This MUST happen before any module-level structlog.get_logger() call and before ANY
@@ -324,11 +337,25 @@ async def structlog_request_middleware(request: Request, call_next):
 
 @app.middleware("http")
 async def add_security_headers(request: Request, call_next):
+    # Enforce request body size ceiling to prevent OOM denial of service
+    content_length = request.headers.get("content-length")
+    if content_length:
+        try:
+            if int(content_length) > 55 * 1024 * 1024:
+                return JSONResponse(
+                    status_code=413,
+                    content={"detail": "Request payload exceeds maximum allowed size (55MB)."}
+                )
+        except (ValueError, TypeError):
+            pass
+
     response = await call_next(request)
     response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains; preload"
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["X-Frame-Options"] = "DENY"
     response.headers["X-XSS-Protection"] = "1; mode=block"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=(), browsing-topics=()"
     # Tightened CSP: Restrict connect-src and frame-ancestors. unsafe-inline is kept for Swagger UI.
     response.headers["Content-Security-Policy"] = (
         "default-src 'self'; "
@@ -463,6 +490,13 @@ async def trigger_reminders_now(request: Request):
 )
 @limiter.limit("10/minute")
 async def scheduler_status(request: Request):
+    internal_secret = settings.INTERNAL_SECRET
+    if internal_secret:
+        provided = request.headers.get("X-Internal-Secret", "")
+        import secrets
+        if not secrets.compare_digest(provided, internal_secret):
+            raise HTTPException(status_code=403, detail="Invalid secret.")
+
     job = scheduler.get_job("deadlines_job")
     return {
         "scheduler_running": scheduler.running,

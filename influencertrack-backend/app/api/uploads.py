@@ -47,48 +47,59 @@ def get_proof_received_email_html(inf_name: str) -> str:
 # get_service_client removed, using get_supabase_admin directly
 
 async def notify_owner_of_proof(user_id: str, inf_name: str):
-    service_client = await get_supabase_admin()
-    
-    # Fetch user settings
-    resp = await service_client.table("user_settings").select("*").eq("user_id", user_id).execute()
-    if not resp.data:
-        return
-    
-    user_settings = resp.data[0]
-    wa_num = user_settings.get("whatsapp_number")
-    wa_enabled = user_settings.get("whatsapp_reminders_enabled", True)
-    email_enabled = user_settings.get("email_reminders_enabled", True)
+    try:
+        service_client = await get_supabase_admin()
+        
+        # Fetch user settings safely (proceed with defaults if row doesn't exist yet)
+        resp = await service_client.table("user_settings").select("*").eq("user_id", user_id).execute()
+        user_settings = resp.data[0] if (resp and resp.data) else {}
+        
+        wa_num = user_settings.get("whatsapp_number")
+        wa_enabled = bool(user_settings.get("whatsapp_reminders_enabled", True))
+        email_enabled = bool(user_settings.get("email_reminders_enabled", True))
 
-    from app.services.whatsapp import send_whatsapp_message
-    from app.services.notifications import create_notification
-    
-    # Send in-app notification
-    await create_notification(
-        service_client=service_client,
-        user_id=user_id,
-        title="Proof Received",
-        message=f"{inf_name} just uploaded their proof of posting.",
-        type="success",
-        link_url="/dashboard"
-    )
-    
-    if wa_enabled and wa_num:
-        body = (
-            f"🎉 *Proof Received!*\nThe influencer *{inf_name}* just uploaded their proof of posting.\n\n"
-            "Please log into Collabo to review and approve the content:\n"
-            f"{settings.BASE_URL}/dashboard"
-        )
-        await send_whatsapp_message(wa_num, body)
+        from app.services.whatsapp import send_whatsapp_message
+        from app.services.notifications import create_notification
+        
+        # 1. Send in-app notification
+        try:
+            await create_notification(
+                service_client=service_client,
+                user_id=user_id,
+                title="Proof Received",
+                message=f"{inf_name} just uploaded their proof of posting.",
+                type="success",
+                link_url="/dashboard"
+            )
+        except Exception as e:
+            logger.error("proof_notification.in_app_failed", error=str(e), user_id=user_id)
+        
+        # 2. Send WhatsApp notification if enabled
+        if wa_enabled and wa_num:
+            try:
+                body = (
+                    f"🎉 *Proof Received!*\nThe influencer *{inf_name}* just uploaded their proof of posting.\n\n"
+                    "Please log into Collabo to review and approve the content:\n"
+                    f"{settings.BASE_URL}/dashboard"
+                )
+                await send_whatsapp_message(wa_num, body)
+            except Exception as e:
+                logger.error("proof_notification.whatsapp_failed", error=str(e), user_id=user_id)
 
-    if email_enabled:
-        from app.services.reminders import _send_email, _get_user_email
-        email = await _get_user_email(service_client, user_id)
-        if email:
-            subject = f"🎉 Proof Received for {inf_name}"
-            html = get_proof_received_email_html(inf_name)
-            import httpx
-            async with httpx.AsyncClient(timeout=15.0) as client:
-                await _send_email(email, subject, html, client=client)
+        # 3. Send email notification if enabled
+        if email_enabled:
+            from app.services.reminders import _send_email, _get_user_email
+            email = await _get_user_email(service_client, user_id)
+            if email:
+                subject = f"🎉 Proof Received for {inf_name}"
+                html = get_proof_received_email_html(inf_name)
+                import httpx
+                async with httpx.AsyncClient(timeout=15.0) as client:
+                    await _send_email(email, subject, html, client=client)
+            else:
+                logger.warning("proof_notification.email_skipped", reason="owner email not found in auth", user_id=user_id)
+    except Exception as exc:
+        logger.error("notify_owner_of_proof_failed", error=str(exc), user_id=user_id)
 
 @router.post("/{token}/upload-proof")
 @limiter.limit("10/minute")
@@ -136,7 +147,16 @@ async def upload_proof(
     if HAS_MAGIC:
         file_mime = magic.from_buffer(first_chunk, mime=True)
     else:
-        file_mime = file.content_type or "application/octet-stream"
+        # Fail-safe binary header inspection to prevent MIME spoofing
+        if first_chunk.startswith(b"\xff\xd8\xff"):
+            file_mime = "image/jpeg"
+        elif first_chunk.startswith(b"\x89PNG\r\n\x1a\n"):
+            file_mime = "image/png"
+        elif len(first_chunk) >= 12 and first_chunk[4:8] == b"ftyp":
+            brand = first_chunk[8:12]
+            file_mime = "video/quicktime" if brand in (b"qt  ", b"moov") else "video/mp4"
+        else:
+            file_mime = file.content_type or "application/octet-stream"
         
     if file_mime not in ALLOWED_MIME_TYPES:
         raise HTTPException(status_code=400, detail="Invalid file type. Only JPEG, PNG, MP4, and MOV are allowed.")
@@ -148,6 +168,7 @@ async def upload_proof(
     file.file.seek(0, 2) # Seek to end
     file_size = file.file.tell()
     file.file.seek(0) # Reset to start
+    await file.seek(0)
     
     if file_size > max_size_allowed:
         raise HTTPException(status_code=413, detail=f"File size exceeds the limit ({'10MB' if is_image else '50MB'}).")

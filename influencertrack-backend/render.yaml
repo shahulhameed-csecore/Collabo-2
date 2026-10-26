@@ -41,7 +41,11 @@ services:
       - key: WHATSAPP_APP_SECRET
         sync: false
 
-      # Email reminders
+      # Email reminders (SMTP or Resend)
+      - key: SMTP_EMAIL
+        sync: false
+      - key: SMTP_PASSWORD
+        sync: false
       - key: RESEND_API_KEY
         sync: false
 

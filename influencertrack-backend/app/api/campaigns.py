@@ -124,7 +124,8 @@ import io
 import csv
 
 @router.get("/export/csv")
-async def export_csv(client=Depends(get_user_supabase_client)):
+@limiter.limit("10/minute")
+async def export_csv(request: Request, client=Depends(get_user_supabase_client)):
     # Fetch all campaigns for the authenticated user without the 200 limit
     response = await client.table("campaigns").select("*").execute()
     
@@ -132,12 +133,18 @@ async def export_csv(client=Depends(get_user_supabase_client)):
     writer = csv.writer(output)
     writer.writerow(['Influencer Name', 'Handle', 'Platform', 'Deliverables', 'Deadline', 'Payment Amount', 'Status', 'Created At'])
     
+    def _sanitize_csv_cell(val):
+        s = str(val or "")
+        if s and s[0] in ("=", "+", "-", "@", "\t", "\r"):
+            return f"'{s}"
+        return s
+
     for c in (response.data or []):
         writer.writerow([
-            c.get("influencer_name", ""),
-            c.get("influencer_handle", ""),
-            c.get("platform", ""),
-            c.get("deliverables", ""),
+            _sanitize_csv_cell(c.get("influencer_name", "")),
+            _sanitize_csv_cell(c.get("influencer_handle", "")),
+            _sanitize_csv_cell(c.get("platform", "")),
+            _sanitize_csv_cell(c.get("deliverables", "")),
             c.get("deadline", ""),
             c.get("payment_amount", 0),
             c.get("status", ""),

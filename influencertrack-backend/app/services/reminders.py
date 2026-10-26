@@ -40,7 +40,16 @@ import logging
 from datetime import datetime, timedelta, timezone
 from typing import Optional, Any
 
-import pytz
+try:
+    import pytz
+    _IST = pytz.timezone("Asia/Kolkata")
+    def _localize_ist(dt):
+        return _IST.localize(dt)
+except ImportError:
+    from zoneinfo import ZoneInfo
+    _IST = ZoneInfo("Asia/Kolkata")
+    def _localize_ist(dt):
+        return dt.replace(tzinfo=_IST)
 import structlog
 import httpx
 from tenacity import retry, wait_exponential, stop_after_attempt, retry_if_exception_type
@@ -61,12 +70,47 @@ except ImportError:
 logger = structlog.get_logger(__name__)
 
 _REMINDER_WINDOW_HOURS = 48
-_IST = pytz.timezone("Asia/Kolkata")
 
 
 # ---------------------------------------------------------------------------
 # Email sending via Webhook
 # ---------------------------------------------------------------------------
+
+def _send_smtp_sync(
+    smtp_user: str,
+    smtp_pass: str,
+    to_email: str,
+    subject: str,
+    html_content: str,
+    smtp_host: str | None = None,
+    smtp_port: int = 465,
+) -> bool:
+    import smtplib
+    from email.mime.text import MIMEText
+    from email.mime.multipart import MIMEMultipart
+    from email.header import Header
+
+    host = smtp_host
+    if not host:
+        host = "smtp.gmail.com" if "@gmail.com" in smtp_user.lower() else "localhost"
+
+    msg = MIMEMultipart("alternative")
+    msg["Subject"] = Header(subject, "utf-8")
+    msg["From"] = f"Collabo <{smtp_user}>"
+    msg["To"] = to_email
+    msg.attach(MIMEText(html_content, "html", "utf-8"))
+
+    if smtp_port == 465:
+        with smtplib.SMTP_SSL(host, smtp_port, timeout=15.0) as server:
+            server.login(smtp_user, smtp_pass)
+            server.sendmail(smtp_user, [to_email], msg.as_bytes())
+    else:
+        with smtplib.SMTP(host, smtp_port, timeout=15.0) as server:
+            server.starttls()
+            server.login(smtp_user, smtp_pass)
+            server.sendmail(smtp_user, [to_email], msg.as_bytes())
+    return True
+
 
 @retry(
     wait=wait_exponential(multiplier=1, min=2, max=10),
@@ -82,70 +126,109 @@ async def _do_send_email(payload: dict, client: httpx.AsyncClient) -> httpx.Resp
 
 async def _send_email(to_email: str, subject: str, html: str, client: httpx.AsyncClient | None = None) -> bool:
     """
-    Send a transactional email using a Webhook (e.g., Google Apps Script).
-    Runs asynchronously using httpx to prevent blocking.
-    Returns True on confirmed delivery, False on any failure.
+    Multi-transport transactional email dispatcher.
+    Priority:
+      1. Direct SMTP (Gmail / Custom SMTP) if SMTP_EMAIL and SMTP_PASSWORD are set.
+      2. Resend API if RESEND_API_KEY is configured.
+      3. Gmail Webhook (e.g. Google Apps Script) if GMAIL_WEBHOOK_URL is configured.
     """
-    if client is None:
-        async with httpx.AsyncClient(timeout=15.0) as local_client:
-            return await _send_email(to_email, subject, html, local_client)
+    # 1. Direct SMTP (Gmail / Custom SMTP)
+    if settings.SMTP_EMAIL and settings.SMTP_PASSWORD:
+        try:
+            ok = await asyncio.to_thread(
+                _send_smtp_sync,
+                settings.SMTP_EMAIL,
+                settings.SMTP_PASSWORD,
+                to_email,
+                subject,
+                html,
+                settings.SMTP_HOST,
+                settings.SMTP_PORT,
+            )
+            if ok:
+                try:
+                    logger.info("reminders.email_sent", to=to_email, method="SMTP")
+                except Exception:
+                    pass
+                return True
+        except Exception as exc:
+            try:
+                logger.error("reminders.smtp_email_failed", to=to_email, error=str(exc))
+            except Exception:
+                pass
+            # Continue to fallback transport if configured
 
-    if not settings.GMAIL_WEBHOOK_URL:
-        logger.warning(
-            "reminders.email_skipped",
-            reason="GMAIL_WEBHOOK_URL not configured in environment",
-            to=to_email,
-        )
-        return False
+    # 2. Resend API
+    if settings.RESEND_API_KEY:
+        try:
+            headers = {
+                "Authorization": f"Bearer {settings.RESEND_API_KEY}",
+                "Content-Type": "application/json",
+            }
+            resend_payload = {
+                "from": settings.RESEND_FROM_EMAIL or "Collabo <onboarding@resend.dev>",
+                "to": [to_email],
+                "subject": subject,
+                "html": html,
+            }
+            if client is None:
+                async with httpx.AsyncClient(timeout=15.0) as local_c:
+                    r = await local_c.post("https://api.resend.com/emails", json=resend_payload, headers=headers)
+            else:
+                r = await client.post("https://api.resend.com/emails", json=resend_payload, headers=headers)
 
-    payload = {
-        "to": to_email,
-        "subject": subject,
-        "html": html,
-        "secret": settings.GMAIL_WEBHOOK_SECRET
-    }
+            if r.status_code in (200, 201):
+                try:
+                    logger.info("reminders.email_sent", to=to_email, method="RESEND")
+                except Exception:
+                    pass
+                return True
+            else:
+                try:
+                    logger.error("reminders.resend_failed", status=r.status_code, body=r.text)
+                except Exception:
+                    pass
+        except Exception as exc:
+            try:
+                logger.error("reminders.resend_error", to=to_email, error=str(exc))
+            except Exception:
+                pass
 
-    try:
-        resp = await _do_send_email(payload, client)
-        logger.info(
-            "reminders.email_sent",
-            to=to_email,
-            subject=subject,
-            method="WEBHOOK",
-            status_code=resp.status_code,
-        )
-        return True
-    except httpx.HTTPStatusError as exc:
-        logger.error(
-            "reminders.email_failed",
-            to=to_email,
-            subject=subject,
-            status_code=exc.response.status_code,
-            error=str(exc),
-            response_text=exc.response.text,
-        )
-        logger.info(
-            "reminders.email_fallback", 
-            to=to_email, 
-            subject=subject, 
-            fallback_message="Webhook returned HTTP error, email may not have been sent."
-        )
-        return False
-    except Exception as exc:
-        logger.error(
-            "reminders.email_failed",
-            to=to_email,
-            subject=subject,
-            error=str(exc),
-            error_type=type(exc).__name__,
-        )
-        logger.info(
-            "reminders.email_fallback", 
-            to=to_email, 
-            subject=subject, 
-            fallback_message="Webhook request failed entirely."
-        )
-        return False
+    # 3. Webhook (Google Apps Script)
+    if settings.GMAIL_WEBHOOK_URL:
+        payload = {
+            "to": to_email,
+            "subject": subject,
+            "html": html,
+            "secret": settings.GMAIL_WEBHOOK_SECRET
+        }
+        try:
+            if client is None:
+                async with httpx.AsyncClient(timeout=15.0) as local_client:
+                    resp = await _do_send_email(payload, local_client)
+            else:
+                resp = await _do_send_email(payload, client)
+            try:
+                logger.info("reminders.email_sent", to=to_email, method="WEBHOOK", status_code=resp.status_code)
+            except Exception:
+                pass
+            return True
+        except Exception as exc:
+            try:
+                logger.error("reminders.webhook_email_failed", to=to_email, error=str(exc))
+            except Exception:
+                pass
+
+    if not (settings.SMTP_EMAIL or settings.RESEND_API_KEY or settings.GMAIL_WEBHOOK_URL):
+        try:
+            logger.warning(
+                "reminders.email_skipped",
+                reason="No email provider configured (set SMTP_EMAIL & SMTP_PASSWORD, RESEND_API_KEY, or GMAIL_WEBHOOK_URL)",
+                to=to_email,
+            )
+        except Exception:
+            pass
+    return False
 
 
 # ---------------------------------------------------------------------------
@@ -192,7 +275,7 @@ def _build_reminder_email(inf_name: str, deadline_ist: str) -> tuple[str, str]:
     safe_inf_name = html.escape(str(inf_name or "Creator"))
     safe_deadline = html.escape(str(deadline_ist or ""))
     subject = f"⏰ Action Required: Campaign for {safe_inf_name} is due soon"
-    html = f"""<!DOCTYPE html>
+    html_content = f"""<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -257,7 +340,7 @@ def _build_reminder_email(inf_name: str, deadline_ist: str) -> tuple[str, str]:
   </table>
 </body>
 </html>"""
-    return subject, html
+    return subject, html_content
 
 
 def _build_overdue_email(inf_name: str, deadline_ist: str) -> tuple[str, str]:
@@ -265,7 +348,7 @@ def _build_overdue_email(inf_name: str, deadline_ist: str) -> tuple[str, str]:
     safe_inf_name = html.escape(str(inf_name or "Creator"))
     safe_deadline = html.escape(str(deadline_ist or ""))
     subject = f"🚨 Overdue Alert: Campaign for {safe_inf_name} has passed its deadline"
-    html = f"""<!DOCTYPE html>
+    html_content = f"""<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -330,7 +413,7 @@ def _build_overdue_email(inf_name: str, deadline_ist: str) -> tuple[str, str]:
   </table>
 </body>
 </html>"""
-    return subject, html
+    return subject, html_content
 
 
 # ---------------------------------------------------------------------------
@@ -380,7 +463,7 @@ def _parse_deadline_utc(deadline_raw: str, clog) -> Optional[datetime]:
         naive_eod = datetime.strptime(deadline_raw[:10], "%Y-%m-%d").replace(
             hour=23, minute=59, second=59
         )
-        result = _IST.localize(naive_eod).astimezone(timezone.utc)
+        result = _localize_ist(naive_eod).astimezone(timezone.utc)
         clog.debug(
             "reminders.deadline_parsed_date",
             raw=deadline_raw,
@@ -446,7 +529,7 @@ async def _fetch_campaigns_with_settings(supabase_admin, log) -> list[dict]:
             )
             .eq("status", "active")
             .lte("deadline", threshold_48h)
-            .or_("reminder_48h_sent.eq.false,overdue_alert_sent.eq.false")
+            .or_("reminder_48h_sent.is.null,reminder_48h_sent.eq.false,overdue_alert_sent.is.null,overdue_alert_sent.eq.false")
             .execute()
         )
     except Exception as exc:
@@ -553,14 +636,7 @@ async def _process_campaign(campaign: dict, now_utc: datetime, supabase_admin, c
             flag_to_update = "overdue_alert_sent"
             notif_type = "error"
 
-        # STRICT DB UPDATE
-        # Only proceed to send notifications if the database successfully toggles the flag.
-        db_success = await _mark_flag(supabase_admin, campaign_id, flag_to_update, clog)
-        if not db_success:
-            clog.warning("reminders.skipped_due_to_db_failure")
-            return False
-
-        # If DB update succeeded, send notifications best-effort
+        # Dispatch notifications across channels
         from app.services.notifications import create_notification
         try:
             await create_notification(supabase_admin, user_id, notif_title, notif_desc, notif_type, "/dashboard")
@@ -587,6 +663,8 @@ async def _process_campaign(campaign: dict, now_utc: datetime, supabase_admin, c
             except Exception as e:
                 clog.error("reminders.telegram_failed", error=str(e))
 
+        # Mark idempotency flag after dispatch
+        await _mark_flag(supabase_admin, campaign_id, flag_to_update, clog)
         return True
 
 
